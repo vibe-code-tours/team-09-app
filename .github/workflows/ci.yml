@@ -25,7 +25,7 @@ jobs:
     runs-on: ubuntu-latest      # never windows/macos — they bill 2x / 10x
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       # ---------- Node / TypeScript (runs only if package.json exists) ----------
       - name: Setup Node
