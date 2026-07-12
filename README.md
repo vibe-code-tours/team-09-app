@@ -1,13 +1,6 @@
-<!--
-  Vibe Code Tours — Project Starter
-  A ready-to-build repo with CI, security scanning, and team practices baked in.
-  Click "Use this template" → "Create a new repository" to start your project.
-  Then replace THIS README with your project's own (keep the Quickstart working).
--->
+# Mhat Tan (မှတ်တမ်း)
 
-# {{PROJECT_NAME}}
-
-> One line: what you're building, and for which real user.
+> Voice-first daily record for Burmese speakers — speak your day, AI organizes it.
 
 ![ci](../../actions/workflows/ci.yml/badge.svg) ![security](../../actions/workflows/security.yml/badge.svg)
 
@@ -18,31 +11,42 @@
 ## Quickstart
 
 ```bash
-git clone <your-repo-url> && cd <repo>
+git clone https://github.com/vibe-code-tours/team-09-app.git && cd team-09-app
 cp .env.example .env        # fill in real values LOCALLY — never commit .env
-# then, for your stack:
-npm install && npm run dev  # Node    (or)
-# pip install -r requirements.txt && python -m app   # Python
+npm install && npx expo start  # press 'w' for web, 'i' for iOS, 'a' for Android
 ```
 
 Keep this Quickstart working — it's how a new teammate onboards in 2 minutes.
 
 ## Stack
 
-<!-- Languages, frameworks, hosting/deploy target, AI/LLM provider. -->
+| Layer | Technology |
+|-------|-----------|
+| Framework | React Native (Expo SDK 54) |
+| Language | TypeScript |
+| Navigation | React Navigation 6 |
+| Recording | expo-av |
+| Transcription | ElevenLabs Scribe v2 |
+| Categorization | Gemini 2.0 Flash |
+| Database | Cloud Firestore |
+| Auth | Firebase Auth |
 
 ## Project structure
 
 | Path | What |
 |---|---|
-| `src/` (or `app/`) | application code |
+| `src/` | application code |
 | `tests/` | tests |
 | `docs/` | ARCHITECTURE.md + decision records |
 | `.github/` | CI, security, PR/issue templates |
 
 ## Team
 
-<!-- Members + this week's roles (Anchor / Reviewer). Link your board. -->
+| Member | Role | Responsibility |
+|--------|------|----------------|
+| Member A | Anchor | UI Components + APIs |
+| Member B | Driver | Screens + Types |
+| Member C | Reviewer | Hooks + Config |
 
 ---
 
