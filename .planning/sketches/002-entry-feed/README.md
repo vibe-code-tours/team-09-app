@@ -2,7 +2,7 @@
 sketch: 002
 name: entry-feed
 question: "How should the entry timeline/feed look on the home screen?"
-winner: "D"
+winner: "A"
 tags: [entry-feed, timeline, cards, list, layout]
 ---
 
