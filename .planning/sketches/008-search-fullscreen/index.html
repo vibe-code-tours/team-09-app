@@ -1,0 +1,659 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sketch 008 — Full-Screen Search</title>
+  <link rel="stylesheet" href="../themes/default.css">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: var(--font-sans);
+      background: #f5f5f5;
+      color: var(--color-text);
+      min-height: 100vh;
+      padding-top: 50px;
+    }
+
+    .phone-frame {
+      width: 375px;
+      min-height: 812px;
+      margin: 24px auto;
+      background: var(--color-bg);
+      border-radius: 40px;
+      border: 8px solid #1a1a1a;
+      overflow: hidden;
+      position: relative;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.15);
+    }
+
+    .status-bar {
+      height: 44px;
+      background: var(--color-surface);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 24px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    .tab-bar {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 83px;
+      background: var(--color-surface);
+      border-top: 1px solid var(--color-border);
+      display: flex;
+      justify-content: space-around;
+      align-items: flex-start;
+      padding-top: 8px;
+    }
+
+    .tab-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 2px;
+      font-size: 10px;
+      color: var(--color-text-muted);
+      cursor: pointer;
+    }
+
+    .tab-item.active { color: var(--color-primary); }
+    .tab-icon { font-size: 22px; }
+
+    .search-screen {
+      height: calc(812px - 44px - 83px);
+      display: flex;
+      flex-direction: column;
+    }
+
+    .search-header {
+      padding: 12px 16px;
+      background: var(--color-surface);
+      border-bottom: 1px solid var(--color-border);
+    }
+
+    .search-bar {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .search-icon { font-size: 18px; color: var(--color-text-muted); }
+
+    .search-input {
+      flex: 1;
+      border: none;
+      outline: none;
+      font-size: 17px;
+      font-family: var(--font-sans);
+      background: transparent;
+      color: var(--color-text);
+    }
+
+    .search-input::placeholder { color: var(--color-text-muted); }
+
+    .search-clear {
+      font-size: 18px;
+      color: var(--color-text-muted);
+      cursor: pointer;
+      background: none;
+      border: none;
+      display: none;
+    }
+
+    .filter-chips {
+      display: flex;
+      gap: 8px;
+      margin-top: 12px;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+      scrollbar-width: none;
+    }
+
+    .filter-chips::-webkit-scrollbar { display: none; }
+
+    .chip {
+      padding: 6px 14px;
+      border-radius: var(--radius-full);
+      font-size: 13px;
+      font-weight: 500;
+      white-space: nowrap;
+      cursor: pointer;
+      border: 1px solid var(--color-border);
+      background: var(--color-surface);
+      color: var(--color-text);
+      transition: all 0.15s ease;
+    }
+
+    .chip.active {
+      background: var(--color-primary);
+      color: white;
+      border-color: var(--color-primary);
+    }
+
+    .chip:hover:not(.active) { border-color: var(--color-primary); }
+
+    .search-body {
+      flex: 1;
+      overflow-y: auto;
+      padding: 0;
+    }
+
+    .search-section {
+      padding: 16px 16px 8px;
+    }
+
+    .section-title {
+      font-size: 13px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--color-text-muted);
+      margin-bottom: 8px;
+    }
+
+    .entry-card {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      padding: 12px;
+      background: var(--color-surface);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-lg);
+      margin-bottom: 8px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .entry-card:hover { border-color: var(--color-primary); transform: translateY(-1px); }
+
+    .entry-icon {
+      width: 36px;
+      height: 36px;
+      border-radius: var(--radius-md);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+      flex-shrink: 0;
+    }
+
+    .entry-content { flex: 1; min-width: 0; }
+
+    .entry-title {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--color-text);
+      margin-bottom: 2px;
+    }
+
+    .entry-title mark {
+      background: #fef08a;
+      color: inherit;
+      border-radius: 2px;
+      padding: 0 1px;
+    }
+
+    .entry-excerpt {
+      font-size: 12px;
+      color: var(--color-text-muted);
+      margin-bottom: 4px;
+      line-height: 1.4;
+    }
+
+    .entry-meta {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 11px;
+      color: var(--color-text-muted);
+    }
+
+    .voice-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 3px;
+      background: #F3E5F5;
+      color: #9C27B0;
+      padding: 2px 6px;
+      border-radius: var(--radius-sm);
+      font-size: 10px;
+      font-weight: 500;
+    }
+
+    .search-empty {
+      text-align: center;
+      padding: 60px 24px;
+      color: var(--color-text-muted);
+    }
+
+    .search-empty-icon { font-size: 48px; margin-bottom: 12px; }
+    .search-empty-title { font-size: 16px; font-weight: 600; color: var(--color-text); margin-bottom: 4px; }
+    .search-empty-text { font-size: 13px; }
+
+    /* Variant B: With category tabs */
+    .category-tabs {
+      display: flex;
+      border-bottom: 2px solid var(--color-border);
+      background: var(--color-surface);
+    }
+
+    .cat-tab {
+      flex: 1;
+      padding: 10px 0;
+      text-align: center;
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--color-text-muted);
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      margin-bottom: -2px;
+      transition: all 0.15s ease;
+    }
+
+    .cat-tab.active {
+      color: var(--color-primary);
+      border-bottom-color: var(--color-primary);
+    }
+
+    /* Variant C: With sort/date controls */
+    .sort-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 16px;
+      font-size: 12px;
+      color: var(--color-text-muted);
+      border-bottom: 1px solid var(--color-border);
+    }
+
+    .sort-btn {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      background: none;
+      border: none;
+      font-size: 12px;
+      color: var(--color-primary);
+      cursor: pointer;
+      font-family: var(--font-sans);
+    }
+  </style>
+</head>
+<body>
+
+<!-- Variant Nav -->
+<div id="variant-nav" style="position:fixed;top:0;left:0;right:0;z-index:9998;background:var(--color-surface);border-bottom:1px solid var(--color-border);padding:8px 16px;display:flex;gap:8px;font-family:system-ui;">
+  <button class="variant-tab active" onclick="showVariant('a')">A: Chip Filters</button>
+  <button class="variant-tab" onclick="showVariant('b')">B: Category Tabs</button>
+  <button class="variant-tab" onclick="showVariant('c')">C: Sort + Date Range</button>
+</div>
+
+<!-- ═══════════════════ VARIANT A: Chip Filters ═══════════════════ -->
+<div id="variant-a" class="variant active">
+  <div class="phone-frame">
+    <div class="status-bar">
+      <span>9:41</span>
+      <span>Search</span>
+      <span>⚡ 87%</span>
+    </div>
+
+    <div class="search-screen">
+      <div class="search-header">
+        <div class="search-bar">
+          <span class="search-icon">🔍</span>
+          <input class="search-input" type="text" placeholder="Search all entries..." oninput="filterEntries(this.value, 'a')" id="input-a">
+          <button class="search-clear" onclick="clearSearch('a')" id="clear-a">✕</button>
+        </div>
+        <div class="filter-chips">
+          <button class="chip active" onclick="toggleChip(this)">All</button>
+          <button class="chip" onclick="toggleChip(this)">💰 Money</button>
+          <button class="chip" onclick="toggleChip(this)">💗 Feelings</button>
+          <button class="chip" onclick="toggleChip(this)">💼 Work</button>
+          <button class="chip" onclick="toggleChip(this)">🏃 Health</button>
+          <button class="chip" onclick="toggleChip(this)">💡 Ideas</button>
+        </div>
+      </div>
+
+      <div class="search-body" id="results-a">
+        <div class="search-section">
+          <div class="section-title">Today</div>
+          <div class="entry-card">
+            <div class="entry-icon" style="background:#E8F5E9;color:#4CAF50;">💰</div>
+            <div class="entry-content">
+              <div class="entry-title">Lunch at Shawarma Palace</div>
+              <div class="entry-excerpt">"ordered chicken shawarma with extra garlic sauce"</div>
+              <div class="entry-meta">
+                <span>12,000 Kyat</span>
+                <span>·</span>
+                <span class="voice-badge">🎙️ Voice</span>
+                <span>·</span>
+                <span>9:41 AM</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="entry-card">
+            <div class="entry-icon" style="background:#FCE4EC;color:#E91E63;">💗</div>
+            <div class="entry-content">
+              <div class="entry-title">Feeling great after workout</div>
+              <div class="entry-excerpt">"had an amazing morning run, feeling energized and ready for the day"</div>
+              <div class="entry-meta">
+                <span>😊 Happy</span>
+                <span>·</span>
+                <span class="voice-badge">🎙️ Voice</span>
+                <span>·</span>
+                <span>7:30 AM</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="search-section">
+          <div class="section-title">Yesterday</div>
+          <div class="entry-card">
+            <div class="entry-icon" style="background:#E3F2FD;color:#2196F3;">💼</div>
+            <div class="entry-content">
+              <div class="entry-title">Sprint planning meeting notes</div>
+              <div class="entry-excerpt">"discussed Q3 roadmap, assigned tasks for next sprint"</div>
+              <div class="entry-meta">
+                <span>Work</span>
+                <span>·</span>
+                <span class="voice-badge">🎙️ Voice</span>
+                <span>·</span>
+                <span>2:00 PM</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="entry-card">
+            <div class="entry-icon" style="background:#E8F5E9;color:#4CAF50;">💰</div>
+            <div class="entry-content">
+              <div class="entry-title">Uber to downtown</div>
+              <div class="entry-excerpt">"took an uber from office to downtown meeting"</div>
+              <div class="entry-meta">
+                <span>8,500 Kyat</span>
+                <span>·</span>
+                <span class="voice-badge">🎙️ Voice</span>
+                <span>·</span>
+                <span>1:15 PM</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="search-section">
+          <div class="section-title">3 days ago</div>
+          <div class="entry-card">
+            <div class="entry-icon" style="background:#FFF3E0;color:#FF9800;">🏃</div>
+            <div class="entry-content">
+              <div class="entry-title">Morning run 5km</div>
+              <div class="entry-excerpt">"completed 5km in 32 minutes, felt energetic throughout"</div>
+              <div class="entry-meta">
+                <span>Health</span>
+                <span>·</span>
+                <span>6:30 AM</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="entry-card">
+            <div class="entry-icon" style="background:#E8F5E9;color:#4CAF50;">💰</div>
+            <div class="entry-content">
+              <div class="entry-title">Grocery shopping at City Mart</div>
+              <div class="entry-excerpt">"bought rice, vegetables, chicken, and cooking oil"</div>
+              <div class="entry-meta">
+                <span>45,000 Kyat</span>
+                <span>·</span>
+                <span class="voice-badge">🎙️ Voice</span>
+                <span>·</span>
+                <span>11:00 AM</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="tab-bar">
+      <div class="tab-item"><span class="tab-icon">🏠</span>Home</div>
+      <div class="tab-item active"><span class="tab-icon">🔍</span>Search</div>
+      <div class="tab-item"><span class="tab-icon">🎙️</span>Record</div>
+      <div class="tab-item"><span class="tab-icon">💰</span>Money</div>
+      <div class="tab-item"><span class="tab-icon">⚙️</span>Settings</div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════ VARIANT B: Category Tabs ═══════════════════ -->
+<div id="variant-b" class="variant" style="display:none">
+  <div class="phone-frame">
+    <div class="status-bar">
+      <span>9:41</span>
+      <span>Search</span>
+      <span>⚡ 87%</span>
+    </div>
+
+    <div class="search-screen">
+      <div class="search-header">
+        <div class="search-bar">
+          <span class="search-icon">🔍</span>
+          <input class="search-input" type="text" placeholder="Search all entries..." oninput="filterEntries(this.value, 'b')" id="input-b">
+          <button class="search-clear" onclick="clearSearch('b')" id="clear-b">✕</button>
+        </div>
+      </div>
+
+      <div class="category-tabs">
+        <div class="cat-tab active" onclick="switchTab(this, 'b')">All</div>
+        <div class="cat-tab" onclick="switchTab(this, 'b')">💰 Money</div>
+        <div class="cat-tab" onclick="switchTab(this, 'b')">💗 Feelings</div>
+        <div class="cat-tab" onclick="switchTab(this, 'b')">💼 Work</div>
+        <div class="cat-tab" onclick="switchTab(this, 'b')">🏃 Health</div>
+      </div>
+
+      <div class="search-body" id="results-b">
+        <div class="search-section">
+          <div class="section-title">Today</div>
+          <div class="entry-card">
+            <div class="entry-icon" style="background:#E8F5E9;color:#4CAF50;">💰</div>
+            <div class="entry-content">
+              <div class="entry-title">Lunch at Shawarma Palace</div>
+              <div class="entry-excerpt">"ordered chicken shawarma with extra garlic sauce"</div>
+              <div class="entry-meta">
+                <span>12,000 Kyat</span>
+                <span>·</span>
+                <span class="voice-badge">🎙️ Voice</span>
+                <span>·</span>
+                <span>9:41 AM</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="entry-card">
+            <div class="entry-icon" style="background:#FCE4EC;color:#E91E63;">💗</div>
+            <div class="entry-content">
+              <div class="entry-title">Feeling great after workout</div>
+              <div class="entry-excerpt">"had an amazing morning run, feeling energized"</div>
+              <div class="entry-meta">
+                <span>😊 Happy</span>
+                <span>·</span>
+                <span class="voice-badge">🎙️ Voice</span>
+                <span>·</span>
+                <span>7:30 AM</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="tab-bar">
+      <div class="tab-item"><span class="tab-icon">🏠</span>Home</div>
+      <div class="tab-item active"><span class="tab-icon">🔍</span>Search</div>
+      <div class="tab-item"><span class="tab-icon">🎙️</span>Record</div>
+      <div class="tab-item"><span class="tab-icon">💰</span>Money</div>
+      <div class="tab-item"><span class="tab-icon">⚙️</span>Settings</div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════ VARIANT C: Sort + Date Range ═══════════════════ -->
+<div id="variant-c" class="variant" style="display:none">
+  <div class="phone-frame">
+    <div class="status-bar">
+      <span>9:41</span>
+      <span>Search</span>
+      <span>⚡ 87%</span>
+    </div>
+
+    <div class="search-screen">
+      <div class="search-header">
+        <div class="search-bar">
+          <span class="search-icon">🔍</span>
+          <input class="search-input" type="text" placeholder="Search all entries..." oninput="filterEntries(this.value, 'c')" id="input-c">
+          <button class="search-clear" onclick="clearSearch('c')" id="clear-c">✕</button>
+        </div>
+        <div class="filter-chips">
+          <button class="chip active" onclick="toggleChip(this)">All</button>
+          <button class="chip" onclick="toggleChip(this)">💰 Money</button>
+          <button class="chip" onclick="toggleChip(this)">💗 Feelings</button>
+          <button class="chip" onclick="toggleChip(this)">💼 Work</button>
+        </div>
+      </div>
+
+      <div class="sort-bar">
+        <span>127 entries found</span>
+        <button class="sort-btn">↕️ Newest first ▾</button>
+      </div>
+
+      <div class="search-body" id="results-c">
+        <div class="search-section">
+          <div class="entry-card">
+            <div class="entry-icon" style="background:#E8F5E9;color:#4CAF50;">💰</div>
+            <div class="entry-content">
+              <div class="entry-title">Lunch at Shawarma Palace</div>
+              <div class="entry-excerpt">"ordered chicken shawarma with extra garlic sauce"</div>
+              <div class="entry-meta">
+                <span>12,000 Kyat</span>
+                <span>·</span>
+                <span class="voice-badge">🎙️ Voice</span>
+                <span>·</span>
+                <span>Today · 9:41 AM</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="entry-card">
+            <div class="entry-icon" style="background:#FCE4EC;color:#E91E63;">💗</div>
+            <div class="entry-content">
+              <div class="entry-title">Feeling great after workout</div>
+              <div class="entry-excerpt">"had an amazing morning run, feeling energized"</div>
+              <div class="entry-meta">
+                <span>😊 Happy</span>
+                <span>·</span>
+                <span class="voice-badge">🎙️ Voice</span>
+                <span>·</span>
+                <span>Today · 7:30 AM</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="entry-card">
+            <div class="entry-icon" style="background:#E3F2FD;color:#2196F3;">💼</div>
+            <div class="entry-content">
+              <div class="entry-title">Sprint planning meeting notes</div>
+              <div class="entry-excerpt">"discussed Q3 roadmap, assigned tasks"</div>
+              <div class="entry-meta">
+                <span>Work</span>
+                <span>·</span>
+                <span class="voice-badge">🎙️ Voice</span>
+                <span>·</span>
+                <span>Yesterday · 2:00 PM</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="entry-card">
+            <div class="entry-icon" style="background:#E8F5E9;color:#4CAF50;">💰</div>
+            <div class="entry-content">
+              <div class="entry-title">Uber to downtown</div>
+              <div class="entry-excerpt">"took an uber from office to downtown"</div>
+              <div class="entry-meta">
+                <span>8,500 Kyat</span>
+                <span>·</span>
+                <span class="voice-badge">🎙️ Voice</span>
+                <span>·</span>
+                <span>Yesterday · 1:15 PM</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="tab-bar">
+      <div class="tab-item"><span class="tab-icon">🏠</span>Home</div>
+      <div class="tab-item active"><span class="tab-icon">🔍</span>Search</div>
+      <div class="tab-item"><span class="tab-icon">🎙️</span>Record</div>
+      <div class="tab-item"><span class="tab-icon">💰</span>Money</div>
+      <div class="tab-item"><span class="tab-icon">⚙️</span>Settings</div>
+    </div>
+  </div>
+</div>
+
+<!-- Sketch Toolbar -->
+<div id="sketch-tools" style="position:fixed;bottom:12px;right:12px;z-index:9999;font-family:system-ui;font-size:12px;background:rgba(0,0,0,0.7);color:white;padding:8px 12px;border-radius:8px;opacity:0.4;transition:opacity 0.2s;" onmouseenter="this.style.opacity='1'" onmouseleave="this.style.opacity='0.4'">
+  <select id="theme-switcher" onchange="document.querySelector('link[href*=themes]').href='../themes/'+this.value+'.css'" style="background:transparent;color:white;border:1px solid rgba(255,255,255,0.3);border-radius:4px;padding:2px 4px;font-size:11px;">
+    <option value="default">Default</option>
+  </select>
+</div>
+
+<script>
+function showVariant(id) {
+  document.querySelectorAll('.variant').forEach(v => v.style.display = 'none');
+  document.querySelectorAll('.variant-tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('variant-' + id).style.display = 'block';
+  event.target.classList.add('active');
+}
+
+function toggleChip(el) {
+  const chips = el.parentElement.querySelectorAll('.chip');
+  chips.forEach(c => c.classList.remove('active'));
+  el.classList.add('active');
+}
+
+function switchTab(el, variant) {
+  const tabs = el.parentElement.querySelectorAll('.cat-tab');
+  tabs.forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+}
+
+function clearSearch(variant) {
+  document.getElementById('input-' + variant).value = '';
+  document.getElementById('clear-' + variant).style.display = 'none';
+}
+
+function filterEntries(query, variant) {
+  const clearBtn = document.getElementById('clear-' + variant);
+  clearBtn.style.display = query ? 'block' : 'none';
+}
+
+// Show clear button when typing
+['a', 'b', 'c'].forEach(v => {
+  const input = document.getElementById('input-' + v);
+  if (input) {
+    input.addEventListener('input', function() {
+      document.getElementById('clear-' + v).style.display = this.value ? 'block' : 'none';
+    });
+  }
+});
+</script>
+
+</body>
+</html>
