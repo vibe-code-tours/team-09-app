@@ -12,6 +12,7 @@ import { RecordScreen } from './src/screens/RecordScreen';
 import { MoneyScreen } from './src/screens/MoneyScreen';
 import { ExpenseListScreen } from './src/screens/ExpenseListScreen';
 import { SettingsScreen } from './src/screens/SettingsScreen';
+import { SearchScreen } from './src/screens/SearchScreen';
 import { ElevatedTabBar } from './src/components/ElevatedTabBar';
 import { spacing, createShadows } from './src/theme';
 
@@ -150,7 +151,7 @@ function MainTabs() {
         }}
       >
         <Tab.Screen name="Home" component={HomeStack} />
-        <Tab.Screen name="Search" component={HomeScreen} />
+        <Tab.Screen name="Search" component={SearchScreen} />
         <Tab.Screen name="Record" component={RecordScreen} />
         <Tab.Screen name="Money" component={MoneyStack} />
         <Tab.Screen name="Settings" component={SettingsStack} />
