@@ -1,0 +1,628 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sketch 006 — Settings Screen</title>
+  <link rel="stylesheet" href="../themes/default.css">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: var(--font-sans);
+      background: var(--color-bg);
+      color: var(--color-text);
+      min-height: 100vh;
+      padding-top: 52px;
+    }
+
+    /* Variant Nav */
+    #variant-nav {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 9998;
+      background: var(--color-surface);
+      border-bottom: 1px solid var(--color-border);
+      padding: 8px 16px;
+      display: flex; gap: 8px;
+      font-family: var(--font-sans);
+    }
+    .variant-tab {
+      padding: 8px 16px;
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-full);
+      background: transparent;
+      font-size: var(--text-sm);
+      font-weight: 500;
+      color: var(--color-text-muted);
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+    .variant-tab:hover { background: var(--color-surface-alt); }
+    .variant-tab.active {
+      background: var(--color-primary);
+      color: white;
+      border-color: var(--color-primary);
+    }
+    .variant { display: none; }
+    .variant.active { display: block; }
+
+    /* Phone Frame */
+    .phone-frame {
+      width: 375px;
+      margin: 20px auto;
+      background: var(--color-bg);
+      border-radius: 32px;
+      overflow: hidden;
+      box-shadow: var(--shadow-xl), 0 0 0 1px rgba(0,0,0,0.05);
+      position: relative;
+      min-height: 750px;
+    }
+    .status-bar {
+      height: 44px;
+      background: var(--color-surface);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: var(--text-xs);
+      font-weight: 600;
+      color: var(--color-text);
+    }
+
+    /* Header */
+    .header {
+      background: var(--color-surface);
+      padding: var(--space-4) var(--space-5);
+      border-bottom: 1px solid var(--color-border);
+    }
+    .header-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .header-back {
+      font-size: 20px;
+      cursor: pointer;
+      width: 32px;
+      height: 32px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 50%;
+      transition: background 0.15s;
+    }
+    .header-back:hover { background: var(--color-surface-alt); }
+    .header-title {
+      font-size: var(--text-lg);
+      font-weight: 600;
+      color: var(--color-text);
+    }
+    .header-spacer { width: 32px; }
+
+    /* States Bar */
+    .states-bar {
+      position: fixed;
+      bottom: 12px;
+      left: 12px;
+      z-index: 9999;
+      font-family: var(--font-sans);
+      font-size: 12px;
+      background: rgba(0,0,0,0.7);
+      color: white;
+      padding: 8px 12px;
+      border-radius: 8px;
+      opacity: 0.4;
+      transition: opacity 0.2s;
+      display: flex;
+      gap: 8px;
+    }
+    .states-bar:hover { opacity: 1; }
+    .state-btn {
+      padding: 4px 10px;
+      border-radius: 4px;
+      border: 1px solid rgba(255,255,255,0.3);
+      background: transparent;
+      color: white;
+      font-size: 11px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+    .state-btn:hover { background: rgba(255,255,255,0.2); }
+    .state-btn.active {
+      background: var(--color-primary);
+      border-color: var(--color-primary);
+    }
+
+    /* Toggle Switch */
+    .toggle {
+      width: 48px; height: 28px; border-radius: 14px;
+      background: var(--color-border);
+      position: relative; cursor: pointer;
+      transition: background 0.2s ease;
+      flex-shrink: 0;
+    }
+    .toggle.on { background: var(--color-success); }
+    .toggle::after {
+      content: '';
+      width: 22px; height: 22px; border-radius: 50%;
+      background: white;
+      position: absolute; top: 3px; left: 3px;
+      transition: transform 0.2s ease;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.15);
+    }
+    .toggle.on::after { transform: translateX(20px); }
+
+    /* Theme Segmented */
+    .theme-segment {
+      display: flex;
+      background: var(--color-surface-alt);
+      border-radius: var(--radius-full);
+      padding: 3px;
+      gap: 2px;
+    }
+    .theme-seg-btn {
+      flex: 1;
+      padding: 7px 12px;
+      border-radius: var(--radius-full);
+      border: none;
+      background: transparent;
+      font-size: var(--text-sm);
+      font-weight: 500;
+      color: var(--color-text-muted);
+      cursor: pointer;
+      transition: all 0.15s ease;
+      font-family: var(--font-sans);
+    }
+    .theme-seg-btn.active {
+      background: var(--color-surface);
+      color: var(--color-text);
+      box-shadow: var(--shadow-sm);
+    }
+    .theme-seg-btn:hover:not(.active) { color: var(--color-text); }
+  </style>
+</head>
+<body>
+
+  <!-- Variant Navigation -->
+  <div id="variant-nav">
+    <button class="variant-tab active" onclick="showVariant('a')">A: iOS Grouped Cards ★ Selected</button>
+    <button class="variant-tab" onclick="showVariant('b')">B: Flat Dividers</button>
+    <button class="variant-tab" onclick="showVariant('c')">C: Compact Dense</button>
+  </div>
+
+  <!-- ============================================
+       VARIANT A: iOS Grouped Cards — rounded sections
+       ============================================ -->
+  <div id="variant-a" class="variant active">
+    <div class="phone-frame">
+      <div class="status-bar"></div>
+
+      <!-- Header -->
+      <div class="header">
+        <div class="header-row">
+          <div class="header-back">←</div>
+          <div class="header-title">Settings</div>
+          <div class="header-spacer"></div>
+        </div>
+      </div>
+
+      <div style="padding:var(--space-5);overflow-y:auto;">
+
+        <!-- Profile Card -->
+        <div style="background:var(--color-surface);border-radius:var(--radius-lg);padding:var(--space-5);box-shadow:var(--shadow-sm);margin-bottom:var(--space-5);display:flex;align-items:center;gap:var(--space-4);cursor:pointer;transition:transform 0.15s;" onmouseover="this.style.transform='translateY(-1px)'" onmouseout="this.style.transform=''">
+          <div style="width:56px;height:56px;border-radius:50%;background:var(--color-primary-light);display:flex;align-items:center;justify-content:center;font-size:var(--text-xl);font-weight:700;color:var(--color-primary);flex-shrink:0;">KA</div>
+          <div style="flex:1;">
+            <div style="font-size:var(--text-base);font-weight:600;color:var(--color-text);">Khin Aye</div>
+            <div style="font-size:var(--text-sm);color:var(--color-text-muted);margin-top:2px;">khin.aye@email.com</div>
+          </div>
+          <div style="color:var(--color-text-muted);font-size:18px;">›</div>
+        </div>
+
+        <!-- Section: Appearance -->
+        <div style="font-size:var(--text-xs);font-weight:600;color:var(--color-text-muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:var(--space-3);padding-left:var(--space-1);">Appearance</div>
+        <div style="background:var(--color-surface);border-radius:var(--radius-lg);overflow:hidden;box-shadow:var(--shadow-sm);margin-bottom:var(--space-5);">
+          <!-- Theme picker row -->
+          <div style="padding:var(--space-4) var(--space-5);border-bottom:1px solid var(--color-border);">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:var(--space-3);">
+              <div style="display:flex;align-items:center;gap:var(--space-3);">
+                <span style="font-size:18px;">🎨</span>
+                <span style="font-size:var(--text-sm);font-weight:500;color:var(--color-text);">Theme</span>
+              </div>
+            </div>
+            <div class="theme-segment">
+              <button class="theme-seg-btn" onclick="setTheme(this)">☀️ Light</button>
+              <button class="theme-seg-btn active" onclick="setTheme(this)">💻 System</button>
+              <button class="theme-seg-btn" onclick="setTheme(this)">🌙 Dark</button>
+            </div>
+          </div>
+          <!-- Font size -->
+          <div style="padding:var(--space-4) var(--space-5);display:flex;align-items:center;justify-content:space-between;">
+            <div style="display:flex;align-items:center;gap:var(--space-3);">
+              <span style="font-size:18px;">🔤</span>
+              <span style="font-size:var(--text-sm);font-weight:500;color:var(--color-text);">Text Size</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:var(--space-2);">
+              <span style="font-size:var(--text-xs);color:var(--color-text-muted);">A</span>
+              <div style="width:100px;height:4px;background:var(--color-border);border-radius:2px;position:relative;">
+                <div style="width:50%;height:100%;background:var(--color-primary);border-radius:2px;"></div>
+                <div style="width:16px;height:16px;border-radius:50%;background:var(--color-primary);position:absolute;top:-6px;left:42px;box-shadow:var(--shadow-sm);cursor:pointer;"></div>
+              </div>
+              <span style="font-size:var(--text-lg);color:var(--color-text-muted);">A</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Section: Notifications -->
+        <div style="font-size:var(--text-xs);font-weight:600;color:var(--color-text-muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:var(--space-3);padding-left:var(--space-1);">Notifications</div>
+        <div style="background:var(--color-surface);border-radius:var(--radius-lg);overflow:hidden;box-shadow:var(--shadow-sm);margin-bottom:var(--space-5);">
+          <div style="padding:var(--space-4) var(--space-5);border-bottom:1px solid var(--color-border);display:flex;align-items:center;justify-content:space-between;">
+            <div style="display:flex;align-items:center;gap:var(--space-3);">
+              <span style="font-size:18px;">🔔</span>
+              <div>
+                <div style="font-size:var(--text-sm);font-weight:500;color:var(--color-text);">Daily Reminders</div>
+                <div style="font-size:var(--text-xs);color:var(--color-text-muted);margin-top:2px;">Remind to record entries</div>
+              </div>
+            </div>
+            <div class="toggle on" onclick="this.classList.toggle('on')"></div>
+          </div>
+          <div style="padding:var(--space-4) var(--space-5);display:flex;align-items:center;justify-content:space-between;">
+            <div style="display:flex;align-items:center;gap:var(--space-3);">
+              <span style="font-size:18px;">📊</span>
+              <div>
+                <div style="font-size:var(--text-sm);font-weight:500;color:var(--color-text);">Weekly Summary</div>
+                <div style="font-size:var(--text-xs);color:var(--color-text-muted);margin-top:2px;">Spending report every Sunday</div>
+              </div>
+            </div>
+            <div class="toggle" onclick="this.classList.toggle('on')"></div>
+          </div>
+        </div>
+
+        <!-- Section: Data -->
+        <div style="font-size:var(--text-xs);font-weight:600;color:var(--color-text-muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:var(--space-3);padding-left:var(--space-1);">Data & Storage</div>
+        <div style="background:var(--color-surface);border-radius:var(--radius-lg);overflow:hidden;box-shadow:var(--shadow-sm);margin-bottom:var(--space-5);">
+          <div style="padding:var(--space-4) var(--space-5);border-bottom:1px solid var(--color-border);display:flex;align-items:center;justify-content:space-between;cursor:pointer;transition:background 0.15s;" onmouseover="this.style.background='var(--color-surface-alt)'" onmouseout="this.style.background='transparent'">
+            <div style="display:flex;align-items:center;gap:var(--space-3);">
+              <span style="font-size:18px;">☁️</span>
+              <span style="font-size:var(--text-sm);font-weight:500;color:var(--color-text);">Cloud Backup</span>
+            </div>
+            <div style="color:var(--color-text-muted);font-size:14px;">›</div>
+          </div>
+          <div style="padding:var(--space-4) var(--space-5);border-bottom:1px solid var(--color-border);display:flex;align-items:center;justify-content:space-between;cursor:pointer;transition:background 0.15s;" onmouseover="this.style.background='var(--color-surface-alt)'" onmouseout="this.style.background='transparent'">
+            <div style="display:flex;align-items:center;gap:var(--space-3);">
+              <span style="font-size:18px;">📥</span>
+              <span style="font-size:var(--text-sm);font-weight:500;color:var(--color-text);">Export Data</span>
+            </div>
+            <div style="color:var(--color-text-muted);font-size:14px;">›</div>
+          </div>
+          <div style="padding:var(--space-4) var(--space-5);display:flex;align-items:center;justify-content:space-between;cursor:pointer;transition:background 0.15s;" onmouseover="this.style.background='var(--color-surface-alt)'" onmouseout="this.style.background='transparent'">
+            <div style="display:flex;align-items:center;gap:var(--space-3);">
+              <span style="font-size:18px;">🗑️</span>
+              <span style="font-size:var(--text-sm);font-weight:500;color:var(--color-danger);">Clear All Data</span>
+            </div>
+            <div style="color:var(--color-text-muted);font-size:14px;">›</div>
+          </div>
+        </div>
+
+        <!-- Section: About -->
+        <div style="font-size:var(--text-xs);font-weight:600;color:var(--color-text-muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:var(--space-3);padding-left:var(--space-1);">About</div>
+        <div style="background:var(--color-surface);border-radius:var(--radius-lg);overflow:hidden;box-shadow:var(--shadow-sm);margin-bottom:var(--space-5);">
+          <div style="padding:var(--space-4) var(--space-5);border-bottom:1px solid var(--color-border);display:flex;align-items:center;justify-content:space-between;">
+            <div style="display:flex;align-items:center;gap:var(--space-3);">
+              <span style="font-size:18px;">ℹ️</span>
+              <span style="font-size:var(--text-sm);font-weight:500;color:var(--color-text);">Version</span>
+            </div>
+            <span style="font-size:var(--text-sm);color:var(--color-text-muted);">1.0.0</span>
+          </div>
+          <div style="padding:var(--space-4) var(--space-5);display:flex;align-items:center;justify-content:space-between;cursor:pointer;transition:background 0.15s;" onmouseover="this.style.background='var(--color-surface-alt)'" onmouseout="this.style.background='transparent'">
+            <div style="display:flex;align-items:center;gap:var(--space-3);">
+              <span style="font-size:18px;">⭐</span>
+              <span style="font-size:var(--text-sm);font-weight:500;color:var(--color-text);">Rate Mhat Tan</span>
+            </div>
+            <div style="color:var(--color-text-muted);font-size:14px;">›</div>
+          </div>
+        </div>
+
+        <!-- Sign Out -->
+        <div style="background:var(--color-surface);border-radius:var(--radius-lg);overflow:hidden;box-shadow:var(--shadow-sm);margin-bottom:var(--space-8);">
+          <div style="padding:var(--space-4) var(--space-5);display:flex;align-items:center;justify-content:center;cursor:pointer;transition:background 0.15s;" onmouseover="this.style.background='var(--color-surface-alt)'" onmouseout="this.style.background='transparent'">
+            <span style="font-size:var(--text-sm);font-weight:500;color:var(--color-danger);">Sign Out</span>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================
+       VARIANT B: Flat Dividers — clean minimal
+       ============================================ -->
+  <div id="variant-b" class="variant">
+    <div class="phone-frame">
+      <div class="status-bar"></div>
+
+      <div class="header">
+        <div class="header-row">
+          <div class="header-back">←</div>
+          <div class="header-title">Settings</div>
+          <div class="header-spacer"></div>
+        </div>
+      </div>
+
+      <div style="overflow-y:auto;">
+
+        <!-- Profile -->
+        <div style="display:flex;align-items:center;gap:var(--space-4);padding:var(--space-5);border-bottom:1px solid var(--color-border);cursor:pointer;transition:background 0.15s;" onmouseover="this.style.background='var(--color-surface-alt)'" onmouseout="this.style.background='transparent'">
+          <div style="width:48px;height:48px;border-radius:50%;background:var(--color-primary-light);display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:700;color:var(--color-primary);flex-shrink:0;">KA</div>
+          <div style="flex:1;">
+            <div style="font-size:var(--text-sm);font-weight:600;color:var(--color-text);">Khin Aye</div>
+            <div style="font-size:var(--text-xs);color:var(--color-text-muted);margin-top:2px;">khin.aye@email.com</div>
+          </div>
+          <div style="color:var(--color-text-muted);font-size:16px;">›</div>
+        </div>
+
+        <!-- Theme -->
+        <div style="padding:var(--space-5) var(--space-5) var(--space-3);border-bottom:none;">
+          <div style="display:flex;align-items:center;gap:var(--space-3);margin-bottom:var(--space-3);">
+            <span style="font-size:18px;">🎨</span>
+            <span style="font-size:var(--text-sm);font-weight:500;color:var(--color-text);">Theme</span>
+          </div>
+          <div class="theme-segment" style="margin-left:30px;">
+            <button class="theme-seg-btn" onclick="setTheme(this)">☀️ Light</button>
+            <button class="theme-seg-btn active" onclick="setTheme(this)">💻 System</button>
+            <button class="theme-seg-btn" onclick="setTheme(this)">🌙 Dark</button>
+          </div>
+        </div>
+        <div style="height:1px;background:var(--color-border);margin:0 var(--space-5);"></div>
+
+        <!-- Text Size -->
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:var(--space-4) var(--space-5);border-bottom:1px solid var(--color-border);cursor:pointer;transition:background 0.15s;" onmouseover="this.style.background='var(--color-surface-alt)'" onmouseout="this.style.background='transparent'">
+          <div style="display:flex;align-items:center;gap:var(--space-3);">
+            <span style="font-size:18px;">🔤</span>
+            <span style="font-size:var(--text-sm);font-weight:500;color:var(--color-text);">Text Size</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:var(--space-2);">
+            <span style="font-size:var(--text-xs);color:var(--color-text-muted);">A</span>
+            <div style="width:80px;height:4px;background:var(--color-border);border-radius:2px;position:relative;">
+              <div style="width:50%;height:100%;background:var(--color-primary);border-radius:2px;"></div>
+              <div style="width:14px;height:14px;border-radius:50%;background:var(--color-primary);position:absolute;top:-5px;left:34px;box-shadow:var(--shadow-sm);cursor:pointer;"></div>
+            </div>
+            <span style="font-size:var(--text-base);color:var(--color-text-muted);">A</span>
+          </div>
+        </div>
+
+        <!-- Notifications -->
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:var(--space-4) var(--space-5);border-bottom:1px solid var(--color-border);">
+          <div style="display:flex;align-items:center;gap:var(--space-3);">
+            <span style="font-size:18px;">🔔</span>
+            <div>
+              <div style="font-size:var(--text-sm);font-weight:500;color:var(--color-text);">Daily Reminders</div>
+              <div style="font-size:var(--text-xs);color:var(--color-text-muted);margin-top:2px;">Remind to record entries</div>
+            </div>
+          </div>
+          <div class="toggle on" onclick="this.classList.toggle('on')"></div>
+        </div>
+
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:var(--space-4) var(--space-5);border-bottom:1px solid var(--color-border);">
+          <div style="display:flex;align-items:center;gap:var(--space-3);">
+            <span style="font-size:18px;">📊</span>
+            <div>
+              <div style="font-size:var(--text-sm);font-weight:500;color:var(--color-text);">Weekly Summary</div>
+              <div style="font-size:var(--text-xs);color:var(--color-text-muted);margin-top:2px;">Spending report every Sunday</div>
+            </div>
+          </div>
+          <div class="toggle" onclick="this.classList.toggle('on')"></div>
+        </div>
+
+        <!-- Data -->
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:var(--space-4) var(--space-5);border-bottom:1px solid var(--color-border);cursor:pointer;transition:background 0.15s;" onmouseover="this.style.background='var(--color-surface-alt)'" onmouseout="this.style.background='transparent'">
+          <div style="display:flex;align-items:center;gap:var(--space-3);">
+            <span style="font-size:18px;">☁️</span>
+            <span style="font-size:var(--text-sm);font-weight:500;color:var(--color-text);">Cloud Backup</span>
+          </div>
+          <div style="color:var(--color-text-muted);font-size:14px;">›</div>
+        </div>
+
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:var(--space-4) var(--space-5);border-bottom:1px solid var(--color-border);cursor:pointer;transition:background 0.15s;" onmouseover="this.style.background='var(--color-surface-alt)'" onmouseout="this.style.background='transparent'">
+          <div style="display:flex;align-items:center;gap:var(--space-3);">
+            <span style="font-size:18px;">📥</span>
+            <span style="font-size:var(--text-sm);font-weight:500;color:var(--color-text);">Export Data</span>
+          </div>
+          <div style="color:var(--color-text-muted);font-size:14px;">›</div>
+        </div>
+
+        <!-- About -->
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:var(--space-4) var(--space-5);border-bottom:1px solid var(--color-border);">
+          <div style="display:flex;align-items:center;gap:var(--space-3);">
+            <span style="font-size:18px;">ℹ️</span>
+            <span style="font-size:var(--text-sm);font-weight:500;color:var(--color-text);">Version</span>
+          </div>
+          <span style="font-size:var(--text-sm);color:var(--color-text-muted);">1.0.0</span>
+        </div>
+
+        <!-- Sign Out -->
+        <div style="padding:var(--space-6) var(--space-5);text-align:center;">
+          <span style="font-size:var(--text-sm);font-weight:500;color:var(--color-danger);cursor:pointer;">Sign Out</span>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================
+       VARIANT C: Compact Dense — more info visible
+       ============================================ -->
+  <div id="variant-c" class="variant">
+    <div class="phone-frame">
+      <div class="status-bar"></div>
+
+      <div class="header">
+        <div class="header-row">
+          <div class="header-back">←</div>
+          <div class="header-title">Settings</div>
+          <div class="header-spacer"></div>
+        </div>
+      </div>
+
+      <div style="overflow-y:auto;">
+
+        <!-- Profile — compact -->
+        <div style="display:flex;align-items:center;gap:var(--space-3);padding:var(--space-4) var(--space-5);background:var(--color-surface);border-bottom:1px solid var(--color-border);">
+          <div style="width:40px;height:40px;border-radius:50%;background:var(--color-primary-light);display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;color:var(--color-primary);flex-shrink:0;">KA</div>
+          <div style="flex:1;">
+            <div style="font-size:var(--text-sm);font-weight:600;color:var(--color-text);">Khin Aye</div>
+            <div style="font-size:var(--text-xs);color:var(--color-text-muted);">Free Plan · 47 entries</div>
+          </div>
+          <div style="color:var(--color-text-muted);font-size:16px;">›</div>
+        </div>
+
+        <!-- Theme — inline -->
+        <div style="padding:var(--space-4) var(--space-5);border-bottom:1px solid var(--color-border);">
+          <div style="display:flex;align-items:center;justify-content:space-between;">
+            <div style="display:flex;align-items:center;gap:var(--space-3);">
+              <span style="font-size:16px;">🎨</span>
+              <div>
+                <div style="font-size:var(--text-sm);font-weight:500;color:var(--color-text);">Appearance</div>
+                <div style="font-size:var(--text-xs);color:var(--color-text-muted);margin-top:1px;">Currently: System</div>
+              </div>
+            </div>
+          </div>
+          <div class="theme-segment" style="margin-top:var(--space-3);">
+            <button class="theme-seg-btn" onclick="setTheme(this)">☀️ Light</button>
+            <button class="theme-seg-btn active" onclick="setTheme(this)">💻 System</button>
+            <button class="theme-seg-btn" onclick="setTheme(this)">🌙 Dark</button>
+          </div>
+        </div>
+
+        <!-- Text Size — compact row -->
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:var(--space-3) var(--space-5);border-bottom:1px solid var(--color-border);">
+          <div style="display:flex;align-items:center;gap:var(--space-3);">
+            <span style="font-size:16px;">🔤</span>
+            <span style="font-size:var(--text-sm);font-weight:500;color:var(--color-text);">Text Size</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:var(--space-1);">
+            <span style="font-size:10px;color:var(--color-text-muted);">A</span>
+            <div style="width:60px;height:3px;background:var(--color-border);border-radius:2px;position:relative;">
+              <div style="width:50%;height:100%;background:var(--color-primary);border-radius:2px;"></div>
+              <div style="width:12px;height:12px;border-radius:50%;background:var(--color-primary);position:absolute;top:-4.5px;left:24px;box-shadow:var(--shadow-sm);cursor:pointer;"></div>
+            </div>
+            <span style="font-size:var(--text-sm);color:var(--color-text-muted);">A</span>
+          </div>
+        </div>
+
+        <!-- Notification toggles — compact -->
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:var(--space-3) var(--space-5);border-bottom:1px solid var(--color-border);">
+          <div style="display:flex;align-items:center;gap:var(--space-3);">
+            <span style="font-size:16px;">🔔</span>
+            <span style="font-size:var(--text-sm);font-weight:500;color:var(--color-text);">Daily Reminders</span>
+          </div>
+          <div class="toggle on" onclick="this.classList.toggle('on')"></div>
+        </div>
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:var(--space-3) var(--space-5);border-bottom:1px solid var(--color-border);">
+          <div style="display:flex;align-items:center;gap:var(--space-3);">
+            <span style="font-size:16px;">📊</span>
+            <span style="font-size:var(--text-sm);font-weight:500;color:var(--color-text);">Weekly Summary</span>
+          </div>
+          <div class="toggle" onclick="this.classList.toggle('on')"></div>
+        </div>
+
+        <!-- Data actions — compact -->
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:var(--space-3) var(--space-5);border-bottom:1px solid var(--color-border);cursor:pointer;transition:background 0.15s;" onmouseover="this.style.background='var(--color-surface-alt)'" onmouseout="this.style.background='transparent'">
+          <div style="display:flex;align-items:center;gap:var(--space-3);">
+            <span style="font-size:16px;">☁️</span>
+            <span style="font-size:var(--text-sm);font-weight:500;color:var(--color-text);">Cloud Backup</span>
+          </div>
+          <span style="font-size:var(--text-xs);color:var(--color-success);font-weight:500;">Synced</span>
+        </div>
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:var(--space-3) var(--space-5);border-bottom:1px solid var(--color-border);cursor:pointer;transition:background 0.15s;" onmouseover="this.style.background='var(--color-surface-alt)'" onmouseout="this.style.background='transparent'">
+          <div style="display:flex;align-items:center;gap:var(--space-3);">
+            <span style="font-size:16px;">📥</span>
+            <span style="font-size:var(--text-sm);font-weight:500;color:var(--color-text);">Export as CSV</span>
+          </div>
+          <div style="color:var(--color-text-muted);font-size:12px;">›</div>
+        </div>
+
+        <!-- Divider -->
+        <div style="height:var(--space-4);"></div>
+
+        <!-- About / Legal -->
+        <div style="padding:0 var(--space-5);">
+          <div style="font-size:var(--text-xs);color:var(--color-text-muted);margin-bottom:var(--space-2);">Mhat Tan v1.0.0 · Made with 🎙️ in Myanmar</div>
+        </div>
+
+        <!-- Sign Out -->
+        <div style="padding:var(--space-3) var(--space-5);text-align:center;margin-top:var(--space-2);">
+          <span style="font-size:var(--text-sm);font-weight:500;color:var(--color-danger);cursor:pointer;">Sign Out</span>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- States Bar -->
+  <div class="states-bar">
+    <button class="state-btn active" onclick="setState('default', this)">Default</button>
+    <button class="state-btn" onclick="setState('logged-out', this)">Logged Out</button>
+  </div>
+
+  <script>
+    // Variant switching
+    function showVariant(id) {
+      document.querySelectorAll('.variant').forEach(v => v.classList.remove('active'));
+      document.querySelectorAll('.variant-tab').forEach(t => t.classList.remove('active'));
+      document.getElementById('variant-' + id).classList.add('active');
+      event.target.classList.add('active');
+    }
+
+    // Theme segmented control
+    function setTheme(btn) {
+      const seg = btn.parentElement;
+      seg.querySelectorAll('.theme-seg-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+
+      // Update subtitle text in Variant C
+      const label = btn.textContent.trim();
+      const variant = btn.closest('.variant');
+      if (variant) {
+        const subtitle = variant.querySelector('[style*="Currently:"]');
+        if (subtitle) {
+          const themeName = label.includes('Light') ? 'Light' : label.includes('Dark') ? 'Dark' : 'System';
+          subtitle.textContent = 'Currently: ' + themeName;
+        }
+      }
+    }
+
+    // State cycling
+    function setState(state, btn) {
+      document.querySelectorAll('.state-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+
+      const phoneFrame = document.querySelector('.variant.active .phone-frame');
+      if (!phoneFrame) return;
+
+      if (state === 'logged-out') {
+        const header = phoneFrame.querySelector('.header');
+        const existingEmpty = phoneFrame.querySelector('.empty-state-overlay');
+        if (existingEmpty) existingEmpty.remove();
+
+        const emptyDiv = document.createElement('div');
+        emptyDiv.className = 'empty-state-overlay';
+        emptyDiv.style.cssText = 'text-align:center;padding:80px 40px;color:var(--color-text-muted);';
+        emptyDiv.innerHTML = '<div style="font-size:48px;margin-bottom:16px;">🎙️</div>' +
+          '<div style="font-size:var(--text-lg);font-weight:600;color:var(--color-text);margin-bottom:8px;">Not signed in</div>' +
+          '<div style="font-size:var(--text-sm);line-height:1.5;">Sign in to sync your entries across devices.</div>' +
+          '<div style="margin-top:24px;padding:12px 24px;background:var(--color-primary);color:white;border-radius:var(--radius-full);font-size:var(--text-sm);font-weight:600;display:inline-block;cursor:pointer;">Sign In</div>';
+
+        const allChildren = Array.from(phoneFrame.children);
+        allChildren.forEach(child => {
+          if (child !== header && child !== phoneFrame.querySelector('.status-bar') && !child.classList.contains('states-bar')) {
+            child.style.display = 'none';
+          }
+        });
+        header.insertAdjacentElement('afterend', emptyDiv);
+      } else {
+        const existingEmpty = phoneFrame.querySelector('.empty-state-overlay');
+        if (existingEmpty) existingEmpty.remove();
+        const allChildren = Array.from(phoneFrame.children);
+        allChildren.forEach(child => { child.style.display = ''; });
+      }
+    }
+  </script>
+</body>
+</html>

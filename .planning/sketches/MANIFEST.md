@@ -17,3 +17,4 @@ Vibrant yet professional — bold accent colors on a calm, structured base. Card
 | 003 | stats-summary | How should the daily/weekly stats feel? | A | [stats, summary, metrics, minimal] |
 | 004 | money-overview | How should the money overview/dashboard feel? | B | [money, overview, dashboard, expense, metrics] |
 | 005 | expense-list | How should individual expense items be displayed? | A | [money, expense, list, cards, voice] |
+| 006 | settings-screen | What layout structure works for settings with theme picker? | A | [settings, theme, layout] |
