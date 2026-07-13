@@ -9,6 +9,9 @@ import { Ionicons } from '@expo/vector-icons';
 import { ThemeProvider, useTheme } from './src/theme/ThemeContext';
 import { HomeScreen } from './src/screens/HomeScreen';
 import { RecordScreen } from './src/screens/RecordScreen';
+import { MoneyScreen } from './src/screens/MoneyScreen';
+import { ExpenseListScreen } from './src/screens/ExpenseListScreen';
+import { SettingsScreen } from './src/screens/SettingsScreen';
 import { ElevatedTabBar } from './src/components/ElevatedTabBar';
 import { spacing, createShadows } from './src/theme';
 
@@ -106,6 +109,23 @@ function HomeStack() {
   );
 }
 
+function MoneyStack() {
+  return (
+    <Stack.Navigator screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="MoneyMain" component={MoneyScreen} />
+      <Stack.Screen name="ExpenseList" component={ExpenseListScreen} />
+    </Stack.Navigator>
+  );
+}
+
+function SettingsStack() {
+  return (
+    <Stack.Navigator screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="SettingsMain" component={SettingsScreen} />
+    </Stack.Navigator>
+  );
+}
+
 function MainTabs() {
   const { theme, isDark } = useTheme();
   const { colors } = theme;
@@ -132,8 +152,8 @@ function MainTabs() {
         <Tab.Screen name="Home" component={HomeStack} />
         <Tab.Screen name="Search" component={HomeScreen} />
         <Tab.Screen name="Record" component={RecordScreen} />
-        <Tab.Screen name="Money" component={HomeScreen} />
-        <Tab.Screen name="Settings" component={HomeScreen} />
+        <Tab.Screen name="Money" component={MoneyStack} />
+        <Tab.Screen name="Settings" component={SettingsStack} />
       </Tab.Navigator>
       <RecordingOverlay
         visible={isRecording}
