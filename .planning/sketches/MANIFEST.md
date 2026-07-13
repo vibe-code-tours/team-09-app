@@ -13,3 +13,4 @@ Vibrant yet professional — bold accent colors on a calm, structured base. Card
 | # | Name | Design Question | Winner | Tags |
 |---|------|----------------|--------|------|
 | 001 | record-button | How should the primary record button look and feel? | C | [record-button, primary-action, tab-bar, interaction] |
+| 002 | entry-feed | How should the entry timeline/feed look? | D | [entry-feed, timeline, cards, synthesis, layout] |
