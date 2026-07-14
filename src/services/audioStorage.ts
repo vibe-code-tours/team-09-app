@@ -6,7 +6,7 @@ const RECORDINGS_DIR = new Directory(Paths.document, 'recordings');
 /**
  * Ensure the recordings directory exists.
  */
-const ensureDir = async () => {
+const ensureDir = () => {
   if (!RECORDINGS_DIR.exists) {
     RECORDINGS_DIR.create();
   }
@@ -17,15 +17,15 @@ const ensureDir = async () => {
  * Returns the permanent file URI.
  */
 export const saveAudioLocally = async (tempUri: string): Promise<string> => {
-  await ensureDir();
+  ensureDir();
 
   // Generate a unique filename with timestamp
   const filename = `recording-${Date.now()}.m4a`;
-  const tempFile = new File(tempUri);
   const permanentFile = new File(RECORDINGS_DIR, filename);
 
-  // Move from temp to permanent storage
-  tempFile.move(permanentFile);
+  // Copy from temp to permanent storage (copy is safer than move)
+  const tempFile = new File(tempUri);
+  tempFile.copy(permanentFile);
 
   return permanentFile.uri;
 };
@@ -33,7 +33,7 @@ export const saveAudioLocally = async (tempUri: string): Promise<string> => {
 /**
  * Delete an audio file from local storage.
  */
-export const deleteAudioFile = async (uri: string): Promise<void> => {
+export const deleteAudioFile = (uri: string): void => {
   try {
     const file = new File(uri);
     if (file.exists) {
@@ -47,7 +47,7 @@ export const deleteAudioFile = async (uri: string): Promise<void> => {
 /**
  * Check if an audio file exists.
  */
-export const audioFileExists = async (uri: string): Promise<boolean> => {
+export const audioFileExists = (uri: string): boolean => {
   const file = new File(uri);
   return file.exists;
 };
@@ -56,8 +56,8 @@ export const audioFileExists = async (uri: string): Promise<boolean> => {
  * List all saved recordings.
  * Returns array of { name, uri, size } objects.
  */
-export const listRecordings = async (): Promise<Array<{ name: string; uri: string; size: number }>> => {
-  await ensureDir();
+export const listRecordings = (): Array<{ name: string; uri: string; size: number }> => {
+  ensureDir();
   const items = RECORDINGS_DIR.list();
   const recordings: Array<{ name: string; uri: string; size: number }> = [];
 
