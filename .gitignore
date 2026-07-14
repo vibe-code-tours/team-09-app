@@ -1,32 +1,44 @@
-# Secrets
-.env
-.env.*
-!.env.example
+# Learn more https://docs.github.com/en/get-started/getting-started-with-git/ignoring-files
 
-# Node
+# dependencies
 node_modules/
-npm-debug.log*
-yarn-error.log*
-.pnpm-store/
+
+# Expo
+.expo/
 dist/
-build/
-.next/
-.turbo/
-coverage/
+web-build/
+expo-env.d.ts
 
-# Python
-__pycache__/
-*.py[cod]
-.venv/
-venv/
-.pytest_cache/
-.mypy_cache/
-.ruff_cache/
-*.egg-info/
+# Native
+.kotlin/
+*.orig.*
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
 
-# OS / editor
+# Metro
+.metro-health-check*
+
+# debug
+npm-debug.*
+yarn-debug.*
+yarn-error.*
+
+# macOS
 .DS_Store
-Thumbs.db
-.idea/
-.vscode/
-*.swp
+*.pem
+
+# local env files
+.env*.local
+
+# typescript
+*.tsbuildinfo
+
+# generated native folders
+/ios
+/android
+
+# personal
+mydocs
