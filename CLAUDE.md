@@ -16,8 +16,10 @@ Mhat Tan (မှတ်တမ်း) — voice-first daily record app for Burmese
 | Recording | expo-av |
 | Transcription | ElevenLabs Scribe v2 API |
 | Categorization | Gemini 2.0 Flash API |
-| Database | Cloud Firestore (Firebase Web SDK, not `@react-native-firebase`) |
+| Database | SQLite (local-first, via Drizzle ORM) |
+| Search | FTS5 (full-text search for Burmese text) |
 | Auth | Firebase Auth (Phone method — not yet implemented in UI) |
+| Cloud Sync | Firebase Firestore (optional, V2+) |
 
 ## Development Commands
 
@@ -65,7 +67,7 @@ team-09-app/                         (repo root)
 1. `useRecording` hook manages audio recording via expo-av (60s max)
 2. Audio URI → `services/transcription.ts` → ElevenLabs API → transcript
 3. Transcript → `services/categorization.ts` → Gemini API → `{ category, summary, items, mood, date }`
-4. Result → `services/storage.ts` → Firestore at `users/{userId}/entries/{entryId}`
+4. Result → `services/storage.ts` → SQLite via Drizzle ORM (local-first)
 
 **State management:** Local `useState`/`useRef` only. No global state library.
 
@@ -73,9 +75,9 @@ team-09-app/                         (repo root)
 
 **Built:** HomeScreen, RecordScreen UI, useRecording hook, transcription/categorization/storage services, Firebase config, type definitions.
 
-**Not wired up:** RecordScreen save handler shows an Alert — it does not call transcription, categorization, or Firestore services. No auth flow (login screen, auth state). No Categories, Money, or Settings screens (planned per PROJECT-PLAN.md).
+**Not wired up:** RecordScreen save handler shows an Alert — it does not call transcription, categorization, or storage services. No auth flow (login screen, auth state). No Categories, Money, or Settings screens (planned per PROJECT-PLAN.md).
 
-**Schema divergence:** `docs/mhat-tan-database-schema-v1.md` describes a SQLite + Drizzle ORM design with 7 tables. The actual code uses Cloud Firestore with a flat structure. Follow the Firestore model in `services/storage.ts` for current work.
+**Database:** V1 schema is defined in `docs/mhat-tan-database-schema-v1.md` with 7 tables (users, categories, entries, expense_items, user_settings, daily_usage, corrections). Current code uses Firestore — needs migration to SQLite + Drizzle ORM per V1 spec.
 
 ## Code Conventions
 
@@ -88,11 +90,16 @@ team-09-app/                         (repo root)
 
 ## Environment Variables
 
-All required `EXPO_PUBLIC_*` variables (store in `.env`, never commit):
+Required `EXPO_PUBLIC_*` variables (store in `.env`, never commit):
 
 ```env
 EXPO_PUBLIC_ELEVENLABS_API_KEY=
 EXPO_PUBLIC_GEMINI_API_KEY=
+```
+
+Firebase variables (needed for auth, optional for V2+ cloud sync):
+
+```env
 EXPO_PUBLIC_FIREBASE_API_KEY=
 EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN=
 EXPO_PUBLIC_FIREBASE_PROJECT_ID=

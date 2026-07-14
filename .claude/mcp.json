@@ -1,17 +1,10 @@
 {
   "mcpServers": {
-    "firebase": {
+    "sqlite": {
       "command": "npx",
-      "args": ["-y", "firebase-mcp-server@latest"],
+      "args": ["-y", "@anthropic/sqlite-mcp@latest"],
       "env": {
-        "FIREBASE_PROJECT_ID": "${EXPO_PUBLIC_FIREBASE_PROJECT_ID}"
-      }
-    },
-    "firestore": {
-      "command": "npx",
-      "args": ["-y", "@anthropic/firestore-mcp@latest"],
-      "env": {
-        "GOOGLE_APPLICATION_CREDENTIALS": "${FIREBASE_SERVICE_ACCOUNT_PATH}"
+        "SQLITE_DB_PATH": "./mhat-tan/mhat-tan.db"
       }
     }
   }
