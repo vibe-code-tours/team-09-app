@@ -264,7 +264,33 @@ EXPO_PUBLIC_GEMINI_API_KEY=xxx
 6. **Lock file conflicts** — After merging, run `npm install` to regenerate `package-lock.json`.
 7. **RecordScreen hardcoded colors** — Doesn't use theme system yet. Will be updated.
 
-## Git Workflow
+## Working Rules
+
+### Before Modifying Files
+1. **Inspect existing code first** — Read the file to understand current patterns and structure.
+2. **Propose a short plan** — Explain what you'll change and why before making edits.
+3. **Keep changes minimal** — Only modify what's needed for the task.
+
+### Security
+- **Never put secrets in committed files** — Use `.env` for API keys and config.
+- **Keep `.env.example` updated** — Document all required environment variables.
+- **Never commit:** `.env`, `google-services.json`, `GoogleService-Info.plist`, `node_modules/`
+
+### Code Quality
+- **Use theme system** — Always use `useTheme()` for colors, spacing, shadows. Don't hardcode values.
+- **Use functional components** — No class components. Use hooks for state and side effects.
+- **TypeScript strict** — No `any` types. Define interfaces for all props and data structures.
+- **Use `expo install`** — Always install packages with `npx expo install` for compatible versions.
+- **Use Ionicons** — For all icons. Import from `@expo/vector-icons/Ionicons`.
+
+### File Organization
+- **Components** go in `src/components/` — One component per file, PascalCase naming.
+- **Screens** go in `src/screens/` — One screen per file, PascalCase naming.
+- **Services** go in `src/services/` — API calls and external integrations, camelCase naming.
+- **Hooks** go in `src/hooks/` — Custom React hooks, camelCase with `use` prefix.
+- **Types** go in `src/types/` — Shared TypeScript interfaces.
+
+### Git Workflow
 
 - **Branch naming:** `feat/`, `fix/`, `chore/`, `refactor/`
 - **PR required** before merge to `main`
