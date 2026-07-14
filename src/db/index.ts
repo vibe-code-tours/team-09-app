@@ -9,7 +9,7 @@ const DB_NAME = 'mhat-tan.db';
 const sqlite = SQLite.openDatabaseSync(DB_NAME);
 
 // Create Drizzle ORM instance
-export const db = drizzle(sqlite, { schema });
+const db = drizzle(sqlite, { schema });
 
 // =============================================================================
 // Database initialization
@@ -35,6 +35,9 @@ export async function initDatabase(): Promise<void> {
       created_at INTEGER NOT NULL DEFAULT CURRENT_TIMESTAMP,
       updated_at INTEGER NOT NULL DEFAULT CURRENT_TIMESTAMP
     );
+
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_users_phone ON users(phone);
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_users_email ON users(email);
 
     -- 2. categories
     CREATE TABLE IF NOT EXISTS categories (
@@ -113,7 +116,7 @@ export async function initDatabase(): Promise<void> {
     -- 5. user_settings
     CREATE TABLE IF NOT EXISTS user_settings (
       user_id TEXT PRIMARY KEY REFERENCES users(id),
-      language_code TEXT NOT NULL DEFAULT 'my',
+      language_code TEXT NOT NULL DEFAULT 'my' CHECK(language_code IN ('my', 'en')),
       currency TEXT NOT NULL DEFAULT 'MMK',
       auto_transcribe INTEGER NOT NULL DEFAULT 1,
       theme TEXT NOT NULL DEFAULT 'system' CHECK(theme IN ('light', 'dark', 'system')),

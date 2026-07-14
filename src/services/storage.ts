@@ -14,9 +14,9 @@ function toAppEntry(row: Entry): AppEntry {
     transcript: row.transcript,
     category: (row.entryType as Category) || 'other',
     summary: row.summary || '',
-    items: [], // expense_items loaded separately if needed
     mood: row.mood || 'neutral',
     audioUri: row.audioPath,
+    audioDuration: row.audioDuration,
     createdAt: new Date(row.createdAt),
     isPinned: row.isPinned,
     userId: row.userId,
@@ -47,7 +47,7 @@ export const saveEntry = async (
     mood: entry.mood,
     summary: entry.summary,
     audioPath: entry.audioUri,
-    audioDuration: 0, // TODO: pass duration from recording
+    audioDuration: entry.audioDuration,
     occurredAt: now,
     isPinned: entry.isPinned ?? false,
     processingStatus: 'completed',

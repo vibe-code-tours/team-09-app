@@ -1,4 +1,4 @@
-import { sqliteTable, text, integer, real } from 'drizzle-orm/sqlite-core';
+import { sqliteTable, text, integer, real, unique, check } from 'drizzle-orm/sqlite-core';
 
 // =============================================================================
 // 1. users
@@ -33,7 +33,9 @@ export const categories = sqliteTable('categories', {
   isDeleted: integer('is_deleted', { mode: 'boolean' }).notNull().default(false),
   createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
   updatedAt: integer('updated_at', { mode: 'timestamp' }).notNull(),
-});
+}, (t) => [
+  unique('categories_user_id_name_type_unique').on(t.userId, t.name, t.type),
+]);
 
 // =============================================================================
 // 3. entries (core data unit)
@@ -63,7 +65,12 @@ export const entries = sqliteTable('entries', {
   syncStatus: text('sync_status').notNull().default('pending'),
   createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
   updatedAt: integer('updated_at', { mode: 'timestamp' }).notNull(),
-});
+}, (t) => [
+  check('entries_entry_type_check', t.entryType.in(['money', 'feelings', 'work', 'health', 'ideas', 'other'])),
+  check('entries_mood_check', t.mood.in(['happy', 'sad', 'neutral', 'excited', 'stressed', 'grateful'])),
+  check('entries_processing_status_check', t.processingStatus.in(['pending', 'processing', 'completed', 'failed'])),
+  check('entries_sync_status_check', t.syncStatus.in(['pending', 'synced', 'failed'])),
+]);
 
 // =============================================================================
 // 4. expense_items (money extracted from entries)
@@ -102,7 +109,10 @@ export const userSettings = sqliteTable('user_settings', {
   notifications: integer('notifications', { mode: 'boolean' }).notNull().default(true),
   createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
   updatedAt: integer('updated_at', { mode: 'timestamp' }).notNull(),
-});
+}, (t) => [
+  check('user_settings_language_code_check', t.languageCode.in(['my', 'en'])),
+  check('user_settings_theme_check', t.theme.in(['light', 'dark', 'system'])),
+]);
 
 // =============================================================================
 // 6. daily_usage (free tier enforcement)
@@ -117,7 +127,9 @@ export const dailyUsage = sqliteTable('daily_usage', {
   recordingCount: integer('recording_count').notNull().default(0),
   createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
   updatedAt: integer('updated_at', { mode: 'timestamp' }).notNull(),
-});
+}, (t) => [
+  unique('daily_usage_user_id_date_unique').on(t.userId, t.date),
+]);
 
 // =============================================================================
 // 7. corrections (write-once audit log)
@@ -136,7 +148,9 @@ export const corrections = sqliteTable('corrections', {
   aiConfidence: real('ai_confidence'),
   userValue: text('user_value').notNull(),
   createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
-});
+}, (t) => [
+  check('corrections_field_check', t.field.in(['entry_type', 'category', 'mood', 'summary'])),
+]);
 
 // =============================================================================
 // TypeScript types (inferred from schema)
