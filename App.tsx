@@ -4,7 +4,10 @@ import { StatusBar } from 'expo-status-bar';
 import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { View, Text, StyleSheet, Animated, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { ThemeProvider, useTheme } from './src/theme/ThemeContext';
+import { initDatabase } from './src/db';
 import { HomeScreen } from './src/screens/HomeScreen';
 import { RecordScreen } from './src/screens/RecordScreen';
 import { MoneyScreen } from './src/screens/MoneyScreen';
@@ -66,6 +69,24 @@ function MainTabs() {
 
 function AppContent() {
   const { isDark } = useTheme();
+  const [dbReady, setDbReady] = useState(false);
+
+  useEffect(() => {
+    initDatabase()
+      .then(() => setDbReady(true))
+      .catch((err) => {
+        console.error('[DB] Init failed:', err);
+        setDbReady(true); // proceed anyway — screens will show errors
+      });
+  }, []);
+
+  if (!dbReady) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: isDark ? '#1a1a2e' : '#F5F5F5' }}>
+        <ActivityIndicator size="large" color="#E91E63" />
+      </View>
+    );
+  }
 
   return (
     <NavigationContainer>
