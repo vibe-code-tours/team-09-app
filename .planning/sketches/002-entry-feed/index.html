@@ -1,0 +1,1085 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sketch 002 — Entry Feed Layout</title>
+  <link rel="stylesheet" href="../themes/default.css">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: var(--font-sans);
+      background: var(--color-bg);
+      color: var(--color-text);
+      min-height: 100vh;
+      padding-top: 52px;
+    }
+
+    /* Variant Nav */
+    #variant-nav {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 9998;
+      background: var(--color-surface);
+      border-bottom: 1px solid var(--color-border);
+      padding: 8px 16px;
+      display: flex; gap: 8px;
+      font-family: var(--font-sans);
+    }
+    .variant-tab {
+      padding: 8px 16px;
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-full);
+      background: transparent;
+      font-size: var(--text-sm);
+      font-weight: 500;
+      color: var(--color-text-muted);
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+    .variant-tab:hover { background: var(--color-surface-alt); }
+    .variant-tab.active {
+      background: var(--color-primary);
+      color: white;
+      border-color: var(--color-primary);
+    }
+    .variant { display: none; }
+    .variant.active { display: block; }
+
+    /* Phone Frame */
+    .phone-frame {
+      width: 375px;
+      margin: 20px auto;
+      background: var(--color-bg);
+      border-radius: 32px;
+      overflow: hidden;
+      box-shadow: var(--shadow-xl), 0 0 0 1px rgba(0,0,0,0.05);
+      position: relative;
+      min-height: 750px;
+    }
+    .status-bar {
+      height: 44px;
+      background: var(--color-surface);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: var(--text-xs);
+      font-weight: 600;
+      color: var(--color-text);
+    }
+
+    /* Header */
+    .header {
+      background: var(--color-surface);
+      padding: var(--space-4) var(--space-5);
+      border-bottom: 1px solid var(--color-border);
+    }
+    .header-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .header-greeting {
+      font-size: var(--text-xl);
+      font-weight: 700;
+      color: var(--color-text);
+    }
+    .header-date {
+      font-size: var(--text-sm);
+      color: var(--color-text-muted);
+      margin-top: var(--space-1);
+    }
+    .header-avatar {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background: var(--color-primary-light);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      font-weight: 600;
+      color: var(--color-primary);
+    }
+
+    /* Stats Row */
+    .stats-row {
+      display: flex;
+      gap: var(--space-3);
+      padding: var(--space-4) var(--space-5);
+    }
+    .stat-card {
+      flex: 1;
+      background: var(--color-surface);
+      border-radius: var(--radius-lg);
+      padding: var(--space-3) var(--space-4);
+      text-align: center;
+      box-shadow: var(--shadow-sm);
+    }
+    .stat-number {
+      font-size: var(--text-xl);
+      font-weight: 700;
+      color: var(--color-primary);
+    }
+    .stat-label {
+      font-size: var(--text-xs);
+      color: var(--color-text-muted);
+      margin-top: var(--space-1);
+    }
+
+    /* Section */
+    .section {
+      padding: var(--space-3) var(--space-5);
+    }
+    .section-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: var(--space-3);
+    }
+    .section-title {
+      font-size: var(--text-base);
+      font-weight: 600;
+      color: var(--color-text);
+    }
+    .section-link {
+      font-size: var(--text-sm);
+      color: var(--color-primary);
+      font-weight: 500;
+      cursor: pointer;
+    }
+
+    /* ============================================
+       VARIANT A: Card Feed (Current style, polished)
+       ============================================ */
+    .entry-card {
+      background: var(--color-surface);
+      border-radius: var(--radius-lg);
+      padding: var(--space-4);
+      margin-bottom: var(--space-3);
+      box-shadow: var(--shadow-sm);
+      border-left: 4px solid var(--color-primary);
+      transition: transform 0.15s ease, box-shadow 0.15s ease;
+      cursor: pointer;
+    }
+    .entry-card:hover {
+      transform: translateY(-1px);
+      box-shadow: var(--shadow-md);
+    }
+    .entry-header {
+      display: flex;
+      align-items: center;
+      gap: var(--space-2);
+      margin-bottom: var(--space-2);
+    }
+    .entry-icon { font-size: 16px; }
+    .entry-category {
+      font-size: var(--text-sm);
+      font-weight: 600;
+    }
+    .entry-time {
+      margin-left: auto;
+      font-size: var(--text-xs);
+      color: var(--color-text-muted);
+    }
+    .entry-summary {
+      font-size: var(--text-sm);
+      color: var(--color-text);
+      line-height: 1.5;
+      margin-bottom: var(--space-2);
+    }
+    .entry-footer {
+      display: flex;
+      align-items: center;
+      gap: var(--space-3);
+    }
+    .entry-mood {
+      font-size: var(--text-xs);
+      color: var(--color-text-muted);
+      display: flex;
+      align-items: center;
+      gap: var(--space-1);
+    }
+    .entry-pinned {
+      font-size: var(--text-xs);
+      color: var(--color-accent);
+      font-weight: 500;
+    }
+
+    /* Category colors */
+    .cat-money { border-left-color: var(--cat-money); }
+    .cat-feelings { border-left-color: var(--cat-feelings); }
+    .cat-work { border-left-color: var(--cat-work); }
+    .cat-health { border-left-color: var(--cat-health); }
+    .cat-ideas { border-left-color: var(--cat-ideas); }
+    .cat-other { border-left-color: var(--cat-other); }
+
+    /* ============================================
+       VARIANT B: Compact List
+       ============================================ */
+    .compact-list {
+      background: var(--color-surface);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-sm);
+      overflow: hidden;
+    }
+    .compact-item {
+      display: flex;
+      align-items: center;
+      gap: var(--space-3);
+      padding: var(--space-3) var(--space-4);
+      border-bottom: 1px solid var(--color-border);
+      cursor: pointer;
+      transition: background 0.1s ease;
+    }
+    .compact-item:last-child { border-bottom: none; }
+    .compact-item:hover { background: var(--color-surface-alt); }
+    .compact-item:active { background: var(--color-primary-light); }
+
+    .compact-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+    .dot-money { background: var(--cat-money); }
+    .dot-feelings { background: var(--cat-feelings); }
+    .dot-work { background: var(--cat-work); }
+    .dot-health { background: var(--cat-health); }
+    .dot-ideas { background: var(--cat-ideas); }
+    .dot-other { background: var(--cat-other); }
+
+    .compact-content {
+      flex: 1;
+      min-width: 0;
+    }
+    .compact-title {
+      font-size: var(--text-sm);
+      font-weight: 500;
+      color: var(--color-text);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .compact-meta {
+      font-size: var(--text-xs);
+      color: var(--color-text-muted);
+      display: flex;
+      align-items: center;
+      gap: var(--space-2);
+      margin-top: 2px;
+    }
+    .compact-mood {
+      font-size: var(--text-xs);
+    }
+    .compact-time {
+      font-size: var(--text-xs);
+      color: var(--color-text-muted);
+      flex-shrink: 0;
+    }
+
+    /* ============================================
+       VARIANT C: Date-Grouped Timeline
+       ============================================ */
+    .timeline-group {
+      margin-bottom: var(--space-4);
+    }
+    .timeline-date {
+      display: flex;
+      align-items: center;
+      gap: var(--space-3);
+      margin-bottom: var(--space-3);
+    }
+    .timeline-date-text {
+      font-size: var(--text-sm);
+      font-weight: 600;
+      color: var(--color-text-muted);
+      white-space: nowrap;
+    }
+    .timeline-date-line {
+      flex: 1;
+      height: 1px;
+      background: var(--color-border);
+    }
+    .timeline-date-count {
+      font-size: var(--text-xs);
+      color: var(--color-text-muted);
+      background: var(--color-surface-alt);
+      padding: 2px 8px;
+      border-radius: var(--radius-full);
+    }
+
+    .timeline-card {
+      background: var(--color-surface);
+      border-radius: var(--radius-lg);
+      padding: var(--space-4);
+      margin-bottom: var(--space-3);
+      box-shadow: var(--shadow-sm);
+      margin-left: var(--space-6);
+      position: relative;
+      transition: transform 0.15s ease, box-shadow 0.15s ease;
+      cursor: pointer;
+    }
+    .timeline-card::before {
+      content: '';
+      position: absolute;
+      left: calc(-1 * var(--space-6) - 4px);
+      top: 16px;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--color-primary);
+    }
+    .timeline-card::after {
+      content: '';
+      position: absolute;
+      left: calc(-1 * var(--space-6));
+      top: 20px;
+      width: 1px;
+      height: calc(100% + var(--space-3));
+      background: var(--color-border);
+    }
+    .timeline-card:last-child::after { display: none; }
+    .timeline-card:hover {
+      transform: translateX(2px);
+      box-shadow: var(--shadow-md);
+    }
+
+    .timeline-header {
+      display: flex;
+      align-items: center;
+      gap: var(--space-2);
+      margin-bottom: var(--space-2);
+    }
+    .timeline-icon { font-size: 16px; }
+    .timeline-category {
+      font-size: var(--text-sm);
+      font-weight: 600;
+    }
+    .timeline-time {
+      margin-left: auto;
+      font-size: var(--text-xs);
+      color: var(--color-text-muted);
+    }
+    .timeline-summary {
+      font-size: var(--text-sm);
+      color: var(--color-text);
+      line-height: 1.5;
+      margin-bottom: var(--space-2);
+    }
+    .timeline-footer {
+      display: flex;
+      align-items: center;
+      gap: var(--space-3);
+    }
+    .timeline-mood {
+      font-size: var(--text-xs);
+      color: var(--color-text-muted);
+      display: flex;
+      align-items: center;
+      gap: var(--space-1);
+    }
+
+    /* Tab Bar (shared) */
+    .tab-bar {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 72px;
+      background: var(--color-surface);
+      border-top: 1px solid var(--color-border);
+      display: flex;
+      align-items: flex-end;
+      justify-content: center;
+      padding-bottom: 8px;
+      gap: 24px;
+    }
+    .tab-center {
+      width: 64px;
+      height: 64px;
+      border-radius: 50%;
+      background: var(--color-primary);
+      color: white;
+      border: 4px solid var(--color-surface);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 24px;
+      box-shadow: var(--shadow-primary);
+      cursor: pointer;
+      transition: all 0.2s ease;
+      margin-top: -20px;
+      position: relative;
+      z-index: 10;
+    }
+    .tab-center:hover { transform: scale(1.08); }
+    .tab-center:active { transform: scale(0.95); }
+    .tab-side {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 2px;
+      padding-bottom: 8px;
+      font-size: var(--text-xs);
+      color: var(--color-text-muted);
+      cursor: pointer;
+      transition: color 0.15s ease;
+    }
+    .tab-side.active { color: var(--color-primary); }
+    .tab-side:hover { color: var(--color-text); }
+    .tab-side-icon { font-size: 22px; }
+
+    /* States Bar */
+    .states-bar {
+      position: fixed;
+      bottom: 12px;
+      left: 12px;
+      z-index: 9999;
+      font-family: var(--font-sans);
+      font-size: 12px;
+      background: rgba(0,0,0,0.7);
+      color: white;
+      padding: 8px 12px;
+      border-radius: 8px;
+      opacity: 0.4;
+      transition: opacity 0.2s;
+      display: flex;
+      gap: 8px;
+    }
+    .states-bar:hover { opacity: 1; }
+    .state-btn {
+      padding: 4px 10px;
+      border-radius: 4px;
+      border: 1px solid rgba(255,255,255,0.3);
+      background: transparent;
+      color: white;
+      font-size: 11px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+    .state-btn:hover { background: rgba(255,255,255,0.2); }
+    .state-btn.active {
+      background: var(--color-primary);
+      border-color: var(--color-primary);
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Variant Navigation -->
+  <div id="variant-nav">
+    <button class="variant-tab active" onclick="showVariant('a')">A: Card Feed ★ Selected</button>
+    <button class="variant-tab" onclick="showVariant('b')">B: Compact List</button>
+    <button class="variant-tab" onclick="showVariant('c')">C: Date-Grouped</button>
+    <button class="variant-tab" onclick="showVariant('synth1')">D: Timeline + Cards</button>
+  </div>
+
+  <!-- ============================================
+       VARIANT A: Card Feed
+       ============================================ -->
+  <div id="variant-a" class="variant active">
+    <div class="phone-frame">
+      <div class="status-bar"></div>
+
+      <div class="header">
+        <div class="header-row">
+          <div>
+            <div class="header-greeting">🌅 Good Morning</div>
+            <div class="header-date">Sunday, July 13</div>
+          </div>
+          <div class="header-avatar">KA</div>
+        </div>
+      </div>
+
+      <div class="stats-row">
+        <div class="stat-card">
+          <div class="stat-number">3</div>
+          <div class="stat-label">Today</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-number">12</div>
+          <div class="stat-label">This Week</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-number">47</div>
+          <div class="stat-label">Total</div>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-header">
+          <div class="section-title">Recent Entries</div>
+          <div class="section-link">See all →</div>
+        </div>
+
+        <div class="entry-card cat-money">
+          <div class="entry-header">
+            <span class="entry-icon">💰</span>
+            <span class="entry-category" style="color:var(--cat-money)">Money</span>
+            <span class="entry-time">2h ago</span>
+          </div>
+          <div class="entry-summary">Bought lunch at the market — 3,500 kyat for mohinga and tea with同事</div>
+          <div class="entry-footer">
+            <span class="entry-mood">😊 Content</span>
+            <span class="entry-pinned">⭐ Pinned</span>
+          </div>
+        </div>
+
+        <div class="entry-card cat-work">
+          <div class="entry-header">
+            <span class="entry-icon">💼</span>
+            <span class="entry-category" style="color:var(--cat-work)">Work</span>
+            <span class="entry-time">5h ago</span>
+          </div>
+          <div class="entry-summary">Finished the database schema review with the team. Good progress on the Mhat Tan project.</div>
+          <div class="entry-footer">
+            <span class="entry-mood">💪 Productive</span>
+          </div>
+        </div>
+
+        <div class="entry-card cat-feelings">
+          <div class="entry-header">
+            <span class="entry-icon">😊</span>
+            <span class="entry-category" style="color:var(--cat-feelings)">Feelings</span>
+            <span class="entry-time">Yesterday</span>
+          </div>
+          <div class="entry-summary">Called family back home. Miss them but feeling grateful for this opportunity in Bangkok.</div>
+          <div class="entry-footer">
+            <span class="entry-mood">🥰 Grateful</span>
+          </div>
+        </div>
+
+        <div class="entry-card cat-health">
+          <div class="entry-header">
+            <span class="entry-icon">🏥</span>
+            <span class="entry-category" style="color:var(--cat-health)">Health</span>
+            <span class="entry-time">Yesterday</span>
+          </div>
+          <div class="entry-summary">Morning run around the park. 2km in 15 minutes — getting faster each week.</div>
+          <div class="entry-footer">
+            <span class="entry-mood">🏃 Energized</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="tab-bar">
+        <div class="tab-side active">
+          <span class="tab-side-icon">🏠</span>
+          <span>Home</span>
+        </div>
+        <div class="tab-side">
+          <span class="tab-side-icon">🔍</span>
+          <span>Search</span>
+        </div>
+        <button class="tab-center">🎙️</button>
+        <div class="tab-side">
+          <span class="tab-side-icon">📊</span>
+          <span>Money</span>
+        </div>
+        <div class="tab-side">
+          <span class="tab-side-icon">⚙️</span>
+          <span>Settings</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================
+       VARIANT B: Compact List
+       ============================================ -->
+  <div id="variant-b" class="variant">
+    <div class="phone-frame">
+      <div class="status-bar"></div>
+
+      <div class="header">
+        <div class="header-row">
+          <div>
+            <div class="header-greeting">🌅 Good Morning</div>
+            <div class="header-date">Sunday, July 13</div>
+          </div>
+          <div class="header-avatar">KA</div>
+        </div>
+      </div>
+
+      <div class="stats-row">
+        <div class="stat-card">
+          <div class="stat-number">3</div>
+          <div class="stat-label">Today</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-number">12</div>
+          <div class="stat-label">This Week</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-number">47</div>
+          <div class="stat-label">Total</div>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-header">
+          <div class="section-title">Recent Entries</div>
+          <div class="section-link">See all →</div>
+        </div>
+
+        <div class="compact-list">
+          <div class="compact-item">
+            <div class="compact-dot dot-money"></div>
+            <div class="compact-content">
+              <div class="compact-title">Bought lunch at the market — 3,500 kyat</div>
+              <div class="compact-meta">
+                <span class="compact-mood">😊</span>
+                <span>Money</span>
+                <span>•</span>
+                <span>2 items</span>
+              </div>
+            </div>
+            <div class="compact-time">2h</div>
+          </div>
+
+          <div class="compact-item">
+            <div class="compact-dot dot-work"></div>
+            <div class="compact-content">
+              <div class="compact-title">Finished database schema review with the team</div>
+              <div class="compact-meta">
+                <span class="compact-mood">💪</span>
+                <span>Work</span>
+                <span>•</span>
+                <span>1 item</span>
+              </div>
+            </div>
+            <div class="compact-time">5h</div>
+          </div>
+
+          <div class="compact-item">
+            <div class="compact-dot dot-feelings"></div>
+            <div class="compact-content">
+              <div class="compact-title">Called family back home — miss them</div>
+              <div class="compact-meta">
+                <span class="compact-mood">🥰</span>
+                <span>Feelings</span>
+              </div>
+            </div>
+            <div class="compact-time">1d</div>
+          </div>
+
+          <div class="compact-item">
+            <div class="compact-dot dot-health"></div>
+            <div class="compact-content">
+              <div class="compact-title">Morning run — 2km in 15 minutes</div>
+              <div class="compact-meta">
+                <span class="compact-mood">🏃</span>
+                <span>Health</span>
+              </div>
+            </div>
+            <div class="compact-time">1d</div>
+          </div>
+
+          <div class="compact-item">
+            <div class="compact-dot dot-ideas"></div>
+            <div class="compact-content">
+              <div class="compact-title">App idea: voice memos organized by AI</div>
+              <div class="compact-meta">
+                <span class="compact-mood">💡</span>
+                <span>Ideas</span>
+              </div>
+            </div>
+            <div class="compact-time">2d</div>
+          </div>
+
+          <div class="compact-item">
+            <div class="compact-dot dot-money"></div>
+            <div class="compact-content">
+              <div class="compact-title">Bus fare to work — 800 kyat</div>
+              <div class="compact-meta">
+                <span class="compact-mood">😐</span>
+                <span>Money</span>
+              </div>
+            </div>
+            <div class="compact-time">2d</div>
+          </div>
+
+          <div class="compact-item">
+            <div class="compact-dot dot-other"></div>
+            <div class="compact-content">
+              <div class="compact-title">Grocery shopping at the night market</div>
+              <div class="compact-meta">
+                <span class="compact-mood">🛍️</span>
+                <span>Other</span>
+              </div>
+            </div>
+            <div class="compact-time">3d</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="tab-bar">
+        <div class="tab-side active">
+          <span class="tab-side-icon">🏠</span>
+          <span>Home</span>
+        </div>
+        <div class="tab-side">
+          <span class="tab-side-icon">🔍</span>
+          <span>Search</span>
+        </div>
+        <button class="tab-center">🎙️</button>
+        <div class="tab-side">
+          <span class="tab-side-icon">📊</span>
+          <span>Money</span>
+        </div>
+        <div class="tab-side">
+          <span class="tab-side-icon">⚙️</span>
+          <span>Settings</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================
+       VARIANT C: Date-Grouped Timeline
+       ============================================ -->
+  <div id="variant-c" class="variant">
+    <div class="phone-frame">
+      <div class="status-bar"></div>
+
+      <div class="header">
+        <div class="header-row">
+          <div>
+            <div class="header-greeting">🌅 Good Morning</div>
+            <div class="header-date">Sunday, July 13</div>
+          </div>
+          <div class="header-avatar">KA</div>
+        </div>
+      </div>
+
+      <div class="stats-row">
+        <div class="stat-card">
+          <div class="stat-number">3</div>
+          <div class="stat-label">Today</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-number">12</div>
+          <div class="stat-label">This Week</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-number">47</div>
+          <div class="stat-label">Total</div>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-header">
+          <div class="section-title">Timeline</div>
+          <div class="section-link">Filter →</div>
+        </div>
+
+        <!-- Today -->
+        <div class="timeline-group">
+          <div class="timeline-date">
+            <span class="timeline-date-text">Today — July 13</span>
+            <div class="timeline-date-line"></div>
+            <span class="timeline-date-count">3 entries</span>
+          </div>
+
+          <div class="timeline-card cat-money">
+            <div class="timeline-header">
+              <span class="timeline-icon">💰</span>
+              <span class="timeline-category" style="color:var(--cat-money)">Money</span>
+              <span class="timeline-time">2:30 PM</span>
+            </div>
+            <div class="timeline-summary">Bought lunch at the market — 3,500 kyat for mohinga and tea</div>
+            <div class="timeline-footer">
+              <span class="timeline-mood">😊 Content</span>
+            </div>
+          </div>
+
+          <div class="timeline-card cat-work">
+            <div class="timeline-header">
+              <span class="timeline-icon">💼</span>
+              <span class="timeline-category" style="color:var(--cat-work)">Work</span>
+              <span class="timeline-time">11:00 AM</span>
+            </div>
+            <div class="timeline-summary">Finished the database schema review with the team</div>
+            <div class="timeline-footer">
+              <span class="timeline-mood">💪 Productive</span>
+            </div>
+          </div>
+
+          <div class="timeline-card cat-health">
+            <div class="timeline-header">
+              <span class="timeline-icon">🏥</span>
+              <span class="timeline-category" style="color:var(--cat-health)">Health</span>
+              <span class="timeline-time">7:00 AM</span>
+            </div>
+            <div class="timeline-summary">Morning run — 2km in 15 minutes, getting faster</div>
+            <div class="timeline-footer">
+              <span class="timeline-mood">🏃 Energized</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Yesterday -->
+        <div class="timeline-group">
+          <div class="timeline-date">
+            <span class="timeline-date-text">Yesterday — July 12</span>
+            <div class="timeline-date-line"></div>
+            <span class="timeline-date-count">2 entries</span>
+          </div>
+
+          <div class="timeline-card cat-feelings">
+            <div class="timeline-header">
+              <span class="timeline-icon">😊</span>
+              <span class="timeline-category" style="color:var(--cat-feelings)">Feelings</span>
+              <span class="timeline-time">8:00 PM</span>
+            </div>
+            <div class="timeline-summary">Called family back home. Miss them but grateful for this opportunity.</div>
+            <div class="timeline-footer">
+              <span class="timeline-mood">🥰 Grateful</span>
+            </div>
+          </div>
+
+          <div class="timeline-card cat-money">
+            <div class="timeline-header">
+              <span class="timeline-icon">💰</span>
+              <span class="timeline-category" style="color:var(--cat-money)">Money</span>
+              <span class="timeline-time">6:30 PM</span>
+            </div>
+            <div class="timeline-summary">Dinner at the shan noodle shop — 2,500 kyat</div>
+            <div class="timeline-footer">
+              <span class="timeline-mood">🍜 Satisfied</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="tab-bar">
+        <div class="tab-side active">
+          <span class="tab-side-icon">🏠</span>
+          <span>Home</span>
+        </div>
+        <div class="tab-side">
+          <span class="tab-side-icon">🔍</span>
+          <span>Search</span>
+        </div>
+        <button class="tab-center">🎙️</button>
+        <div class="tab-side">
+          <span class="tab-side-icon">📊</span>
+          <span>Money</span>
+        </div>
+        <div class="tab-side">
+          <span class="tab-side-icon">⚙️</span>
+          <span>Settings</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================
+       VARIANT D: Timeline + Cards (Synthesis)
+       ============================================ -->
+  <div id="variant-synth1" class="variant">
+    <div class="phone-frame">
+      <div class="status-bar"></div>
+
+      <div class="header">
+        <div class="header-row">
+          <div>
+            <div class="header-greeting">🌅 Good Morning</div>
+            <div class="header-date">Sunday, July 13</div>
+          </div>
+          <div class="header-avatar">KA</div>
+        </div>
+      </div>
+
+      <div class="stats-row">
+        <div class="stat-card">
+          <div class="stat-number">3</div>
+          <div class="stat-label">Today</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-number">12</div>
+          <div class="stat-label">This Week</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-number">47</div>
+          <div class="stat-label">Total</div>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-header">
+          <div class="section-title">Timeline</div>
+          <div class="section-link">Filter →</div>
+        </div>
+
+        <!-- Today Group -->
+        <div class="timeline-group">
+          <div class="timeline-date">
+            <span class="timeline-date-text">Today</span>
+            <div class="timeline-date-line"></div>
+            <span class="timeline-date-count">3 entries</span>
+          </div>
+
+          <!-- Card with timeline connector -->
+          <div style="position:relative;margin-left:20px;padding-left:20px;margin-bottom:16px;">
+            <!-- Timeline dot -->
+            <div style="position:absolute;left:-5px;top:18px;width:10px;height:10px;border-radius:50%;background:var(--cat-money);z-index:1;"></div>
+            <!-- Timeline line -->
+            <div style="position:absolute;left:0;top:24px;width:1px;height:calc(100% + 16px);background:var(--color-border);"></div>
+
+            <div class="entry-card cat-money" style="margin-bottom:0;">
+              <div class="entry-header">
+                <span class="entry-icon">💰</span>
+                <span class="entry-category" style="color:var(--cat-money)">Money</span>
+                <span class="entry-time">2:30 PM</span>
+              </div>
+              <div class="entry-summary">Bought lunch at the market — 3,500 kyat for mohinga and tea with colleagues</div>
+              <div class="entry-footer">
+                <span class="entry-mood">😊 Content</span>
+                <span class="entry-pinned">⭐ Pinned</span>
+              </div>
+            </div>
+          </div>
+
+          <div style="position:relative;margin-left:20px;padding-left:20px;margin-bottom:16px;">
+            <div style="position:absolute;left:-5px;top:18px;width:10px;height:10px;border-radius:50%;background:var(--cat-work);z-index:1;"></div>
+            <div style="position:absolute;left:0;top:24px;width:1px;height:calc(100% + 16px);background:var(--color-border);"></div>
+
+            <div class="entry-card cat-work" style="margin-bottom:0;">
+              <div class="entry-header">
+                <span class="entry-icon">💼</span>
+                <span class="entry-category" style="color:var(--cat-work)">Work</span>
+                <span class="entry-time">11:00 AM</span>
+              </div>
+              <div class="entry-summary">Finished the database schema review with the team. Good progress on the Mhat Tan project.</div>
+              <div class="entry-footer">
+                <span class="entry-mood">💪 Productive</span>
+              </div>
+            </div>
+          </div>
+
+          <div style="position:relative;margin-left:20px;padding-left:20px;margin-bottom:16px;">
+            <div style="position:absolute;left:-5px;top:18px;width:10px;height:10px;border-radius:50%;background:var(--cat-health);z-index:1;"></div>
+
+            <div class="entry-card cat-health" style="margin-bottom:0;">
+              <div class="entry-header">
+                <span class="entry-icon">🏥</span>
+                <span class="entry-category" style="color:var(--cat-health)">Health</span>
+                <span class="entry-time">7:00 AM</span>
+              </div>
+              <div class="entry-summary">Morning run around the park — 2km in 15 minutes, getting faster each week.</div>
+              <div class="entry-footer">
+                <span class="entry-mood">🏃 Energized</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Yesterday Group -->
+        <div class="timeline-group">
+          <div class="timeline-date">
+            <span class="timeline-date-text">Yesterday</span>
+            <div class="timeline-date-line"></div>
+            <span class="timeline-date-count">2 entries</span>
+          </div>
+
+          <div style="position:relative;margin-left:20px;padding-left:20px;margin-bottom:16px;">
+            <div style="position:absolute;left:-5px;top:18px;width:10px;height:10px;border-radius:50%;background:var(--cat-feelings);z-index:1;"></div>
+            <div style="position:absolute;left:0;top:24px;width:1px;height:calc(100% + 16px);background:var(--color-border);"></div>
+
+            <div class="entry-card cat-feelings" style="margin-bottom:0;">
+              <div class="entry-header">
+                <span class="entry-icon">😊</span>
+                <span class="entry-category" style="color:var(--cat-feelings)">Feelings</span>
+                <span class="entry-time">8:00 PM</span>
+              </div>
+              <div class="entry-summary">Called family back home. Miss them but feeling grateful for this opportunity in Bangkok.</div>
+              <div class="entry-footer">
+                <span class="entry-mood">🥰 Grateful</span>
+              </div>
+            </div>
+          </div>
+
+          <div style="position:relative;margin-left:20px;padding-left:20px;">
+            <div style="position:absolute;left:-5px;top:18px;width:10px;height:10px;border-radius:50%;background:var(--cat-money);z-index:1;"></div>
+
+            <div class="entry-card cat-money" style="margin-bottom:0;">
+              <div class="entry-header">
+                <span class="entry-icon">💰</span>
+                <span class="entry-category" style="color:var(--cat-money)">Money</span>
+                <span class="entry-time">6:30 PM</span>
+              </div>
+              <div class="entry-summary">Dinner at the shan noodle shop — 2,500 kyat</div>
+              <div class="entry-footer">
+                <span class="entry-mood">🍜 Satisfied</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="tab-bar">
+        <div class="tab-side active">
+          <span class="tab-side-icon">🏠</span>
+          <span>Home</span>
+        </div>
+        <div class="tab-side">
+          <span class="tab-side-icon">🔍</span>
+          <span>Search</span>
+        </div>
+        <button class="tab-center">🎙️</button>
+        <div class="tab-side">
+          <span class="tab-side-icon">📊</span>
+          <span>Money</span>
+        </div>
+        <div class="tab-side">
+          <span class="tab-side-icon">⚙️</span>
+          <span>Settings</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- States Bar -->
+  <div class="states-bar">
+    <button class="state-btn active" onclick="setState('populated', this)">Populated</button>
+    <button class="state-btn" onclick="setState('empty', this)">Empty</button>
+    <button class="state-btn" onclick="setState('search', this)">Search</button>
+  </div>
+
+  <script>
+    // Variant switching
+    function showVariant(id) {
+      document.querySelectorAll('.variant').forEach(v => v.classList.remove('active'));
+      document.querySelectorAll('.variant-tab').forEach(t => t.classList.remove('active'));
+      document.getElementById('variant-' + id).classList.add('active');
+      event.target.classList.add('active');
+    }
+
+    // State cycling
+    function setState(state, btn) {
+      document.querySelectorAll('.state-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+
+      const cards = document.querySelectorAll('.entry-card, .compact-item, .timeline-card, .timeline-group');
+      cards.forEach(card => {
+        card.style.display = state === 'empty' ? 'none' : 'block';
+      });
+
+      // Show empty state message if needed
+      const sections = document.querySelectorAll('.section');
+      sections.forEach(section => {
+        let emptyMsg = section.querySelector('.empty-msg');
+        if (state === 'empty' && !emptyMsg) {
+          emptyMsg = document.createElement('div');
+          emptyMsg.className = 'empty-msg';
+          emptyMsg.style.cssText = 'text-align:center;padding:40px 20px;color:var(--color-text-muted);';
+          emptyMsg.innerHTML = '📝<div style="margin-top:12px;font-weight:500;">No entries yet</div><div style="margin-top:4px;font-size:12px;">Tap the mic to record your first entry</div>';
+          section.appendChild(emptyMsg);
+        } else if (emptyMsg) {
+          emptyMsg.remove();
+        }
+      });
+    }
+  </script>
+</body>
+</html>

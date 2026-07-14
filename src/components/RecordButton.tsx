@@ -2,18 +2,23 @@
 import React from 'react';
 import { TouchableOpacity, StyleSheet, Animated } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useTheme } from '../theme/ThemeContext';
 
 interface RecordButtonProps {
   isRecording: boolean;
   onPress: () => void;
   disabled?: boolean;
+  size?: 'normal' | 'small';
 }
 
 export const RecordButton: React.FC<RecordButtonProps> = ({
   isRecording,
   onPress,
   disabled = false,
+  size = 'normal',
 }) => {
+  const { theme } = useTheme();
+  const { colors } = theme;
   const scaleAnim = React.useRef(new Animated.Value(1)).current;
 
   React.useEffect(() => {
@@ -29,18 +34,24 @@ export const RecordButton: React.FC<RecordButtonProps> = ({
     }
   }, [isRecording]);
 
+  const isSmall = size === 'small';
+  const buttonSize = isSmall ? 64 : 120;
+  const iconSize = isSmall ? 28 : 60;
+
   return (
     <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
       <TouchableOpacity
         style={[
           styles.button,
-          isRecording && styles.recordingButton,
+          { width: buttonSize, height: buttonSize, borderRadius: buttonSize / 2 },
+          { backgroundColor: isRecording ? colors.danger : colors.primary },
           disabled && styles.disabledButton,
         ]}
         onPress={onPress}
         disabled={disabled}
+        activeOpacity={0.8}
       >
-        <Ionicons name={isRecording ? 'stop' : 'mic'} size={60} color="white" />
+        <Ionicons name={isRecording ? 'stop' : 'mic'} size={iconSize} color="white" />
       </TouchableOpacity>
     </Animated.View>
   );
@@ -48,17 +59,10 @@ export const RecordButton: React.FC<RecordButtonProps> = ({
 
 const styles = StyleSheet.create({
   button: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    backgroundColor: '#E91E63',
     justifyContent: 'center',
     alignItems: 'center',
   },
-  recordingButton: {
-    backgroundColor: '#F44336',
-  },
   disabledButton: {
-    backgroundColor: '#9E9E9E',
+    opacity: 0.5,
   },
 });

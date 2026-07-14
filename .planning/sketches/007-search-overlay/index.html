@@ -1,0 +1,640 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sketch 007 — Search Overlay</title>
+  <link rel="stylesheet" href="../themes/default.css">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: var(--font-sans);
+      background: #f5f5f5;
+      color: var(--color-text);
+      min-height: 100vh;
+      padding-top: 50px;
+    }
+
+    .phone-frame {
+      width: 375px;
+      min-height: 812px;
+      margin: 24px auto;
+      background: var(--color-bg);
+      border-radius: 40px;
+      border: 8px solid #1a1a1a;
+      overflow: hidden;
+      position: relative;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.15);
+    }
+
+    .status-bar {
+      height: 44px;
+      background: var(--color-surface);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 24px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    .tab-bar {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 83px;
+      background: var(--color-surface);
+      border-top: 1px solid var(--color-border);
+      display: flex;
+      justify-content: space-around;
+      align-items: flex-start;
+      padding-top: 8px;
+    }
+
+    .tab-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 2px;
+      font-size: 10px;
+      color: var(--color-text-muted);
+      cursor: pointer;
+    }
+
+    .tab-item.active { color: var(--color-primary); }
+    .tab-icon { font-size: 22px; }
+
+    .content-area {
+      padding: 16px;
+      height: calc(812px - 44px - 83px);
+      overflow-y: auto;
+    }
+
+    /* Search trigger button */
+    .search-trigger {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 14px 16px;
+      background: var(--color-surface);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-lg);
+      cursor: pointer;
+      transition: all 0.15s ease;
+      margin-bottom: 20px;
+    }
+
+    .search-trigger:hover { border-color: var(--color-primary); }
+
+    .search-trigger-icon { font-size: 18px; color: var(--color-text-muted); }
+
+    .search-trigger-text {
+      flex: 1;
+      font-size: 15px;
+      color: var(--color-text-muted);
+    }
+
+    .search-trigger-shortcut {
+      font-size: 11px;
+      color: var(--color-text-muted);
+      background: var(--color-bg);
+      padding: 3px 8px;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--color-border);
+      font-family: var(--font-mono);
+    }
+
+    /* Overlay */
+    .search-overlay {
+      display: none;
+      position: absolute;
+      inset: 0;
+      background: rgba(0,0,0,0.5);
+      z-index: 100;
+      padding: 60px 16px 16px;
+    }
+
+    .search-overlay.active { display: flex; flex-direction: column; }
+
+    .search-modal {
+      background: var(--color-surface);
+      border-radius: 16px;
+      overflow: hidden;
+      max-height: 100%;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .search-input-wrap {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 16px;
+      border-bottom: 1px solid var(--color-border);
+    }
+
+    .search-input-icon { font-size: 18px; color: var(--color-text-muted); }
+
+    .search-input {
+      flex: 1;
+      border: none;
+      outline: none;
+      font-size: 17px;
+      font-family: var(--font-sans);
+      background: transparent;
+      color: var(--color-text);
+    }
+
+    .search-input::placeholder { color: var(--color-text-muted); }
+
+    .search-cancel {
+      font-size: 15px;
+      color: var(--color-primary);
+      cursor: pointer;
+      background: none;
+      border: none;
+      font-family: var(--font-sans);
+    }
+
+    .search-results {
+      flex: 1;
+      overflow-y: auto;
+      padding: 8px 0;
+    }
+
+    .search-group-label {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--color-text-muted);
+      padding: 8px 16px 4px;
+    }
+
+    .search-result {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      padding: 10px 16px;
+      cursor: pointer;
+      transition: background 0.1s ease;
+    }
+
+    .search-result:hover { background: var(--color-bg); }
+
+    .result-icon {
+      width: 32px;
+      height: 32px;
+      border-radius: var(--radius-md);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+      flex-shrink: 0;
+    }
+
+    .result-content { flex: 1; min-width: 0; }
+
+    .result-title {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--color-text);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .result-title mark {
+      background: #fef08a;
+      color: inherit;
+      border-radius: 2px;
+      padding: 0 1px;
+    }
+
+    .result-excerpt {
+      font-size: 12px;
+      color: var(--color-text-muted);
+      margin-top: 2px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .result-meta {
+      font-size: 11px;
+      color: var(--color-text-muted);
+      margin-top: 2px;
+    }
+
+    .search-empty {
+      text-align: center;
+      padding: 40px 16px;
+      color: var(--color-text-muted);
+    }
+
+    .search-empty-icon { font-size: 36px; margin-bottom: 8px; }
+    .search-empty-text { font-size: 14px; }
+
+    .search-hint {
+      padding: 12px 16px;
+      border-top: 1px solid var(--color-border);
+      font-size: 12px;
+      color: var(--color-text-muted);
+      text-align: center;
+    }
+
+    /* Variant B: Floating pill */
+    .search-modal.floating {
+      border-radius: 24px;
+      margin: 0 4px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+    }
+
+    .search-modal.floating .search-input-wrap {
+      border-radius: 24px 24px 0 0;
+    }
+
+    /* Variant C: Full-bleed */
+    .search-modal.full-bleed {
+      border-radius: 0;
+      margin: -60px -16px -16px;
+      height: calc(100% + 60px);
+    }
+
+    /* Recent searches */
+    .recent-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 16px;
+      cursor: pointer;
+      transition: background 0.1s ease;
+    }
+
+    .recent-item:hover { background: var(--color-bg); }
+    .recent-icon { font-size: 14px; color: var(--color-text-muted); }
+    .recent-text { font-size: 14px; color: var(--color-text); }
+  </style>
+</head>
+<body>
+
+<!-- Variant Nav -->
+<div id="variant-nav" style="position:fixed;top:0;left:0;right:0;z-index:9998;background:var(--color-surface);border-bottom:1px solid var(--color-border);padding:8px 16px;display:flex;gap:8px;font-family:system-ui;">
+  <button class="variant-tab active" onclick="showVariant('a')">A: Rounded Modal</button>
+  <button class="variant-tab" onclick="showVariant('b')">B: Floating Pill</button>
+  <button class="variant-tab" onclick="showVariant('c')">C: Full-Bleed</button>
+</div>
+
+<!-- ═══════════════════ VARIANT A: Rounded Modal ═══════════════════ -->
+<div id="variant-a" class="variant active">
+  <div class="phone-frame">
+    <div class="status-bar">
+      <span>9:41</span>
+      <span>Search Overlay</span>
+      <span>⚡ 87%</span>
+    </div>
+
+    <div class="content-area" id="content-a">
+      <div class="search-trigger" onclick="openSearch('a')">
+        <span class="search-trigger-icon">🔍</span>
+        <span class="search-trigger-text">Search entries...</span>
+        <span class="search-trigger-shortcut">⌘K</span>
+      </div>
+
+      <!-- Fake home content -->
+      <div style="padding:20px 0;">
+        <div style="font-size:22px;font-weight:700;margin-bottom:16px;">Good evening, Khin ✨</div>
+        <div style="display:flex;gap:8px;margin-bottom:16px;">
+          <div style="flex:1;background:var(--color-surface);border:1px solid var(--color-border);border-radius:var(--radius-lg);padding:16px;">
+            <div style="font-size:11px;color:var(--color-text-muted);text-transform:uppercase;letter-spacing:0.05em;">Today</div>
+            <div style="font-size:28px;font-weight:700;margin-top:4px;">5</div>
+            <div style="font-size:12px;color:var(--color-text-muted);">entries</div>
+          </div>
+          <div style="flex:1;background:var(--color-surface);border:1px solid var(--color-border);border-radius:var(--radius-lg);padding:16px;">
+            <div style="font-size:11px;color:var(--color-text-muted);text-transform:uppercase;letter-spacing:0.05em;">Mood</div>
+            <div style="font-size:28px;margin-top:4px;">😊</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Search Overlay -->
+    <div class="search-overlay" id="overlay-a">
+      <div class="search-modal" id="modal-a">
+        <div class="search-input-wrap">
+          <span class="search-input-icon">🔍</span>
+          <input class="search-input" type="text" placeholder="Search entries, feelings, money..." oninput="filterResults(this.value, 'a')" id="input-a">
+          <button class="search-cancel" onclick="closeSearch('a')">Cancel</button>
+        </div>
+        <div class="search-results" id="results-a">
+          <div class="search-group-label">Recent Searches</div>
+          <div class="recent-item"><span class="recent-icon">🕐</span><span class="recent-text">lunch near office</span></div>
+          <div class="recent-item"><span class="recent-icon">🕐</span><span class="recent-text">feeling stressed</span></div>
+          <div class="recent-item"><span class="recent-icon">🕐</span><span class="recent-text">uber ride</span></div>
+
+          <div class="search-group-label">Quick Filters</div>
+          <div class="search-result">
+            <div class="result-icon" style="background:#E8F5E9;color:#4CAF50;">💰</div>
+            <div class="result-content">
+              <div class="result-title">Money entries</div>
+              <div class="result-excerpt">127 entries · 485,000 Kyat spent</div>
+            </div>
+          </div>
+          <div class="search-result">
+            <div class="result-icon" style="background:#FCE4EC;color:#E91E63;">💗</div>
+            <div class="result-content">
+              <div class="result-title">Feelings entries</div>
+              <div class="result-excerpt">89 entries · mostly 😊 happy</div>
+            </div>
+          </div>
+        </div>
+        <div class="search-hint">⬆⬇ Navigate · ⏎ Open · ESC Close</div>
+      </div>
+    </div>
+
+    <div class="tab-bar">
+      <div class="tab-item"><span class="tab-icon">🏠</span>Home</div>
+      <div class="tab-item"><span class="tab-icon">🔍</span>Search</div>
+      <div class="tab-item"><span class="tab-icon">🎙️</span>Record</div>
+      <div class="tab-item"><span class="tab-icon">💰</span>Money</div>
+      <div class="tab-item"><span class="tab-icon">⚙️</span>Settings</div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════ VARIANT B: Floating Pill ═══════════════════ -->
+<div id="variant-b" class="variant" style="display:none">
+  <div class="phone-frame">
+    <div class="status-bar">
+      <span>9:41</span>
+      <span>Search Overlay</span>
+      <span>⚡ 87%</span>
+    </div>
+
+    <div class="content-area" id="content-b">
+      <div class="search-trigger" onclick="openSearch('b')">
+        <span class="search-trigger-icon">🔍</span>
+        <span class="search-trigger-text">Search entries...</span>
+        <span class="search-trigger-shortcut">⌘K</span>
+      </div>
+
+      <div style="padding:20px 0;">
+        <div style="font-size:22px;font-weight:700;margin-bottom:16px;">Good evening, Khin ✨</div>
+        <div style="display:flex;gap:8px;margin-bottom:16px;">
+          <div style="flex:1;background:var(--color-surface);border:1px solid var(--color-border);border-radius:var(--radius-lg);padding:16px;">
+            <div style="font-size:11px;color:var(--color-text-muted);text-transform:uppercase;letter-spacing:0.05em;">Today</div>
+            <div style="font-size:28px;font-weight:700;margin-top:4px;">5</div>
+            <div style="font-size:12px;color:var(--color-text-muted);">entries</div>
+          </div>
+          <div style="flex:1;background:var(--color-surface);border:1px solid var(--color-border);border-radius:var(--radius-lg);padding:16px;">
+            <div style="font-size:11px;color:var(--color-text-muted);text-transform:uppercase;letter-spacing:0.05em;">Mood</div>
+            <div style="font-size:28px;margin-top:4px;">😊</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="search-overlay" id="overlay-b">
+      <div class="search-modal floating" id="modal-b">
+        <div class="search-input-wrap">
+          <span class="search-input-icon">🔍</span>
+          <input class="search-input" type="text" placeholder="Search entries..." oninput="filterResults(this.value, 'b')" id="input-b">
+          <button class="search-cancel" onclick="closeSearch('b')">Cancel</button>
+        </div>
+        <div class="search-results" id="results-b">
+          <div class="search-group-label">Recent Searches</div>
+          <div class="recent-item"><span class="recent-icon">🕐</span><span class="recent-text">lunch near office</span></div>
+          <div class="recent-item"><span class="recent-icon">🕐</span><span class="recent-text">feeling stressed</span></div>
+
+          <div class="search-group-label">Quick Filters</div>
+          <div class="search-result">
+            <div class="result-icon" style="background:#E8F5E9;color:#4CAF50;">💰</div>
+            <div class="result-content">
+              <div class="result-title">Money entries</div>
+              <div class="result-excerpt">127 entries · 485,000 Kyat spent</div>
+            </div>
+          </div>
+          <div class="search-result">
+            <div class="result-icon" style="background:#FCE4EC;color:#E91E63;">💗</div>
+            <div class="result-content">
+              <div class="result-title">Feelings entries</div>
+              <div class="result-excerpt">89 entries · mostly 😊 happy</div>
+            </div>
+          </div>
+        </div>
+        <div class="search-hint">⬆⬇ Navigate · ⏎ Open · ESC Close</div>
+      </div>
+    </div>
+
+    <div class="tab-bar">
+      <div class="tab-item"><span class="tab-icon">🏠</span>Home</div>
+      <div class="tab-item"><span class="tab-icon">🔍</span>Search</div>
+      <div class="tab-item"><span class="tab-icon">🎙️</span>Record</div>
+      <div class="tab-item"><span class="tab-icon">💰</span>Money</div>
+      <div class="tab-item"><span class="tab-icon">⚙️</span>Settings</div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════ VARIANT C: Full-Bleed ═══════════════════ -->
+<div id="variant-c" class="variant" style="display:none">
+  <div class="phone-frame">
+    <div class="status-bar">
+      <span>9:41</span>
+      <span>Search Overlay</span>
+      <span>⚡ 87%</span>
+    </div>
+
+    <div class="content-area" id="content-c">
+      <div class="search-trigger" onclick="openSearch('c')">
+        <span class="search-trigger-icon">🔍</span>
+        <span class="search-trigger-text">Search entries...</span>
+        <span class="search-trigger-shortcut">⌘K</span>
+      </div>
+
+      <div style="padding:20px 0;">
+        <div style="font-size:22px;font-weight:700;margin-bottom:16px;">Good evening, Khin ✨</div>
+        <div style="display:flex;gap:8px;margin-bottom:16px;">
+          <div style="flex:1;background:var(--color-surface);border:1px solid var(--color-border);border-radius:var(--radius-lg);padding:16px;">
+            <div style="font-size:11px;color:var(--color-text-muted);text-transform:uppercase;letter-spacing:0.05em;">Today</div>
+            <div style="font-size:28px;font-weight:700;margin-top:4px;">5</div>
+            <div style="font-size:12px;color:var(--color-text-muted);">entries</div>
+          </div>
+          <div style="flex:1;background:var(--color-surface);border:1px solid var(--color-border);border-radius:var(--radius-lg);padding:16px;">
+            <div style="font-size:11px;color:var(--color-text-muted);text-transform:uppercase;letter-spacing:0.05em;">Mood</div>
+            <div style="font-size:28px;margin-top:4px;">😊</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="search-overlay" id="overlay-c">
+      <div class="search-modal full-bleed" id="modal-c">
+        <div class="search-input-wrap" style="border-radius:0;">
+          <span class="search-input-icon">🔍</span>
+          <input class="search-input" type="text" placeholder="Search entries..." oninput="filterResults(this.value, 'c')" id="input-c">
+          <button class="search-cancel" onclick="closeSearch('c')">Cancel</button>
+        </div>
+        <div class="search-results" id="results-c">
+          <div class="search-group-label">Recent Searches</div>
+          <div class="recent-item"><span class="recent-icon">🕐</span><span class="recent-text">lunch near office</span></div>
+          <div class="recent-item"><span class="recent-icon">🕐</span><span class="recent-text">feeling stressed</span></div>
+          <div class="recent-item"><span class="recent-icon">🕐</span><span class="recent-text">uber ride</span></div>
+
+          <div class="search-group-label">Quick Filters</div>
+          <div class="search-result">
+            <div class="result-icon" style="background:#E8F5E9;color:#4CAF50;">💰</div>
+            <div class="result-content">
+              <div class="result-title">Money entries</div>
+              <div class="result-excerpt">127 entries · 485,000 Kyat spent</div>
+            </div>
+          </div>
+          <div class="search-result">
+            <div class="result-icon" style="background:#FCE4EC;color:#E91E63;">💗</div>
+            <div class="result-content">
+              <div class="result-title">Feelings entries</div>
+              <div class="result-excerpt">89 entries · mostly 😊 happy</div>
+            </div>
+          </div>
+        </div>
+        <div class="search-hint">⬆⬇ Navigate · ⏎ Open · ESC Close</div>
+      </div>
+    </div>
+
+    <div class="tab-bar">
+      <div class="tab-item"><span class="tab-icon">🏠</span>Home</div>
+      <div class="tab-item"><span class="tab-icon">🔍</span>Search</div>
+      <div class="tab-item"><span class="tab-icon">🎙️</span>Record</div>
+      <div class="tab-item"><span class="tab-icon">💰</span>Money</div>
+      <div class="tab-item"><span class="tab-icon">⚙️</span>Settings</div>
+    </div>
+  </div>
+</div>
+
+<!-- Sketch Toolbar -->
+<div id="sketch-tools" style="position:fixed;bottom:12px;right:12px;z-index:9999;font-family:system-ui;font-size:12px;background:rgba(0,0,0,0.7);color:white;padding:8px 12px;border-radius:8px;opacity:0.4;transition:opacity 0.2s;" onmouseenter="this.style.opacity='1'" onmouseleave="this.style.opacity='0.4'">
+  <select id="theme-switcher" onchange="document.querySelector('link[href*=themes]').href='../themes/'+this.value+'.css'" style="background:transparent;color:white;border:1px solid rgba(255,255,255,0.3);border-radius:4px;padding:2px 4px;font-size:11px;">
+    <option value="default">Default</option>
+  </select>
+</div>
+
+<script>
+// Variant switching
+function showVariant(id) {
+  document.querySelectorAll('.variant').forEach(v => v.style.display = 'none');
+  document.querySelectorAll('.variant-tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('variant-' + id).style.display = 'block';
+  event.target.classList.add('active');
+}
+
+// Search overlay
+function openSearch(variant) {
+  const overlay = document.getElementById('overlay-' + variant);
+  overlay.classList.add('active');
+  setTimeout(() => document.getElementById('input-' + variant).focus(), 100);
+}
+
+function closeSearch(variant) {
+  const overlay = document.getElementById('overlay-' + variant);
+  overlay.classList.remove('active');
+  document.getElementById('input-' + variant).value = '';
+  resetResults(variant);
+}
+
+// Mock data for filtering
+const mockEntries = [
+  { type: 'money', icon: '💰', color: '#E8F5E9', iconColor: '#4CAF50', title: 'Lunch at Shawarma Palace', excerpt: '12,000 Kyat · 🎙️ Voice', meta: 'Today · Money' },
+  { type: 'feelings', icon: '💗', color: '#FCE4EC', iconColor: '#E91E63', title: 'Feeling great after workout', excerpt: '😊 Happy · 🎙️ Voice', meta: 'Today · Feelings' },
+  { type: 'work', icon: '💼', color: '#E3F2FD', iconColor: '#2196F3', title: 'Sprint planning meeting notes', excerpt: 'Reviewed Q3 roadmap...', meta: 'Yesterday · Work' },
+  { type: 'money', icon: '💰', color: '#E8F5E9', iconColor: '#4CAF50', title: 'Uber to downtown', excerpt: '8,500 Kyat · 🎙️ Voice', meta: 'Yesterday · Money' },
+  { type: 'health', icon: '🏃', color: '#FFF3E0', iconColor: '#FF9800', title: 'Morning run 5km', excerpt: '32 min · felt energetic', meta: '2 days ago · Health' },
+  { type: 'ideas', icon: '💡', color: '#F3E5F5', iconColor: '#9C27B0', title: 'App feature idea: mood tracker', excerpt: 'Add a quick mood check-in...', meta: '3 days ago · Ideas' },
+  { type: 'money', icon: '💰', color: '#E8F5E9', iconColor: '#4CAF50', title: 'Grocery shopping at City Mart', excerpt: '45,000 Kyat · 🎙️ Voice', meta: '3 days ago · Money' },
+  { type: 'feelings', icon: '💗', color: '#FCE4EC', iconColor: '#E91E63', title: 'Stressed about deadline', excerpt: '😰 Anxious · need to focus', meta: '4 days ago · Feelings' },
+];
+
+function filterResults(query, variant) {
+  const resultsEl = document.getElementById('results-' + variant);
+  if (!query.trim()) {
+    resetResults(variant);
+    return;
+  }
+
+  const q = query.toLowerCase();
+  const matches = mockEntries.filter(e =>
+    e.title.toLowerCase().includes(q) ||
+    e.excerpt.toLowerCase().includes(q) ||
+    e.type.toLowerCase().includes(q)
+  );
+
+  if (matches.length === 0) {
+    resultsEl.innerHTML = `
+      <div class="search-empty">
+        <div class="search-empty-icon">🔍</div>
+        <div class="search-empty-text">No results for "${query}"</div>
+      </div>`;
+    return;
+  }
+
+  // Group by type
+  const groups = {};
+  matches.forEach(m => {
+    if (!groups[m.type]) groups[m.type] = [];
+    groups[m.type].push(m);
+  });
+
+  let html = '';
+  for (const [type, items] of Object.entries(groups)) {
+    html += `<div class="search-group-label">${type.charAt(0).toUpperCase() + type.slice(1)}</div>`;
+    items.forEach(item => {
+      const highlighted = item.title.replace(new RegExp(`(${query})`, 'gi'), '<mark>$1</mark>');
+      html += `
+        <div class="search-result">
+          <div class="result-icon" style="background:${item.color};color:${item.iconColor};">${item.icon}</div>
+          <div class="result-content">
+            <div class="result-title">${highlighted}</div>
+            <div class="result-excerpt">${item.excerpt}</div>
+            <div class="result-meta">${item.meta}</div>
+          </div>
+        </div>`;
+    });
+  }
+  resultsEl.innerHTML = html;
+}
+
+function resetResults(variant) {
+  const resultsEl = document.getElementById('results-' + variant);
+  resultsEl.innerHTML = `
+    <div class="search-group-label">Recent Searches</div>
+    <div class="recent-item"><span class="recent-icon">🕐</span><span class="recent-text">lunch near office</span></div>
+    <div class="recent-item"><span class="recent-icon">🕐</span><span class="recent-text">feeling stressed</span></div>
+    <div class="recent-item"><span class="recent-icon">🕐</span><span class="recent-text">uber ride</span></div>
+    <div class="search-group-label">Quick Filters</div>
+    <div class="search-result">
+      <div class="result-icon" style="background:#E8F5E9;color:#4CAF50;">💰</div>
+      <div class="result-content">
+        <div class="result-title">Money entries</div>
+        <div class="result-excerpt">127 entries · 485,000 Kyat spent</div>
+      </div>
+    </div>
+    <div class="search-result">
+      <div class="result-icon" style="background:#FCE4EC;color:#E91E63;">💗</div>
+      <div class="result-content">
+        <div class="result-title">Feelings entries</div>
+        <div class="result-excerpt">89 entries · mostly 😊 happy</div>
+      </div>
+    </div>`;
+}
+
+// ESC to close
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') {
+    ['a', 'b', 'c'].forEach(v => closeSearch(v));
+  }
+});
+</script>
+
+</body>
+</html>

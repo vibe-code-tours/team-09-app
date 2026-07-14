@@ -1,208 +1,73 @@
-# CLAUDE.md - Mhat Tan Project
+# CLAUDE.md
 
-> Voice-first daily record for Burmese speakers — speak your day, AI organizes it.
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-## Project Overview
+## Expo Version
 
-Mhat Tan (မှတ်တမ်း) is a React Native (Expo) mobile app that lets Burmese speakers record their daily life by voice. The app transcribes speech, auto-categorizes entries, and displays a timeline.
+**Read the exact versioned docs at https://docs.expo.dev/versions/v54.0.0/ before writing any Expo-related code.** Expo has changed significantly — do not rely on older patterns.
 
-## Tech Stack
-
-| Layer | Technology |
-|-------|-----------|
-| Framework | React Native (Expo SDK 54) |
-| Language | TypeScript (strict mode) |
-| Navigation | React Navigation 6 (bottom tabs + native stack) |
-| Recording | expo-av |
-| Transcription | ElevenLabs Scribe v2 API |
-| Categorization | Gemini 2.0 Flash API |
-| Database | Cloud Firestore (Firebase) |
-| Auth | Firebase Auth (Phone method) |
-
-## Project Structure
-
-```
-src/
-├── components/       # Reusable UI components
-│   ├── RecordButton.tsx
-│   ├── EntryCard.tsx
-│   └── EmptyState.tsx
-├── screens/          # App screens
-│   ├── HomeScreen.tsx
-│   └── RecordScreen.tsx
-├── hooks/            # Custom React hooks
-│   └── useRecording.ts
-├── services/         # API integrations
-│   ├── transcription.ts
-│   ├── categorization.ts
-│   └── storage.ts
-├── types/            # TypeScript type definitions
-│   └── index.ts
-├── config/           # Configuration
-│   └── firebase.ts
-└── utils/            # Helper functions
-```
-
-## Development Commands
+## Commands
 
 ```bash
-# Start development server
-npx expo start
-
-# Start for specific platform
-npx expo start --web      # Web browser
-npx expo start --ios      # iOS simulator
-npx expo start --android  # Android emulator
+# Development
+npx expo start              # Start dev server (scan QR with Expo Go)
+npx expo start --ios        # Start on iOS simulator
+npx expo start --web        # Start on web
 
 # Type checking
-npx tsc --noEmit
+npx tsc --noEmit            # Run TypeScript compiler (no output = clean)
 
-# Install new dependency
-npx expo install <package-name>
-
-# Clear cache
-npx expo start --clear
+# No lint or test scripts are configured yet
 ```
 
-## Code Style & Conventions
+## Architecture
 
-### TypeScript
-- Use strict TypeScript (no `any` types)
-- Define interfaces in `src/types/index.ts`
-- Use `interface` for object shapes, `type` for unions/aliases
+**Mhat Tan** (မှတ်တမ်း) is a voice-first daily diary for Burmese speakers. Users speak their day (1 min max), AI transcribes and categorizes it, and the app shows a timeline.
 
-### React Native
-- Functional components with hooks only (no class components)
-- Use `React.FC<Props>` for component type
-- Keep components in separate files
-- Use Expo vector icons (`@expo/vector-icons/Ionicons`)
+### Tech Stack
+- **React Native + Expo SDK 54** (managed workflow, New Architecture enabled)
+- **React Navigation 7** — Bottom tabs + nested stack navigators
+- **Firebase Web JS SDK** (not `@react-native-firebase`) — Firestore for storage
+- **ElevenLabs Scribe v2** — Burmese speech-to-text
+- **Gemini 2.0 Flash** — Auto-categorization of transcripts
 
-### File Naming
-- Components: `PascalCase.tsx` (e.g., `RecordButton.tsx`)
-- Services: `camelCase.ts` (e.g., `transcription.ts`)
-- Types: `camelCase.ts` (e.g., `index.ts`)
-
-### State Management
-- Use `useState` for local state
-- Use `useContext` for global state (when needed)
-- Keep state close to where it's used
-
-### Styling
-- Use `StyleSheet.create()` (no inline styles)
-- Colors: primary `#E91E63`, background `#F5F5F5`, text `#333`
-- Border radius: 12 for cards, 25 for buttons
-
-## API Integration
-
-### ElevenLabs (Transcription)
-- Endpoint: `https://api.elevenlabs.io/v1/speech-to-text`
-- Model: `scribe_v2`
-- Language: `my` (Burmese)
-- Rate: $0.22/hour
-
-### Gemini (Categorization)
-- Endpoint: `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent`
-- Returns: `{ category, summary, items, mood, date }`
-- Categories: money, feelings, work, health, ideas, other
-
-### Firebase
-- Auth: Phone number method
-- Firestore: Collection `users/{userId}/entries/{entryId}`
-- Security rules: Users can only access their own data
-
-## Firebase Data Model
-
+### Project Structure
 ```
-users/
-└── {userId}/
-    └── entries/
-        └── {entryId}/
-            ├── transcript: string
-            ├── category: Category
-            ├── summary: string
-            ├── items: string[]
-            ├── mood: string
-            ├── audioUri: string
-            ├── createdAt: Timestamp
-            ├── isPinned: boolean
-            └── userId: string
+mhat-tan/
+├── App.tsx                    # Root: ThemeProvider + NavigationContainer + tabs + RecordingOverlay
+├── src/
+│   ├── theme/                 # Design tokens + ThemeContext (light/dark/system)
+│   ├── types/                 # TypeScript types (Entry, Category, RecordingState)
+│   ├── screens/               # HomeScreen, RecordScreen
+│   ├── components/            # ElevatedTabBar, EntryCard, EmptyState, RecordButton
+│   ├── hooks/                 # useRecording (expo-av wrapper)
+│   ├── services/              # transcription.ts, categorization.ts, storage.ts
+│   └── config/                # Firebase initialization
 ```
 
-## Key Components
+### Navigation Layout
+- **Bottom Tab Navigator** with 5 tabs: Home, Search, Record (center), Money, Settings
+- Home tab has a **nested Stack Navigator**: `HomeMain` → `Record`
+- The center "Record" tab triggers a `RecordingOverlay` (animated floating card), not a screen push
+- Only Home and Record tabs are functional; Search, Money, Settings show HomeScreen as placeholder
 
-### RecordButton
-- Circular button with pulse animation during recording
-- Props: `isRecording`, `onPress`, `disabled`
+### Theme System
+All colors are defined in `src/theme/index.ts` with light/dark palettes. Use `useTheme()` from `ThemeContext` to access colors and `createShadows(isDark, primaryColor)` for shadows.
 
-### EntryCard
-- Displays entry with category icon, summary, items, mood
-- Props: `entry`, `onPress`
+**Exception**: `RecordScreen.tsx` hardcodes colors — it does not use the theme system yet.
 
-## Recording Flow
+### Categories
+6 types defined in `src/theme/index.ts`: money, feelings, work, health, ideas, other. Each has icon, label, and color. HomeScreen renders horizontal filter chips to filter entries.
 
-```typescript
-const { state, startRecording, stopRecording, playRecording } = useRecording();
+### External API Keys (via `EXPO_PUBLIC_` env vars)
+- `EXPO_PUBLIC_FIREBASE_*` — Firebase config
+- `EXPO_PUBLIC_GEMINI_API_KEY` — Gemini AI
+- `EXPO_PUBLIC_ELEVENLABS_API_KEY` — Speech-to-text
 
-// Start recording
-await startRecording();
+## Key Patterns
 
-// Stop recording
-const uri = await stopRecording();
-
-// Transcribe (when API keys are set up)
-const transcript = await transcribeAudio(uri);
-
-// Categorize
-const result = await categorizeEntry(transcript);
-
-// Save to Firestore
-await saveEntry(userId, { ...entry, ...result });
-```
-
-## Environment Variables
-
-API keys are stored in `.env` (never commit this file):
-
-```env
-EXPO_PUBLIC_ELEVENLABS_API_KEY=xxx
-EXPO_PUBLIC_GEMINI_API_KEY=xxx
-EXPO_PUBLIC_FIREBASE_API_KEY=xxx
-EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN=xxx
-EXPO_PUBLIC_FIREBASE_PROJECT_ID=xxx
-EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET=xxx
-EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=xxx
-EXPO_PUBLIC_FIREBASE_APP_ID=xxx
-```
-
-## Testing
-
-- Test on real iPhone/Android using Expo Go or development build
-- Test recording with actual Burmese speech
-- Test offline mode (airplane mode)
-- Test free limit (3 recordings/day)
-
-## Git Workflow
-
-- Branch naming: `feat/`, `fix/`, `chore/`
-- PR required before merge to main
-- Keep commits atomic and message clear
-- Never commit `.env` or `node_modules`
-
-## Known Issues
-
-- Expo Go is no longer supported in Expo SDK 52+ — use development builds
-- Recording on iOS requires microphone permission in Info.plist
-
-## Resources
-
-- [Expo Docs](https://docs.expo.dev)
-- [React Navigation](https://reactnavigation.org)
-- [Firebase Web SDK](https://firebase.google.com/docs/web/setup)
-- [ElevenLabs API](https://elevenlabs.io/docs)
-- [Gemini API](https://ai.google.dev/docs)
-
-## Team
-
-- 3 members, rotating weekly roles (Anchor, Driver, Reviewer)
-- Daily async standups required
-- PRs must have 1 review before merge
+1. **Two recording flows**: Center tab → `RecordingOverlay` (floating), vs. Home stack → `RecordScreen` (full screen). Both use `useRecording` hook.
+2. **Mock data**: HomeScreen uses hardcoded `MOCK_ENTRIES` and `STATS`. Services are implemented but not wired into screens yet.
+3. **Unused component**: `EntryCard.tsx` exists but HomeScreen renders cards inline. Consider consolidating.
+4. **No auth yet**: Firebase Auth is initialized but no login screen or auth listener exists.
+5. **Design sketches**: HTML files in `.planning/sketches/` with CSS vars. Sketch variants (001-C, 002-A, 003-A) map to implemented components.
