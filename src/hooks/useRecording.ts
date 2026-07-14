@@ -2,12 +2,26 @@
 import { useState, useEffect, useRef } from 'react';
 import { Audio } from 'expo-av';
 import { RecordingState } from '../types';
+import {
+  requestRecordingPermission,
+  setRecordingMode,
+  resetAudioMode,
+  createRecording,
+  stopRecordingAsync,
+  pauseRecordingAsync,
+  resumeRecordingAsync,
+  playAudio,
+  stopAudio,
+  unloadAudio,
+} from '../services/recording';
 
 const MAX_DURATION = 60;
 
 export const useRecording = () => {
   const [state, setState] = useState<RecordingState>({
+    status: 'idle',
     isRecording: false,
+    isPaused: false,
     isPlaying: false,
     duration: 0,
     uri: null,
@@ -25,15 +39,7 @@ export const useRecording = () => {
     };
   }, []);
 
-  const startRecording = async () => {
-    const { status } = await Audio.requestPermissionsAsync();
-    if (status !== 'granted') throw new Error('Permission denied');
-
-    await Audio.setAudioModeAsync({ allowsRecordingIOS: true, playsInSilentModeIOS: true });
-    const { recording } = await Audio.Recording.createAsync(Audio.RecordingOptionsPresets.HIGH_QUALITY);
-    recordingRef.current = recording;
-    setState(prev => ({ ...prev, isRecording: true, duration: 0 }));
-
+  const startTimer = () => {
     timerRef.current = setInterval(() => {
       setState(prev => {
         const newDuration = prev.duration + 1;
@@ -43,21 +49,49 @@ export const useRecording = () => {
     }, 1000);
   };
 
+  const clearTimer = () => {
+    if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
+  };
+
+  const startRecording = async () => {
+    const permission = await requestRecordingPermission();
+    if (permission !== 'granted') throw new Error('Permission denied');
+
+    await setRecordingMode();
+    const recording = await createRecording();
+    recordingRef.current = recording;
+    setState(prev => ({ ...prev, status: 'recording', isRecording: true, isPaused: false, duration: 0 }));
+    startTimer();
+  };
+
   const stopRecording = async () => {
     if (!recordingRef.current) return null;
-    if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
-    await recordingRef.current.stopAndUnloadAsync();
-    const uri = recordingRef.current.getURI();
-    await Audio.setAudioModeAsync({ allowsRecordingIOS: false });
+    clearTimer();
+    const uri = await stopRecordingAsync(recordingRef.current);
+    await resetAudioMode();
     recordingRef.current = null;
-    setState(prev => ({ ...prev, isRecording: false, uri }));
+    setState(prev => ({ ...prev, status: 'recorded', isRecording: false, isPaused: false, uri }));
     return uri;
+  };
+
+  const pauseRecording = async () => {
+    if (!recordingRef.current) return;
+    clearTimer();
+    await pauseRecordingAsync(recordingRef.current);
+    setState(prev => ({ ...prev, isPaused: true }));
+  };
+
+  const resumeRecording = async () => {
+    if (!recordingRef.current) return;
+    await resumeRecordingAsync(recordingRef.current);
+    setState(prev => ({ ...prev, isPaused: false }));
+    startTimer();
   };
 
   const playRecording = async () => {
     if (!state.uri) return;
-    if (soundRef.current) await soundRef.current.unloadAsync();
-    const { sound } = await Audio.Sound.createAsync({ uri: state.uri }, { shouldPlay: true });
+    if (soundRef.current) await unloadAudio(soundRef.current);
+    const sound = await playAudio(state.uri);
     soundRef.current = sound;
     setState(prev => ({ ...prev, isPlaying: true }));
     sound.setOnPlaybackStatusUpdate((status) => {
@@ -66,12 +100,22 @@ export const useRecording = () => {
   };
 
   const stopPlayback = async () => {
-    if (soundRef.current) { await soundRef.current.stopAsync(); setState(prev => ({ ...prev, isPlaying: false })); }
+    if (soundRef.current) { await stopAudio(soundRef.current); setState(prev => ({ ...prev, isPlaying: false })); }
+  };
+
+  const setSaving = () => {
+    setState(prev => ({ ...prev, status: 'saving' }));
   };
 
   const discardRecording = async () => {
-    if (soundRef.current) { await soundRef.current.unloadAsync(); soundRef.current = null; }
-    setState({ isRecording: false, isPlaying: false, duration: 0, uri: null });
+    clearTimer();
+    if (recordingRef.current) {
+      try { await recordingRef.current.stopAndUnloadAsync(); } catch {}
+      recordingRef.current = null;
+    }
+    if (soundRef.current) { await unloadAudio(soundRef.current); soundRef.current = null; }
+    await resetAudioMode();
+    setState({ status: 'idle', isRecording: false, isPaused: false, isPlaying: false, duration: 0, uri: null });
   };
 
   const formatDuration = (seconds: number) => {
@@ -80,5 +124,16 @@ export const useRecording = () => {
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
-  return { state, startRecording, stopRecording, playRecording, stopPlayback, discardRecording, formatDuration };
+  return {
+    state,
+    startRecording,
+    stopRecording,
+    pauseRecording,
+    resumeRecording,
+    playRecording,
+    stopPlayback,
+    setSaving,
+    discardRecording,
+    formatDuration,
+  };
 };

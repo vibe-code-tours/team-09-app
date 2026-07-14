@@ -25,8 +25,12 @@ export interface CategorizedEntry {
   date: string;
 }
 
+export type RecordingStatus = 'idle' | 'recording' | 'recorded' | 'saving';
+
 export interface RecordingState {
+  status: RecordingStatus;
   isRecording: boolean;
+  isPaused: boolean;
   isPlaying: boolean;
   duration: number;
   uri: string | null;
