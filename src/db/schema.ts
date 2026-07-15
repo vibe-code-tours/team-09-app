@@ -1,3 +1,4 @@
+import { sql } from 'drizzle-orm';
 import { sqliteTable, text, integer, real, unique, check } from 'drizzle-orm/sqlite-core';
 
 // =============================================================================
@@ -66,10 +67,10 @@ export const entries = sqliteTable('entries', {
   createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
   updatedAt: integer('updated_at', { mode: 'timestamp' }).notNull(),
 }, (t) => [
-  check('entries_entry_type_check', t.entryType.in(['money', 'feelings', 'work', 'health', 'ideas', 'other'])),
-  check('entries_mood_check', t.mood.in(['happy', 'sad', 'neutral', 'excited', 'stressed', 'grateful'])),
-  check('entries_processing_status_check', t.processingStatus.in(['pending', 'processing', 'completed', 'failed'])),
-  check('entries_sync_status_check', t.syncStatus.in(['pending', 'synced', 'failed'])),
+  check('entries_entry_type_check', sql`${t.entryType} IN ('money', 'feelings', 'work', 'health', 'ideas', 'other')`),
+  check('entries_mood_check', sql`${t.mood} IN ('happy', 'sad', 'neutral', 'excited', 'stressed', 'grateful')`),
+  check('entries_processing_status_check', sql`${t.processingStatus} IN ('pending', 'processing', 'completed', 'failed')`),
+  check('entries_sync_status_check', sql`${t.syncStatus} IN ('pending', 'synced', 'failed')`),
 ]);
 
 // =============================================================================
@@ -110,8 +111,8 @@ export const userSettings = sqliteTable('user_settings', {
   createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
   updatedAt: integer('updated_at', { mode: 'timestamp' }).notNull(),
 }, (t) => [
-  check('user_settings_language_code_check', t.languageCode.in(['my', 'en'])),
-  check('user_settings_theme_check', t.theme.in(['light', 'dark', 'system'])),
+  check('user_settings_language_code_check', sql`${t.languageCode} IN ('my', 'en')`),
+  check('user_settings_theme_check', sql`${t.theme} IN ('light', 'dark', 'system')`),
 ]);
 
 // =============================================================================
@@ -149,7 +150,7 @@ export const corrections = sqliteTable('corrections', {
   userValue: text('user_value').notNull(),
   createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
 }, (t) => [
-  check('corrections_field_check', t.field.in(['entry_type', 'category', 'mood', 'summary'])),
+  check('corrections_field_check', sql`${t.field} IN ('entry_type', 'category', 'mood', 'summary')`),
 ]);
 
 // =============================================================================
