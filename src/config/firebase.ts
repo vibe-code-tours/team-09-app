@@ -1,7 +1,7 @@
-// Firebase Configuration
-import { initializeApp } from 'firebase/app';
-import { getAuth } from 'firebase/auth';
-import { getFirestore } from 'firebase/firestore';
+// Firebase Configuration — optional, only initialized when env vars are present
+import { initializeApp, type FirebaseApp } from 'firebase/app';
+import { getAuth, type Auth } from 'firebase/auth';
+import { getFirestore, type Firestore } from 'firebase/firestore';
 
 const firebaseConfig = {
   apiKey: process.env.EXPO_PUBLIC_FIREBASE_API_KEY,
@@ -12,7 +12,22 @@ const firebaseConfig = {
   appId: process.env.EXPO_PUBLIC_FIREBASE_APP_ID,
 };
 
-const app = initializeApp(firebaseConfig);
-export const auth = getAuth(app);
-export const db = getFirestore(app);
+// Only initialize if a valid API key is present
+const isConfigured = Boolean(firebaseConfig.apiKey);
+
+let app: FirebaseApp | null = null;
+let auth: Auth | null = null;
+let firestoreDb: Firestore | null = null;
+
+if (isConfigured) {
+  try {
+    app = initializeApp(firebaseConfig);
+    auth = getAuth(app);
+    firestoreDb = getFirestore(app);
+  } catch (err) {
+    console.warn('[Firebase] Initialization failed — running in local-only mode:', err);
+  }
+}
+
+export { auth, firestoreDb };
 export default app;

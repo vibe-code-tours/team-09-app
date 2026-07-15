@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "sqlite": {
+      "command": "npx",
+      "args": ["-y", "@anthropic/sqlite-mcp@latest"],
+      "env": {
+        "SQLITE_DB_PATH": "./mhat-tan/mhat-tan.db"
+      }
+    }
+  }
+}

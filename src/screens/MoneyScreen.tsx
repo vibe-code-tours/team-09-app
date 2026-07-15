@@ -1,5 +1,5 @@
 // MoneyScreen — Sketch 004 Variant B: Category Breakdown
-import React, { useMemo } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -11,25 +11,17 @@ import {
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
+import { useFocusEffect } from '@react-navigation/native';
 import { useTheme } from '../theme/ThemeContext';
 import { spacing, radius, createShadows } from '../theme';
+import { useAuth } from '../context/AuthContext';
+import { getMoneyEntries, type MoneyEntry } from '../services/storage';
 
 // ── Navigation types ──────────────────────────────────────
 type MoneyStackParamList = {
   MoneyMain: undefined;
   ExpenseList: { category?: string; month?: string } | undefined;
 };
-
-// ── Spending entry (mock data shape) ──────────────────────
-interface SpendingEntry {
-  id: string;
-  categoryLabel: string;
-  categoryIcon: string;
-  categoryColor: string;
-  amount: number;
-  summary: string;
-  createdAt: Date;
-}
 
 // ── Category breakdown config ─────────────────────────────
 const SPEND_CATEGORIES = [
@@ -39,17 +31,6 @@ const SPEND_CATEGORIES = [
   { key: 'bills',    label: 'Bills & Other', icon: '📱', color: '#607D8B' },
 ] as const;
 
-// ── Mock data ─────────────────────────────────────────────
-const MOCK_SPENDING: SpendingEntry[] = [
-  { id: '1', categoryLabel: 'Food & Drinks', categoryIcon: '🍜', categoryColor: '#4CAF50', amount: 3500, summary: 'Lunch at market — mohinga and tea', createdAt: new Date(Date.now() - 2 * 60 * 60 * 1000) },
-  { id: '2', categoryLabel: 'Transport', categoryIcon: '🚌', categoryColor: '#2196F3', amount: 800, summary: 'Bus fare to work', createdAt: new Date(Date.now() - 5 * 60 * 60 * 1000) },
-  { id: '3', categoryLabel: 'Shopping', categoryIcon: '🛒', categoryColor: '#FF9800', amount: 8500, summary: 'Groceries at night market', createdAt: new Date(Date.now() - 26 * 60 * 60 * 1000) },
-  { id: '4', categoryLabel: 'Food & Drinks', categoryIcon: '🍜', categoryColor: '#4CAF50', amount: 2500, summary: 'Shan noodle dinner', createdAt: new Date(Date.now() - 28 * 60 * 60 * 1000) },
-  { id: '5', categoryLabel: 'Food & Drinks', categoryIcon: '🍜', categoryColor: '#4CAF50', amount: 1500, summary: 'Morning tea and snack', createdAt: new Date(Date.now() - 50 * 60 * 60 * 1000) },
-  { id: '6', categoryLabel: 'Transport', categoryIcon: '🚌', categoryColor: '#2196F3', amount: 800, summary: 'Bus fare', createdAt: new Date(Date.now() - 52 * 60 * 60 * 1000) },
-  { id: '7', categoryLabel: 'Bills & Other', categoryIcon: '📱', categoryColor: '#607D8B', amount: 3900, summary: 'Phone data top-up', createdAt: new Date(Date.now() - 72 * 60 * 60 * 1000) },
-];
-
 const formatK = (n: number) => `K ${n.toLocaleString()}`;
 
 // ── Component ─────────────────────────────────────────────
@@ -58,29 +39,48 @@ export const MoneyScreen: React.FC = () => {
   const { theme, isDark } = useTheme();
   const { colors } = theme;
   const shadows = createShadows(isDark, colors.primary);
+  const { userId } = useAuth();
 
-  // Aggregate by category
-  const categoryTotals = useMemo(() => {
+  const [moneyEntries, setMoneyEntries] = useState<MoneyEntry[]>([]);
+
+  // Load money entries from database
+  useFocusEffect(
+    useCallback(() => {
+      let cancelled = false;
+      const loadEntries = async () => {
+        try {
+          const entries = await getMoneyEntries(userId);
+          if (!cancelled) setMoneyEntries(entries);
+        } catch (err) {
+          console.error('[MoneyScreen] Failed to load money entries:', err);
+        }
+      };
+      loadEntries();
+      return () => { cancelled = true; };
+    }, [userId])
+  );
+
+  // Aggregate by category (for now, all entries go to "other" since we don't have category assignment on expense items)
+  const categoryTotals = React.useMemo(() => {
     const map: Record<string, { total: number; count: number }> = {};
     for (const cat of SPEND_CATEGORIES) {
       map[cat.key] = { total: 0, count: 0 };
     }
-    for (const entry of MOCK_SPENDING) {
-      const cat = SPEND_CATEGORIES.find(c => c.label === entry.categoryLabel);
-      if (cat) {
-        map[cat.key].total += entry.amount;
-        map[cat.key].count += 1;
-      }
+    // TODO: When expense_items have final_category_id, map to categories
+    // For now, treat all as "bills & other"
+    for (const entry of moneyEntries) {
+      map['bills'].total += entry.amount;
+      map['bills'].count += 1;
     }
     return map;
-  }, []);
+  }, [moneyEntries]);
 
-  const grandTotal = useMemo(
-    () => MOCK_SPENDING.reduce((sum, e) => sum + e.amount, 0),
-    [],
+  const grandTotal = React.useMemo(
+    () => moneyEntries.reduce((sum, e) => sum + e.amount, 0),
+    [moneyEntries],
   );
 
-  const recentEntries = MOCK_SPENDING.slice(0, 3);
+  const recentEntries = moneyEntries.slice(0, 3);
 
   const currentMonth = new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
 
@@ -105,7 +105,7 @@ export const MoneyScreen: React.FC = () => {
           <Text style={[styles.totalLabel, { color: colors.textMuted }]}>Total Spent</Text>
           <Text style={[styles.totalAmount, { color: colors.text }]}>{formatK(grandTotal)}</Text>
           <Text style={[styles.totalCount, { color: colors.textMuted }]}>
-            {MOCK_SPENDING.length} entries this month
+            {moneyEntries.length} {moneyEntries.length === 1 ? 'entry' : 'entries'} this month
           </Text>
         </View>
 
@@ -144,30 +144,39 @@ export const MoneyScreen: React.FC = () => {
           </View>
 
           <View style={[styles.recentList, { backgroundColor: colors.surface }, shadows.sm]}>
-            {recentEntries.map((entry, i) => (
-              <TouchableOpacity
-                key={entry.id}
-                style={[
-                  styles.recentItem,
-                  i < recentEntries.length - 1 && { borderBottomColor: colors.border, borderBottomWidth: 1 },
-                ]}
-                activeOpacity={0.7}
-                onPress={() => navigation.navigate('ExpenseList')}
-              >
-                <View style={[styles.recentDot, { backgroundColor: entry.categoryColor }]} />
-                <View style={styles.recentInfo}>
-                  <Text style={[styles.recentName, { color: colors.text }]} numberOfLines={1}>
-                    {entry.summary}
-                  </Text>
-                  <Text style={[styles.recentMeta, { color: colors.textMuted }]}>
-                    {entry.categoryLabel}
-                  </Text>
-                </View>
-                <Text style={[styles.recentAmount, { color: colors.primary }]}>
-                  -{formatK(entry.amount)}
+            {recentEntries.length === 0 ? (
+              <View style={styles.emptyRecent}>
+                <Ionicons name="receipt-outline" size={32} color={colors.border} />
+                <Text style={[styles.emptyRecentText, { color: colors.textMuted }]}>
+                  No expenses recorded yet
                 </Text>
-              </TouchableOpacity>
-            ))}
+              </View>
+            ) : (
+              recentEntries.map((entry, i) => (
+                <TouchableOpacity
+                  key={entry.id}
+                  style={[
+                    styles.recentItem,
+                    i < recentEntries.length - 1 && { borderBottomColor: colors.border, borderBottomWidth: 1 },
+                  ]}
+                  activeOpacity={0.7}
+                  onPress={() => navigation.navigate('ExpenseList')}
+                >
+                  <View style={[styles.recentDot, { backgroundColor: colors.primary }]} />
+                  <View style={styles.recentInfo}>
+                    <Text style={[styles.recentName, { color: colors.text }]} numberOfLines={1}>
+                      {entry.summary || entry.description}
+                    </Text>
+                    <Text style={[styles.recentMeta, { color: colors.textMuted }]}>
+                      {entry.description}
+                    </Text>
+                  </View>
+                  <Text style={[styles.recentAmount, { color: colors.primary }]}>
+                    -{formatK(entry.amount)}
+                  </Text>
+                </TouchableOpacity>
+              ))
+            )}
           </View>
         </View>
 
@@ -267,4 +276,14 @@ const styles = StyleSheet.create({
   recentName: { fontSize: 14, fontWeight: '500' },
   recentMeta: { fontSize: 12, marginTop: 2 },
   recentAmount: { fontSize: 14, fontWeight: '600' },
+
+  // Empty
+  emptyRecent: {
+    alignItems: 'center',
+    paddingVertical: spacing.xxl,
+  },
+  emptyRecentText: {
+    fontSize: 14,
+    marginTop: spacing.md,
+  },
 });

@@ -17,11 +17,16 @@ import { RecordButton } from '../components/RecordButton';
 import { useRecording } from '../hooks/useRecording';
 import { useTheme } from '../theme/ThemeContext';
 import { createShadows } from '../theme';
-import { saveAudioLocally, audioFileExists } from '../services/audioStorage';
+import { saveAudioLocally } from '../services/audioStorage';
+import { transcribeAudio } from '../services/transcription';
+import { categorizeEntry } from '../services/categorization';
+import { saveEntry } from '../services/storage';
+import { useAuth } from '../context/AuthContext';
 
 export const RecordScreen: React.FC = () => {
   const navigation = useNavigation();
   const { theme, isDark } = useTheme();
+  const { userId } = useAuth();
   const { colors } = theme;
   const shadows = createShadows(isDark, colors.primary);
   const {
@@ -90,16 +95,29 @@ export const RecordScreen: React.FC = () => {
     await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 
     try {
-      // Save audio to permanent local storage
+      // Step 1: Save audio to permanent local storage
       const permanentUri = await saveAudioLocally(state.uri);
-      const filename = permanentUri.split('/').pop() || 'unknown';
-      const exists = await audioFileExists(permanentUri);
 
-      // TODO: wire up transcription (ElevenLabs) + categorization (Gemini) + Firestore save
-      // For now, confirm the local save
+      // Step 2: Transcribe audio (ElevenLabs)
+      const transcript = await transcribeAudio(permanentUri);
+
+      // Step 3: Categorize transcript (Gemini)
+      const categorized = await categorizeEntry(transcript);
+
+      // Step 4: Save entry to SQLite database
+      await saveEntry(userId, {
+        transcript,
+        category: categorized.category,
+        summary: categorized.summary,
+        mood: categorized.mood,
+        audioUri: permanentUri,
+        audioDuration: state.duration,
+        isPinned: false,
+      });
+
       Alert.alert(
         'Saved!',
-        `File: ${filename}\nDuration: ${formatDuration(state.duration)}\nExists: ${exists ? '✅' : '❌'}`,
+        `Your entry has been recorded and categorized.`,
         [
           {
             text: 'OK',
@@ -111,6 +129,7 @@ export const RecordScreen: React.FC = () => {
         ]
       );
     } catch (err) {
+      console.error('[RecordScreen] Save failed:', err);
       Alert.alert('Error', 'Failed to save recording. Please try again.');
       discardRecording();
     }
@@ -131,7 +150,8 @@ export const RecordScreen: React.FC = () => {
   let statusLabel = 'Max 60 seconds';
   if (isRecording && isPaused) statusLabel = 'Paused';
   else if (isRecording) statusLabel = 'Recording...';
-  else if (isSaving) statusLabel = 'Saving...';
+  else if (hasRecording) statusLabel = 'Recording complete';
+  else if (isSaving) statusLabel = 'Processing...';
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.bg }]}>

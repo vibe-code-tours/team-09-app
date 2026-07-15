@@ -3,17 +3,8 @@
 
 import { useColorScheme } from 'react-native';
 
-// Category definitions (same in light/dark)
-export type Category = 'money' | 'feelings' | 'work' | 'health' | 'ideas' | 'other';
-
-export const CATEGORIES: Record<Category, { icon: string; label: string; color: string }> = {
-  money:    { icon: '💰', label: 'Money',    color: '#4CAF50' },
-  feelings: { icon: '😊', label: 'Feelings', color: '#E91E63' },
-  work:     { icon: '💼', label: 'Work',     color: '#2196F3' },
-  health:   { icon: '🏥', label: 'Health',   color: '#FF9800' },
-  ideas:    { icon: '💡', label: 'Ideas',    color: '#9C27B0' },
-  other:    { icon: '📝', label: 'Other',    color: '#607D8B' },
-};
+// Re-export Category type and CATEGORIES from types (single source of truth)
+export { Category, CATEGORIES } from '../types';
 
 // Light theme
 const lightColors = {

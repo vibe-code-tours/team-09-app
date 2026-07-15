@@ -18,6 +18,8 @@ import { CATEGORIES, Category, spacing, radius, createShadows } from '../theme';
 import { formatRelativeTime, formatHeaderDate, getGreeting } from '../theme';
 import { Entry } from '../types';
 import { listRecordings, deleteAudioFile } from '../services/audioStorage';
+import { getEntries, getTodayEntries } from '../services/storage';
+import { useAuth } from '../context/AuthContext';
 
 type RootStackParamList = {
   HomeMain: undefined;
@@ -28,79 +30,56 @@ interface HomeScreenProps {
   // Props can be added here as needed
 }
 
-// Mock data for visual verification
-const MOCK_ENTRIES: Entry[] = [
-  {
-    id: '1',
-    transcript: '',
-    category: 'money',
-    summary: 'Bought lunch at the market — 3,500 kyat for mohinga and tea',
-    items: [],
-    mood: '😊 Content',
-    audioUri: '',
-    createdAt: new Date(Date.now() - 2 * 60 * 60 * 1000),
-    isPinned: true,
-    userId: 'mock',
-  },
-  {
-    id: '2',
-    transcript: '',
-    category: 'work',
-    summary: 'Finished the database schema review with the team',
-    items: [],
-    mood: '💪 Productive',
-    audioUri: '',
-    createdAt: new Date(Date.now() - 5 * 60 * 60 * 1000),
-    isPinned: false,
-    userId: 'mock',
-  },
-  {
-    id: '3',
-    transcript: '',
-    category: 'feelings',
-    summary: 'Called family back home. Miss them but feeling grateful.',
-    items: [],
-    mood: '🥰 Grateful',
-    audioUri: '',
-    createdAt: new Date(Date.now() - 24 * 60 * 60 * 1000),
-    isPinned: false,
-    userId: 'mock',
-  },
-  {
-    id: '4',
-    transcript: '',
-    category: 'health',
-    summary: 'Morning run around the park — 2km in 15 minutes, getting faster.',
-    items: [],
-    mood: '🏃 Energized',
-    audioUri: '',
-    createdAt: new Date(Date.now() - 26 * 60 * 60 * 1000),
-    isPinned: false,
-    userId: 'mock',
-  },
-];
-
-// Stats (would come from database in production)
-const STATS = { today: 3, week: 12, total: 47 };
-
 export const HomeScreen: React.FC<HomeScreenProps> = () => {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { theme, isDark } = useTheme();
   const { colors } = theme;
+  const { userId } = useAuth();
   const shadows = createShadows(isDark, colors.primary);
 
-  const [entries] = useState<Entry[]>(MOCK_ENTRIES);
+  const [entries, setEntries] = useState<Entry[]>([]);
+  const [stats, setStats] = useState({ today: 0, week: 0, total: 0 });
   const [selectedCategory, setSelectedCategory] = useState<Category | 'all'>('all');
   const [recordings, setRecordings] = useState<Array<{ name: string; uri: string; size: number }>>([]);
   const [playingUri, setPlayingUri] = useState<string | null>(null);
   const soundRef = useRef<Audio.Sound | null>(null);
 
-  // Reload recordings every time screen comes into focus
+  // Load entries and recordings every time screen comes into focus
   useFocusEffect(
     useCallback(() => {
+      let cancelled = false;
+
+      const loadData = async () => {
+        try {
+          const [allEntries, todayEntries] = await Promise.all([
+            getEntries(userId),
+            getTodayEntries(userId),
+          ]);
+
+          if (cancelled) return;
+
+          setEntries(allEntries);
+
+          // Compute stats from real data
+          const now = new Date();
+          const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+          const weekEntries = allEntries.filter(e => e.createdAt >= weekAgo);
+          setStats({
+            today: todayEntries.length,
+            week: weekEntries.length,
+            total: allEntries.length,
+          });
+        } catch (err) {
+          console.error('[HomeScreen] Failed to load entries:', err);
+        }
+      };
+
+      loadData();
       setRecordings(listRecordings());
+
       // Cleanup playback on blur
       return () => {
+        cancelled = true;
         if (soundRef.current) {
           soundRef.current.unloadAsync();
           soundRef.current = null;
@@ -287,15 +266,15 @@ export const HomeScreen: React.FC<HomeScreenProps> = () => {
             {/* Metric Cards */}
             <View style={styles.metricsRow}>
               <View style={[styles.metricCard, { backgroundColor: colors.surface }, shadows.sm]}>
-                <Text style={[styles.metricNumber, { color: colors.primary }]}>{STATS.today}</Text>
+                <Text style={[styles.metricNumber, { color: colors.primary }]}>{stats.today}</Text>
                 <Text style={[styles.metricLabel, { color: colors.textMuted }]}>Today</Text>
               </View>
               <View style={[styles.metricCard, styles.metricCardHighlight, shadows.primary]}>
-                <Text style={[styles.metricNumber, styles.metricNumberWhite]}>{STATS.week}</Text>
+                <Text style={[styles.metricNumber, styles.metricNumberWhite]}>{stats.week}</Text>
                 <Text style={[styles.metricLabel, styles.metricLabelWhite]}>This Week</Text>
               </View>
               <View style={[styles.metricCard, { backgroundColor: colors.surface }, shadows.sm]}>
-                <Text style={[styles.metricNumber, { color: colors.primary }]}>{STATS.total}</Text>
+                <Text style={[styles.metricNumber, { color: colors.primary }]}>{stats.total}</Text>
                 <Text style={[styles.metricLabel, { color: colors.textMuted }]}>Total</Text>
               </View>
             </View>
