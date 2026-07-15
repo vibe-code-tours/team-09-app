@@ -1,7 +1,7 @@
 // SearchScreen.tsx — Sketch 009 Variant A: Card Results
 // Tab-integrated search with date-grouped cards, category tags, voice badges
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -11,103 +11,15 @@ import {
   TouchableOpacity,
   Keyboard,
 } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import { useTheme } from '../theme/ThemeContext';
 import { spacing, radius, CATEGORIES, Category } from '../theme';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Entry } from '../types';
+import { getEntries, searchEntries } from '../services/storage';
 
-// ── Types ──────────────────────────────────────────────────
-interface SearchEntry {
-  id: string;
-  title: string;
-  excerpt: string;
-  category: Category;
-  amount?: string;       // e.g. "12,000 Kyat"
-  mood?: string;         // e.g. "😊 Happy"
-  isVoice: boolean;
-  date: Date;
-}
-
-// ── Mock Data ──────────────────────────────────────────────
-const MOCK_ENTRIES: SearchEntry[] = [
-  {
-    id: '1',
-    title: 'Lunch at Shawarma Palace',
-    excerpt: '"ordered chicken shawarma with extra garlic sauce"',
-    category: 'money',
-    amount: '12,000 Kyat',
-    isVoice: true,
-    date: new Date(2026, 6, 13, 9, 41),
-  },
-  {
-    id: '2',
-    title: 'Feeling great after workout',
-    excerpt: '"had an amazing morning run, feeling energized and ready for the day"',
-    category: 'feelings',
-    mood: '😊 Happy',
-    isVoice: true,
-    date: new Date(2026, 6, 13, 7, 30),
-  },
-  {
-    id: '3',
-    title: 'Sprint planning meeting notes',
-    excerpt: '"discussed Q3 roadmap, assigned tasks for next sprint"',
-    category: 'work',
-    isVoice: true,
-    date: new Date(2026, 6, 12, 14, 0),
-  },
-  {
-    id: '4',
-    title: 'Uber to downtown',
-    excerpt: '"took an uber from office to downtown meeting"',
-    category: 'money',
-    amount: '8,500 Kyat',
-    isVoice: true,
-    date: new Date(2026, 6, 12, 13, 15),
-  },
-  {
-    id: '5',
-    title: 'Morning run 5km',
-    excerpt: '"completed 5km in 32 minutes, felt energetic"',
-    category: 'health',
-    isVoice: false,
-    date: new Date(2026, 6, 10, 6, 30),
-  },
-  {
-    id: '6',
-    title: 'App feature idea: mood tracker',
-    excerpt: '"add a quick mood check-in on the home screen"',
-    category: 'ideas',
-    isVoice: false,
-    date: new Date(2026, 6, 10, 11, 0),
-  },
-  {
-    id: '7',
-    title: 'Grocery shopping at City Mart',
-    excerpt: '"bought rice, vegetables, chicken, and cooking oil"',
-    category: 'money',
-    amount: '45,000 Kyat',
-    isVoice: true,
-    date: new Date(2026, 6, 10, 11, 0),
-  },
-  {
-    id: '8',
-    title: 'Stressed about deadline',
-    excerpt: '"need to focus and finish the report by Friday"',
-    category: 'feelings',
-    mood: '😰 Anxious',
-    isVoice: true,
-    date: new Date(2026, 6, 9, 16, 0),
-  },
-  {
-    id: '9',
-    title: 'Coffee at Starbucks',
-    excerpt: '"iced americano, working on design mockups"',
-    category: 'money',
-    amount: '8,500 Kyat',
-    isVoice: true,
-    date: new Date(2026, 6, 8, 10, 0),
-  },
-];
+// Temporary hardcoded userId until Firebase Auth is implemented
+const DEFAULT_USER_ID = 'default-user';
 
 // ── Filter tabs ────────────────────────────────────────────
 const FILTERS: { key: string; label: string; icon?: string }[] = [
@@ -133,10 +45,6 @@ function getDateGroup(date: Date): string {
   return 'Older';
 }
 
-function formatTime(date: Date): string {
-  return date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
-}
-
 // ── SearchScreen ───────────────────────────────────────────
 export function SearchScreen() {
   const { theme, isDark } = useTheme();
@@ -144,40 +52,74 @@ export function SearchScreen() {
   const insets = useSafeAreaInsets();
   const [query, setQuery] = useState('');
   const [activeFilter, setActiveFilter] = useState('all');
+  const [allEntries, setAllEntries] = useState<Entry[]>([]);
+  const [searchResults, setSearchResults] = useState<Entry[] | null>(null);
+  const [isSearching, setIsSearching] = useState(false);
 
-  // Filter + search
-  const filteredEntries = useMemo(() => {
-    let entries = MOCK_ENTRIES;
+  // Load all entries on screen focus
+  useFocusEffect(
+    useCallback(() => {
+      let cancelled = false;
 
-    // Category filter
-    if (activeFilter !== 'all') {
-      entries = entries.filter(e => e.category === activeFilter);
-    }
+      const loadEntries = async () => {
+        try {
+          const entries = await getEntries(DEFAULT_USER_ID);
+          if (!cancelled) setAllEntries(entries);
+        } catch (err) {
+          console.error('[SearchScreen] Failed to load entries:', err);
+        }
+      };
 
-    // Text search
-    if (query.trim()) {
-      const q = query.toLowerCase();
-      entries = entries.filter(
-        e =>
-          e.title.toLowerCase().includes(q) ||
-          e.excerpt.toLowerCase().includes(q) ||
-          e.category.toLowerCase().includes(q)
-      );
-    }
+      loadEntries();
+      return () => { cancelled = true; };
+    }, [])
+  );
 
-    return entries;
-  }, [query, activeFilter]);
+  // Debounced search when query changes
+  useFocusEffect(
+    useCallback(() => {
+      if (!query.trim()) {
+        setSearchResults(null);
+        setIsSearching(false);
+        return;
+      }
+
+      let cancelled = false;
+      const timer = setTimeout(async () => {
+        setIsSearching(true);
+        try {
+          const results = await searchEntries(DEFAULT_USER_ID, query.trim());
+          if (!cancelled) setSearchResults(results);
+        } catch (err) {
+          console.error('[SearchScreen] Search failed:', err);
+          if (!cancelled) setSearchResults([]);
+        } finally {
+          if (!cancelled) setIsSearching(false);
+        }
+      }, 300);
+
+      return () => {
+        cancelled = true;
+        clearTimeout(timer);
+      };
+    }, [query])
+  );
+
+  // Determine which entries to display
+  const displayEntries = searchResults !== null ? searchResults : allEntries;
+
+  // Apply category filter client-side
+  const filteredEntries = activeFilter === 'all'
+    ? displayEntries
+    : displayEntries.filter(e => e.category === activeFilter);
 
   // Group by date
-  const groupedEntries = useMemo(() => {
-    const groups: Record<string, SearchEntry[]> = {};
-    filteredEntries.forEach(entry => {
-      const group = getDateGroup(entry.date);
-      if (!groups[group]) groups[group] = [];
-      groups[group].push(entry);
-    });
-    return groups;
-  }, [filteredEntries]);
+  const groupedEntries: Record<string, Entry[]> = {};
+  filteredEntries.forEach(entry => {
+    const group = getDateGroup(entry.createdAt);
+    if (!groupedEntries[group]) groupedEntries[group] = [];
+    groupedEntries[group].push(entry);
+  });
 
   const groupKeys = Object.keys(groupedEntries);
 
@@ -248,12 +190,16 @@ export function SearchScreen() {
         keyboardShouldPersistTaps="handled"
         onScrollBeginDrag={() => Keyboard.dismiss()}
       >
-        {groupKeys.length === 0 ? (
+        {isSearching ? (
+          <View style={styles.emptyState}>
+            <Text style={[styles.emptyTitle, { color: colors.textMuted }]}>Searching...</Text>
+          </View>
+        ) : groupKeys.length === 0 ? (
           <View style={styles.emptyState}>
             <Text style={styles.emptyIcon}>🔍</Text>
             <Text style={[styles.emptyTitle, { color: colors.text }]}>No results found</Text>
             <Text style={[styles.emptyText, { color: colors.textMuted }]}>
-              Try a different search term or filter
+              {query.trim() ? 'Try a different search term or filter' : 'Record your first entry to get started'}
             </Text>
           </View>
         ) : (
@@ -282,10 +228,10 @@ export function SearchScreen() {
                     {/* Content */}
                     <View style={styles.entryContent}>
                       <Text style={[styles.entryTitle, { color: colors.text }]} numberOfLines={1}>
-                        {entry.title}
+                        {entry.summary || 'Untitled entry'}
                       </Text>
                       <Text style={[styles.entryExcerpt, { color: colors.textMuted }]} numberOfLines={1}>
-                        {entry.excerpt}
+                        {entry.transcript ? `"${entry.transcript}"` : 'No transcript'}
                       </Text>
                       <View style={styles.entryMeta}>
                         {/* Category Tag */}
@@ -293,20 +239,15 @@ export function SearchScreen() {
                           <Text style={[styles.categoryTagText, { color: cat.color }]}>{cat.label}</Text>
                         </View>
 
-                        {/* Amount or Mood */}
-                        {entry.amount && (
-                          <Text style={[styles.metaText, { color: colors.textMuted }]}>{entry.amount}</Text>
-                        )}
+                        {/* Mood */}
                         {entry.mood && (
                           <Text style={[styles.metaText, { color: colors.textMuted }]}>{entry.mood}</Text>
                         )}
 
                         {/* Voice Badge */}
-                        {entry.isVoice && (
-                          <View style={styles.voiceBadge}>
-                            <Text style={styles.voiceBadgeText}>🎙️</Text>
-                          </View>
-                        )}
+                        <View style={styles.voiceBadge}>
+                          <Text style={styles.voiceBadgeText}>🎙️</Text>
+                        </View>
                       </View>
                     </View>
                   </TouchableOpacity>
