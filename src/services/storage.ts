@@ -33,7 +33,7 @@ function toAppEntry(row: Entry): AppEntry {
  */
 export const saveEntry = async (
   userId: string,
-  entry: Omit<AppEntry, 'id' | 'createdAt'>
+  entry: Omit<AppEntry, 'id' | 'createdAt' | 'userId'>
 ): Promise<string> => {
   const db = getDb();
   const id = crypto.randomUUID();
