@@ -1,5 +1,5 @@
 // HomeScreen - Redesigned per sketches 001-C, 002-A, 003-A
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -7,14 +7,17 @@ import {
   TouchableOpacity,
   FlatList,
   SafeAreaView,
+  Alert,
 } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
+import { Audio } from 'expo-av';
 import { useTheme } from '../theme/ThemeContext';
 import { CATEGORIES, Category, spacing, radius, createShadows } from '../theme';
 import { formatRelativeTime, formatHeaderDate, getGreeting } from '../theme';
 import { Entry } from '../types';
+import { listRecordings, deleteAudioFile } from '../services/audioStorage';
 
 type RootStackParamList = {
   HomeMain: undefined;
@@ -88,6 +91,82 @@ export const HomeScreen: React.FC<HomeScreenProps> = () => {
 
   const [entries] = useState<Entry[]>(MOCK_ENTRIES);
   const [selectedCategory, setSelectedCategory] = useState<Category | 'all'>('all');
+  const [recordings, setRecordings] = useState<Array<{ name: string; uri: string; size: number }>>([]);
+  const [playingUri, setPlayingUri] = useState<string | null>(null);
+  const soundRef = useRef<Audio.Sound | null>(null);
+
+  // Reload recordings every time screen comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      setRecordings(listRecordings());
+      // Cleanup playback on blur
+      return () => {
+        if (soundRef.current) {
+          soundRef.current.unloadAsync();
+          soundRef.current = null;
+        }
+        setPlayingUri(null);
+      };
+    }, [])
+  );
+
+  const handleDeleteRecording = (uri: string, name: string) => {
+    Alert.alert(
+      'Delete Recording',
+      `Are you sure you want to delete "${name.replace('recording-', '').replace('.m4a', '')}"?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: () => {
+            // Stop playback if this recording is playing
+            if (playingUri === uri && soundRef.current) {
+              soundRef.current.unloadAsync();
+              soundRef.current = null;
+              setPlayingUri(null);
+            }
+            deleteAudioFile(uri);
+            setRecordings(listRecordings());
+          },
+        },
+      ]
+    );
+  };
+
+  const handlePlayRecording = async (uri: string) => {
+    try {
+      // If something is playing, stop it first
+      if (soundRef.current) {
+        await soundRef.current.unloadAsync();
+        soundRef.current = null;
+      }
+
+      // If tapping the same recording, just stop (toggle off)
+      if (playingUri === uri) {
+        setPlayingUri(null);
+        return;
+      }
+
+      // Play the new recording
+      const { sound } = await Audio.Sound.createAsync(
+        { uri },
+        { shouldPlay: true }
+      );
+      soundRef.current = sound;
+      setPlayingUri(uri);
+
+      // When playback finishes, reset state
+      sound.setOnPlaybackStatusUpdate((status) => {
+        if (status.isLoaded && status.didJustFinish) {
+          setPlayingUri(null);
+          soundRef.current = null;
+        }
+      });
+    } catch (err) {
+      setPlayingUri(null);
+    }
+  };
 
   // Filter entries based on selected category
   const filteredEntries = selectedCategory === 'all'
@@ -241,6 +320,48 @@ export const HomeScreen: React.FC<HomeScreenProps> = () => {
                 <Text style={[styles.sectionLink, { color: colors.primary }]}>See all →</Text>
               </TouchableOpacity>
             </View>
+
+            {/* Saved Recordings */}
+            {recordings.length > 0 && (
+              <View style={styles.recordingsSection}>
+                <Text style={[styles.sectionTitle, { color: colors.text, marginBottom: spacing.md }]}>
+                  🎙️ Saved Recordings ({recordings.length})
+                </Text>
+                {recordings.map((rec) => {
+                  const isPlaying = playingUri === rec.uri;
+                  return (
+                    <View
+                      key={rec.name}
+                      style={[styles.recordingItem, { backgroundColor: colors.surface, borderLeftColor: isPlaying ? colors.danger : colors.primary }, shadows.sm]}
+                    >
+                      <TouchableOpacity
+                        style={styles.recordingPlayArea}
+                        onPress={() => handlePlayRecording(rec.uri)}
+                        activeOpacity={0.7}
+                      >
+                        <Ionicons name={isPlaying ? 'pause' : 'mic'} size={18} color={isPlaying ? colors.danger : colors.primary} />
+                        <View style={styles.recordingInfo}>
+                          <Text style={[styles.recordingName, { color: colors.text }]} numberOfLines={1}>
+                            {rec.name}
+                          </Text>
+                          <Text style={[styles.recordingSize, { color: colors.textMuted }]}>
+                            {(rec.size / 1024).toFixed(1)} KB
+                          </Text>
+                        </View>
+                        <Ionicons name={isPlaying ? 'stop-circle' : 'play-circle'} size={28} color={isPlaying ? colors.danger : colors.primary} />
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={styles.recordingDeleteBtn}
+                        onPress={() => handleDeleteRecording(rec.uri, rec.name)}
+                        hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                      >
+                        <Ionicons name="trash-outline" size={18} color={colors.danger} />
+                      </TouchableOpacity>
+                    </View>
+                  );
+                })}
+              </View>
+            )}
           </>
         }
         ListEmptyComponent={renderEmpty}
@@ -429,5 +550,40 @@ const styles = StyleSheet.create({
   // List
   listContent: {
     paddingBottom: 100,
+  },
+  // Saved Recordings
+  recordingsSection: {
+    paddingHorizontal: spacing.xl,
+    marginTop: spacing.xxl,
+    marginBottom: spacing.md,
+  },
+  recordingItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: spacing.md,
+    borderRadius: radius.sm,
+    marginBottom: spacing.sm,
+    borderLeftWidth: 3,
+  },
+  recordingPlayArea: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+  },
+  recordingDeleteBtn: {
+    padding: spacing.md,
+    marginLeft: spacing.sm,
+  },
+  recordingInfo: {
+    flex: 1,
+  },
+  recordingName: {
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  recordingSize: {
+    fontSize: 12,
+    marginTop: 2,
   },
 });

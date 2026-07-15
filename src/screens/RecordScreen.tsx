@@ -17,6 +17,7 @@ import { RecordButton } from '../components/RecordButton';
 import { useRecording } from '../hooks/useRecording';
 import { useTheme } from '../theme/ThemeContext';
 import { createShadows } from '../theme';
+import { saveAudioLocally, audioFileExists } from '../services/audioStorage';
 
 export const RecordScreen: React.FC = () => {
   const navigation = useNavigation();
@@ -84,22 +85,35 @@ export const RecordScreen: React.FC = () => {
   };
 
   const handleSave = async () => {
+    if (!state.uri) return;
     setSaving();
     await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 
-    // TODO: wire up real pipeline (transcribe → categorize → save)
-    // For now, simulate a short save delay
-    await new Promise(resolve => setTimeout(resolve, 800));
+    try {
+      // Save audio to permanent local storage
+      const permanentUri = await saveAudioLocally(state.uri);
+      const filename = permanentUri.split('/').pop() || 'unknown';
+      const exists = await audioFileExists(permanentUri);
 
-    Alert.alert('Saved!', 'Entry saved successfully', [
-      {
-        text: 'OK',
-        onPress: () => {
-          discardRecording();
-          navigation.goBack();
-        },
-      },
-    ]);
+      // TODO: wire up transcription (ElevenLabs) + categorization (Gemini) + Firestore save
+      // For now, confirm the local save
+      Alert.alert(
+        'Saved!',
+        `File: ${filename}\nDuration: ${formatDuration(state.duration)}\nExists: ${exists ? '✅' : '❌'}`,
+        [
+          {
+            text: 'OK',
+            onPress: () => {
+              discardRecording();
+              navigation.goBack();
+            },
+          },
+        ]
+      );
+    } catch (err) {
+      Alert.alert('Error', 'Failed to save recording. Please try again.');
+      discardRecording();
+    }
   };
 
   const handleDiscard = async () => {
