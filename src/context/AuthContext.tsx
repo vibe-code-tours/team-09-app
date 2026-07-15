@@ -75,42 +75,51 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Initialize: ensure local user exists, then listen for Firebase Auth changes
   useEffect(() => {
     let mounted = true;
+    let unsubscribe: (() => void) | undefined;
 
     const init = async () => {
-      // First, ensure local user exists
-      await ensureLocalUser();
+      try {
+        // First, ensure local user exists
+        await ensureLocalUser();
 
-      // Then subscribe to Firebase Auth state
-      const unsubscribe = subscribeToAuthState(async (firebaseUser) => {
-        if (!mounted) return;
+        // Then subscribe to Firebase Auth state (no-op if Firebase is not configured)
+        unsubscribe = subscribeToAuthState(async (firebaseUser: any) => {
+          if (!mounted) return;
 
-        if (firebaseUser) {
-          // User is signed in with Firebase
-          // Migrate local data if needed
-          const currentUserId = userId;
-          if (currentUserId === LOCAL_USER_ID && currentUserId !== firebaseUser.uid) {
-            try {
-              await migrateLocalData(LOCAL_USER_ID, firebaseUser.uid);
-            } catch (err) {
-              console.warn('[Auth] Migration skipped or failed:', err);
+          try {
+            if (firebaseUser) {
+              // User is signed in with Firebase — migrate local data if needed
+              const currentUserId = userId;
+              if (currentUserId === LOCAL_USER_ID && currentUserId !== firebaseUser.uid) {
+                try {
+                  await migrateLocalData(LOCAL_USER_ID, firebaseUser.uid);
+                } catch (err) {
+                  console.warn('[Auth] Migration skipped or failed:', err);
+                }
+              }
+              await ensureFirebaseUser(firebaseUser);
+            } else {
+              // No Firebase Auth — stay with local user
+              await ensureLocalUser();
             }
+          } catch (err) {
+            console.error('[Auth] Error in auth state callback:', err);
           }
-          await ensureFirebaseUser(firebaseUser);
-        } else {
-          // No Firebase Auth — stay with local user
-          await ensureLocalUser();
-        }
 
-        setIsReady(true);
-      });
-
-      return () => {
-        mounted = false;
-        unsubscribe();
-      };
+          if (mounted) setIsReady(true);
+        });
+      } catch (err) {
+        console.error('[Auth] Init failed — falling back to local mode:', err);
+        if (mounted) setIsReady(true);
+      }
     };
 
     init();
+
+    return () => {
+      mounted = false;
+      unsubscribe?.();
+    };
   }, [ensureLocalUser, ensureFirebaseUser, userId]);
 
   const signIn = useCallback(async () => {

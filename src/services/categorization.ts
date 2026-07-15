@@ -4,6 +4,10 @@ import { CategorizedEntry, Category } from '../types';
 const API_KEY = process.env.EXPO_PUBLIC_GEMINI_API_KEY;
 
 export const categorizeEntry = async (transcript: string): Promise<CategorizedEntry> => {
+  if (!API_KEY) {
+    throw new Error('Gemini API key not configured. Set EXPO_PUBLIC_GEMINI_API_KEY in .env');
+  }
+
   const prompt = `Categorize this entry into: money, feelings, work, health, ideas, or other.
 Return JSON: { "category": "...", "summary": "English summary", "items": ["item1"], "mood": "mood", "date": "today" }
 Entry: "${transcript}"`;
@@ -17,8 +21,27 @@ Entry: "${transcript}"`;
     }
   );
 
+  if (!response.ok) {
+    const errBody = await response.text();
+    throw new Error(`Categorization failed (${response.status}): ${errBody}`);
+  }
+
   const result = await response.json();
-  const text = result.candidates[0].content.parts[0].text;
+
+  // Validate response structure — handle safety blocks or empty responses
+  const text = result?.candidates?.[0]?.content?.parts?.[0]?.text;
+  if (!text) {
+    console.warn('[Categorization] Empty or blocked response:', JSON.stringify(result));
+    // Return a safe default instead of crashing
+    return {
+      category: 'other',
+      summary: transcript.slice(0, 100),
+      items: [],
+      mood: 'neutral',
+      date: 'today',
+    };
+  }
+
   const parsed = JSON.parse(text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim());
 
   const valid: Category[] = ['money', 'feelings', 'work', 'health', 'ideas', 'other'];

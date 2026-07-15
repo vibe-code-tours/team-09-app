@@ -1,5 +1,5 @@
 // ExpenseListScreen — Sketch 005 Variant A: Expense Cards
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import {
   View,
   Text,
@@ -8,10 +8,12 @@ import {
   FlatList,
   SafeAreaView,
 } from 'react-native';
-import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
+import { useNavigation, useRoute, RouteProp, useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../theme/ThemeContext';
 import { spacing, radius, createShadows } from '../theme';
+import { useAuth } from '../context/AuthContext';
+import { getMoneyEntries, type MoneyEntry } from '../services/storage';
 
 // ── Navigation types ──────────────────────────────────────
 type MoneyStackParamList = {
@@ -19,35 +21,12 @@ type MoneyStackParamList = {
   ExpenseList: { category?: string; month?: string } | undefined;
 };
 
-// ── Spending entry ────────────────────────────────────────
-interface SpendingEntry {
-  id: string;
-  categoryKey: string;
-  categoryLabel: string;
-  categoryIcon: string;
-  categoryColor: string;
-  amount: number;
-  transcript: string;
-  createdAt: Date;
-}
-
 // ── Months for filter ─────────────────────────────────────
 const MONTHS = [
   { key: '2026-07', label: 'July 2026' },
   { key: '2026-06', label: 'June 2026' },
   { key: '2026-05', label: 'May 2026' },
 ] as const;
-
-// ── Mock data ─────────────────────────────────────────────
-const MOCK_EXPENSES: SpendingEntry[] = [
-  { id: '1', categoryKey: 'food', categoryLabel: 'Food & Drinks', categoryIcon: '🍜', categoryColor: '#4CAF50', amount: 3500, transcript: 'Bought lunch at the market — mohinga and tea with colleagues', createdAt: new Date(Date.now() - 2 * 60 * 60 * 1000) },
-  { id: '2', categoryKey: 'transport', categoryLabel: 'Transport', categoryIcon: '🚌', categoryColor: '#2196F3', amount: 800, transcript: 'Bus fare to work this morning', createdAt: new Date(Date.now() - 5 * 60 * 60 * 1000) },
-  { id: '3', categoryKey: 'shopping', categoryLabel: 'Shopping', categoryIcon: '🛒', categoryColor: '#FF9800', amount: 8500, transcript: 'Groceries at the night market — rice, vegetables, cooking oil', createdAt: new Date(Date.now() - 26 * 60 * 60 * 1000) },
-  { id: '4', categoryKey: 'food', categoryLabel: 'Food & Drinks', categoryIcon: '🍜', categoryColor: '#4CAF50', amount: 2500, transcript: 'Shan noodle dinner at the shop near the hotel', createdAt: new Date(Date.now() - 28 * 60 * 60 * 1000) },
-  { id: '5', categoryKey: 'food', categoryLabel: 'Food & Drinks', categoryIcon: '🍜', categoryColor: '#4CAF50', amount: 1500, transcript: 'Morning tea and a snack at the stall', createdAt: new Date(Date.now() - 50 * 60 * 60 * 1000) },
-  { id: '6', categoryKey: 'transport', categoryLabel: 'Transport', categoryIcon: '🚌', categoryColor: '#2196F3', amount: 800, transcript: 'Bus fare to the office', createdAt: new Date(Date.now() - 52 * 60 * 60 * 1000) },
-  { id: '7', categoryKey: 'bills', categoryLabel: 'Bills & Other', categoryIcon: '📱', categoryColor: '#607D8B', amount: 3900, transcript: 'Phone data top-up for the month', createdAt: new Date(Date.now() - 72 * 60 * 60 * 1000) },
-];
 
 const formatK = (n: number) => `K ${n.toLocaleString()}`;
 
@@ -78,46 +57,61 @@ export const ExpenseListScreen: React.FC = () => {
   const { theme, isDark } = useTheme();
   const { colors } = theme;
   const shadows = createShadows(isDark, colors.primary);
+  const { userId } = useAuth();
 
   const initialCategory = route.params?.category;
   const [selectedMonth, setSelectedMonth] = useState<string>(MONTHS[0].key);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(initialCategory ?? null);
+  const [allExpenses, setAllExpenses] = useState<MoneyEntry[]>([]);
 
-  // Filter expenses
+  // Load money entries from database
+  useFocusEffect(
+    useCallback(() => {
+      let cancelled = false;
+      const loadEntries = async () => {
+        try {
+          const entries = await getMoneyEntries(userId);
+          if (!cancelled) setAllExpenses(entries);
+        } catch (err) {
+          console.error('[ExpenseListScreen] Failed to load expenses:', err);
+        }
+      };
+      loadEntries();
+      return () => { cancelled = true; };
+    }, [userId])
+  );
+
+  // Filter expenses by category and month
   const filteredExpenses = useMemo(() => {
-    let result = MOCK_EXPENSES;
-    if (selectedCategory) {
-      result = result.filter(e => e.categoryKey === selectedCategory);
+    let result = allExpenses;
+
+    // Filter by month
+    if (selectedMonth) {
+      const [year, month] = selectedMonth.split('-').map(Number);
+      result = result.filter(e => {
+        const d = e.createdAt;
+        return d.getFullYear() === year && d.getMonth() + 1 === month;
+      });
     }
+
     return result;
-  }, [selectedCategory]);
+  }, [allExpenses, selectedMonth]);
 
   const total = useMemo(
     () => filteredExpenses.reduce((sum, e) => sum + e.amount, 0),
     [filteredExpenses],
   );
 
-  // Category filter chips (derived from data)
-  const categoryChips = useMemo(() => {
-    const seen = new Map<string, { label: string; icon: string; color: string }>();
-    for (const e of MOCK_EXPENSES) {
-      if (!seen.has(e.categoryKey)) {
-        seen.set(e.categoryKey, { label: e.categoryLabel, icon: e.categoryIcon, color: e.categoryColor });
-      }
-    }
-    return Array.from(seen.entries()).map(([key, val]) => ({ key, ...val }));
-  }, []);
-
-  const renderExpenseCard = ({ item }: { item: SpendingEntry }) => (
+  const renderExpenseCard = ({ item }: { item: MoneyEntry }) => (
     <View style={[styles.card, { backgroundColor: colors.surface }, shadows.sm]}>
-      <View style={[styles.cardBorder, { backgroundColor: item.categoryColor }]} />
+      <View style={[styles.cardBorder, { backgroundColor: colors.primary }]} />
       <View style={styles.cardContent}>
         {/* Top: category + amount */}
         <View style={styles.cardTop}>
           <View style={styles.cardCategoryRow}>
-            <Text style={styles.cardIcon}>{item.categoryIcon}</Text>
-            <Text style={[styles.cardCategory, { color: item.categoryColor }]}>
-              {item.categoryLabel}
+            <Text style={styles.cardIcon}>💰</Text>
+            <Text style={[styles.cardCategory, { color: colors.primary }]}>
+              {item.description}
             </Text>
           </View>
           <Text style={[styles.cardAmount, { color: colors.primary }]}>
@@ -126,9 +120,11 @@ export const ExpenseListScreen: React.FC = () => {
         </View>
 
         {/* Transcript quote */}
-        <Text style={[styles.cardTranscript, { color: colors.text }]}>
-          "{item.transcript}"
-        </Text>
+        {item.summary ? (
+          <Text style={[styles.cardTranscript, { color: colors.text }]}>
+            "{item.summary}"
+          </Text>
+        ) : null}
 
         {/* Footer: date + voice badge */}
         <View style={styles.cardFooter}>
@@ -171,46 +167,6 @@ export const ExpenseListScreen: React.FC = () => {
             >
               <Text style={[styles.chipText, { color: isActive ? '#FFF' : colors.textMuted }]}>
                 {m.label}
-              </Text>
-            </TouchableOpacity>
-          );
-        })}
-      </View>
-
-      {/* Category filter chips */}
-      <View style={styles.chipRow}>
-        <TouchableOpacity
-          style={[
-            styles.chip,
-            {
-              backgroundColor: !selectedCategory ? '#4CAF50' : colors.surface,
-              borderColor: !selectedCategory ? '#4CAF50' : colors.border,
-            },
-          ]}
-          onPress={() => setSelectedCategory(null)}
-          activeOpacity={0.7}
-        >
-          <Text style={[styles.chipText, { color: !selectedCategory ? '#FFF' : colors.textMuted }]}>
-            All
-          </Text>
-        </TouchableOpacity>
-        {categoryChips.map((cat) => {
-          const isActive = selectedCategory === cat.key;
-          return (
-            <TouchableOpacity
-              key={cat.key}
-              style={[
-                styles.chip,
-                {
-                  backgroundColor: isActive ? cat.color : colors.surface,
-                  borderColor: isActive ? cat.color : colors.border,
-                },
-              ]}
-              onPress={() => setSelectedCategory(isActive ? null : cat.key)}
-              activeOpacity={0.7}
-            >
-              <Text style={[styles.chipText, { color: isActive ? '#FFF' : colors.textMuted }]}>
-                {cat.icon} {cat.label}
               </Text>
             </TouchableOpacity>
           );

@@ -216,21 +216,6 @@ export const SettingsScreen: React.FC = () => {
               </TouchableOpacity>
             ))}
           </View>
-          {/* Text size */}
-          <View style={[styles.row, { borderBottomWidth: 0 }]}>
-            <View style={styles.rowLeft}>
-              <Text style={styles.rowIcon}>🔤</Text>
-              <Text style={[styles.rowTitle, { color: colors.text }]}>Text Size</Text>
-            </View>
-            <View style={styles.sliderRow}>
-              <Text style={[styles.sliderLabel, { color: colors.textMuted }]}>A</Text>
-              <View style={[styles.sliderTrack, { backgroundColor: colors.border }]}>
-                <View style={[styles.sliderFill, { backgroundColor: colors.primary }]} />
-                <View style={[styles.sliderThumb, { backgroundColor: colors.primary }]} />
-              </View>
-              <Text style={[styles.sliderLabelLarge, { color: colors.textMuted }]}>A</Text>
-            </View>
-          </View>
         </View>
 
         {/* Section: Notifications */}
@@ -412,24 +397,4 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   themeSegText: { fontSize: 13, fontWeight: '500' },
-
-  // Slider
-  sliderRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
-  sliderLabel: { fontSize: 12 },
-  sliderLabelLarge: { fontSize: 16 },
-  sliderTrack: {
-    width: 80,
-    height: 4,
-    borderRadius: 2,
-    position: 'relative',
-  },
-  sliderFill: { width: '50%', height: '100%', borderRadius: 2 },
-  sliderThumb: {
-    width: 16,
-    height: 16,
-    borderRadius: 8,
-    position: 'absolute',
-    top: -6,
-    left: 33,
-  },
 });

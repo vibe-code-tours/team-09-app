@@ -1,25 +1,44 @@
 // Firebase Auth + Google Sign-In Service
-import { GoogleSignin } from '@react-native-google-signin/google-signin';
-import {
-  GoogleAuthProvider,
-  signInWithCredential,
-  signOut as firebaseSignOut,
-  onAuthStateChanged,
-  type User,
-} from 'firebase/auth';
 import { auth } from '../config/firebase';
 
-// Configure Google Sign-In
-GoogleSignin.configure({
-  webClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID,
-  offlineAccess: true,
-});
+// Only import Firebase modules when auth is available
+let GoogleSignin: any = null;
+let GoogleAuthProvider: any = null;
+let signInWithCredential: any = null;
+let firebaseSignOut: any = null;
+let onAuthStateChanged: any = null;
+
+const isFirebaseReady = Boolean(auth);
+
+if (isFirebaseReady) {
+  try {
+    const googleSigninModule = require('@react-native-google-signin/google-signin');
+    GoogleSignin = googleSigninModule.GoogleSignin;
+
+    const authModule = require('firebase/auth');
+    GoogleAuthProvider = authModule.GoogleAuthProvider;
+    signInWithCredential = authModule.signInWithCredential;
+    firebaseSignOut = authModule.signOut;
+    onAuthStateChanged = authModule.onAuthStateChanged;
+
+    // Configure Google Sign-In
+    GoogleSignin.configure({
+      webClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID,
+      offlineAccess: true,
+    });
+  } catch (err) {
+    console.warn('[Auth] Firebase modules not available:', err);
+  }
+}
 
 /**
  * Sign in with Google.
  * Returns the Firebase user credential.
  */
 export const signInWithGoogle = async () => {
+  if (!isFirebaseReady || !auth || !GoogleSignin || !GoogleAuthProvider || !signInWithCredential) {
+    throw new Error('Firebase Auth is not configured. Add EXPO_PUBLIC_FIREBASE_* env vars.');
+  }
   await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
   await GoogleSignin.signIn();
   const googleAuth = await GoogleSignin.getTokens();
@@ -37,14 +56,24 @@ export const signInWithGoogle = async () => {
  * Sign out from Firebase + Google.
  */
 export const signOutUser = async () => {
+  if (!isFirebaseReady || !auth || !GoogleSignin || !firebaseSignOut) {
+    return; // no-op when Firebase is not configured
+  }
   await GoogleSignin.signOut();
   await firebaseSignOut(auth);
 };
 
 /**
  * Subscribe to Firebase Auth state changes.
+ * Returns an unsubscribe function. If Firebase is not configured,
+ * returns a no-op unsubscribe and immediately calls callback with null.
  */
-export const subscribeToAuthState = (callback: (user: User | null) => void) => {
+export const subscribeToAuthState = (callback: (user: any) => void): (() => void) => {
+  if (!isFirebaseReady || !auth || !onAuthStateChanged) {
+    // Firebase not configured — immediately notify as unauthenticated
+    callback(null);
+    return () => {}; // no-op unsubscribe
+  }
   return onAuthStateChanged(auth, callback);
 };
 

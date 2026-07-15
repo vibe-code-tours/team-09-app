@@ -150,6 +150,7 @@ export const RecordScreen: React.FC = () => {
   let statusLabel = 'Max 60 seconds';
   if (isRecording && isPaused) statusLabel = 'Paused';
   else if (isRecording) statusLabel = 'Recording...';
+  else if (hasRecording) statusLabel = 'Recording complete';
   else if (isSaving) statusLabel = 'Processing...';
 
   return (

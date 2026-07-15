@@ -1,7 +1,7 @@
 // SearchScreen.tsx — Sketch 009 Variant A: Card Results
 // Tab-integrated search with date-grouped cards, category tags, voice badges
 
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import {
   View,
   Text,
@@ -75,34 +75,32 @@ export function SearchScreen() {
   );
 
   // Debounced search when query changes
-  useFocusEffect(
-    useCallback(() => {
-      if (!query.trim()) {
-        setSearchResults(null);
-        setIsSearching(false);
-        return;
+  useEffect(() => {
+    if (!query.trim()) {
+      setSearchResults(null);
+      setIsSearching(false);
+      return;
+    }
+
+    let cancelled = false;
+    const timer = setTimeout(async () => {
+      setIsSearching(true);
+      try {
+        const results = await searchEntries(userId, query.trim());
+        if (!cancelled) setSearchResults(results);
+      } catch (err) {
+        console.error('[SearchScreen] Search failed:', err);
+        if (!cancelled) setSearchResults([]);
+      } finally {
+        if (!cancelled) setIsSearching(false);
       }
+    }, 300);
 
-      let cancelled = false;
-      const timer = setTimeout(async () => {
-        setIsSearching(true);
-        try {
-          const results = await searchEntries(userId, query.trim());
-          if (!cancelled) setSearchResults(results);
-        } catch (err) {
-          console.error('[SearchScreen] Search failed:', err);
-          if (!cancelled) setSearchResults([]);
-        } finally {
-          if (!cancelled) setIsSearching(false);
-        }
-      }, 300);
-
-      return () => {
-        cancelled = true;
-        clearTimeout(timer);
-      };
-    }, [query])
-  );
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [query, userId]);
 
   // Determine which entries to display
   const displayEntries = searchResults !== null ? searchResults : allEntries;

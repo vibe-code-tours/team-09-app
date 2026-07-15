@@ -24,7 +24,6 @@ function HomeStack() {
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
       <Stack.Screen name="HomeMain" component={HomeScreen} />
-      <Stack.Screen name="Record" component={RecordScreen} />
     </Stack.Navigator>
   );
 }

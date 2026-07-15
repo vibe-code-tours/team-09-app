@@ -154,29 +154,29 @@ export async function initDatabase(): Promise<void> {
   `);
 
   // Create FTS5 virtual table for full-text search
+  // Uses a uuid TEXT column to store the entry's UUID (entries.id is TEXT, not integer rowid)
   await sqlite.execAsync(`
     CREATE VIRTUAL TABLE IF NOT EXISTS entries_fts USING fts5(
+      uuid,
       transcript,
       edited_transcript,
-      summary,
-      content='entries',
-      content_rowid='rowid'
+      summary
     );
 
     -- Triggers to keep FTS in sync
     CREATE TRIGGER IF NOT EXISTS entries_fts_insert AFTER INSERT ON entries BEGIN
-      INSERT INTO entries_fts(rowid, transcript, edited_transcript, summary)
-      VALUES (new.rowid, new.transcript, new.edited_transcript, new.summary);
+      INSERT INTO entries_fts(uuid, transcript, edited_transcript, summary)
+      VALUES (new.id, new.transcript, new.edited_transcript, new.summary);
     END;
 
     CREATE TRIGGER IF NOT EXISTS entries_fts_update AFTER UPDATE ON entries BEGIN
-      DELETE FROM entries_fts WHERE rowid = old.rowid;
-      INSERT INTO entries_fts(rowid, transcript, edited_transcript, summary)
-      VALUES (new.rowid, new.transcript, new.edited_transcript, new.summary);
+      DELETE FROM entries_fts WHERE uuid = old.id;
+      INSERT INTO entries_fts(uuid, transcript, edited_transcript, summary)
+      VALUES (new.id, new.transcript, new.edited_transcript, new.summary);
     END;
 
     CREATE TRIGGER IF NOT EXISTS entries_fts_delete AFTER DELETE ON entries BEGIN
-      DELETE FROM entries_fts WHERE rowid = old.rowid;
+      DELETE FROM entries_fts WHERE uuid = old.id;
     END;
   `);
 
