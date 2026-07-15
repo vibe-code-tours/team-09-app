@@ -21,13 +21,12 @@ import { saveAudioLocally } from '../services/audioStorage';
 import { transcribeAudio } from '../services/transcription';
 import { categorizeEntry } from '../services/categorization';
 import { saveEntry } from '../services/storage';
-
-// Temporary hardcoded userId until Firebase Auth is implemented
-const DEFAULT_USER_ID = 'default-user';
+import { useAuth } from '../context/AuthContext';
 
 export const RecordScreen: React.FC = () => {
   const navigation = useNavigation();
   const { theme, isDark } = useTheme();
+  const { userId } = useAuth();
   const { colors } = theme;
   const shadows = createShadows(isDark, colors.primary);
   const {
@@ -106,7 +105,7 @@ export const RecordScreen: React.FC = () => {
       const categorized = await categorizeEntry(transcript);
 
       // Step 4: Save entry to SQLite database
-      await saveEntry(DEFAULT_USER_ID, {
+      await saveEntry(userId, {
         transcript,
         category: categorized.category,
         summary: categorized.summary,

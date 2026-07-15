@@ -17,9 +17,7 @@ import { spacing, radius, CATEGORIES, Category } from '../theme';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Entry } from '../types';
 import { getEntries, searchEntries } from '../services/storage';
-
-// Temporary hardcoded userId until Firebase Auth is implemented
-const DEFAULT_USER_ID = 'default-user';
+import { useAuth } from '../context/AuthContext';
 
 // ── Filter tabs ────────────────────────────────────────────
 const FILTERS: { key: string; label: string; icon?: string }[] = [
@@ -50,6 +48,7 @@ export function SearchScreen() {
   const { theme, isDark } = useTheme();
   const { colors } = theme;
   const insets = useSafeAreaInsets();
+  const { userId } = useAuth();
   const [query, setQuery] = useState('');
   const [activeFilter, setActiveFilter] = useState('all');
   const [allEntries, setAllEntries] = useState<Entry[]>([]);
@@ -63,7 +62,7 @@ export function SearchScreen() {
 
       const loadEntries = async () => {
         try {
-          const entries = await getEntries(DEFAULT_USER_ID);
+          const entries = await getEntries(userId);
           if (!cancelled) setAllEntries(entries);
         } catch (err) {
           console.error('[SearchScreen] Failed to load entries:', err);
@@ -88,7 +87,7 @@ export function SearchScreen() {
       const timer = setTimeout(async () => {
         setIsSearching(true);
         try {
-          const results = await searchEntries(DEFAULT_USER_ID, query.trim());
+          const results = await searchEntries(userId, query.trim());
           if (!cancelled) setSearchResults(results);
         } catch (err) {
           console.error('[SearchScreen] Search failed:', err);

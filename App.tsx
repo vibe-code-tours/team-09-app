@@ -7,6 +7,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { View, Text, StyleSheet, Animated, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { ThemeProvider, useTheme } from './src/theme/ThemeContext';
+import { AuthProvider, useAuth } from './src/context/AuthContext';
 import { initDatabase } from './src/db';
 import { HomeScreen } from './src/screens/HomeScreen';
 import { RecordScreen } from './src/screens/RecordScreen';
@@ -69,6 +70,7 @@ function MainTabs() {
 
 function AppContent() {
   const { isDark } = useTheme();
+  const { isReady: authReady } = useAuth();
   const [dbReady, setDbReady] = useState(false);
 
   useEffect(() => {
@@ -80,7 +82,7 @@ function AppContent() {
       });
   }, []);
 
-  if (!dbReady) {
+  if (!dbReady || !authReady) {
     return (
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: isDark ? '#1a1a2e' : '#F5F5F5' }}>
         <ActivityIndicator size="large" color="#E91E63" />
@@ -99,7 +101,9 @@ function AppContent() {
 export default function App() {
   return (
     <ThemeProvider>
-      <AppContent />
+      <AuthProvider>
+        <AppContent />
+      </AuthProvider>
     </ThemeProvider>
   );
 }
