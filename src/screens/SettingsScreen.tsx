@@ -1,5 +1,5 @@
 // SettingsScreen — Sketch 006 Variant A: iOS Grouped Cards
-import React from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -8,12 +8,14 @@ import {
   ScrollView,
   SafeAreaView,
   Alert,
+  ActivityIndicator,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../theme/ThemeContext';
 import { ThemeMode } from '../theme/ThemeContext';
 import { spacing, radius, createShadows } from '../theme';
+import { useAuth } from '../context/AuthContext';
 
 // ── Theme options ─────────────────────────────────────────
 const THEME_OPTIONS: { key: ThemeMode; icon: string; label: string }[] = [
@@ -88,6 +90,49 @@ export const SettingsScreen: React.FC = () => {
   const { theme, isDark, mode, setMode } = useTheme();
   const { colors } = theme;
   const shadows = createShadows(isDark, colors.primary);
+  const { user, isLocalUser, signIn, signOut } = useAuth();
+  const [isSigningIn, setIsSigningIn] = useState(false);
+
+  const handleSignIn = async () => {
+    try {
+      setIsSigningIn(true);
+      await signIn();
+    } catch (err) {
+      Alert.alert('Sign In Failed', 'Could not sign in with Google. Please try again.');
+    } finally {
+      setIsSigningIn(false);
+    }
+  };
+
+  const handleSignOut = async () => {
+    Alert.alert('Sign Out', 'Are you sure you want to sign out?', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Sign Out',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            await signOut();
+          } catch (err) {
+            Alert.alert('Error', 'Failed to sign out.');
+          }
+        },
+      },
+    ]);
+  };
+
+  // Get display initials from user name
+  const getInitials = () => {
+    if (user?.displayName) {
+      return user.displayName
+        .split(' ')
+        .map((n) => n[0])
+        .join('')
+        .toUpperCase()
+        .slice(0, 2);
+    }
+    return 'LU'; // Local User
+  };
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.bg }]}>
@@ -103,17 +148,49 @@ export const SettingsScreen: React.FC = () => {
       </View>
 
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        {/* Profile Card */}
-        <View style={[styles.profileCard, { backgroundColor: colors.surface }, shadows.sm]}>
-          <View style={[styles.avatar, { backgroundColor: colors.primaryLight }]}>
-            <Text style={[styles.avatarText, { color: colors.primary }]}>KA</Text>
+        {/* Profile Card / Sign In */}
+        {isLocalUser ? (
+          // Guest mode — show sign-in prompt
+          <TouchableOpacity
+            style={[styles.profileCard, { backgroundColor: colors.surface }, shadows.sm]}
+            onPress={handleSignIn}
+            disabled={isSigningIn}
+            activeOpacity={0.7}
+          >
+            <View style={[styles.avatar, { backgroundColor: colors.border }]}>
+              <Ionicons name="person-outline" size={24} color={colors.textMuted} />
+            </View>
+            <View style={styles.profileInfo}>
+              <Text style={[styles.profileName, { color: colors.text }]}>Sign In</Text>
+              <Text style={[styles.profileEmail, { color: colors.textMuted }]}>
+                Connect to sync your data
+              </Text>
+            </View>
+            {isSigningIn ? (
+              <ActivityIndicator size="small" color={colors.primary} />
+            ) : (
+              <Ionicons name="logo-google" size={18} color={colors.textMuted} />
+            )}
+          </TouchableOpacity>
+        ) : (
+          // Signed in — show profile
+          <View style={[styles.profileCard, { backgroundColor: colors.surface }, shadows.sm]}>
+            <View style={[styles.avatar, { backgroundColor: colors.primaryLight }]}>
+              <Text style={[styles.avatarText, { color: colors.primary }]}>{getInitials()}</Text>
+            </View>
+            <View style={styles.profileInfo}>
+              <Text style={[styles.profileName, { color: colors.text }]}>
+                {user?.displayName || 'Google User'}
+              </Text>
+              <Text style={[styles.profileEmail, { color: colors.textMuted }]}>
+                {user?.email || 'Signed in with Google'}
+              </Text>
+            </View>
+            <View style={[styles.syncBadge, { backgroundColor: colors.success + '20' }]}>
+              <Ionicons name="cloud-done-outline" size={14} color={colors.success} />
+            </View>
           </View>
-          <View style={styles.profileInfo}>
-            <Text style={[styles.profileName, { color: colors.text }]}>Khin Aye</Text>
-            <Text style={[styles.profileEmail, { color: colors.textMuted }]}>khin.aye@email.com</Text>
-          </View>
-          <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
-        </View>
+        )}
 
         {/* Section: Appearance */}
         <Text style={[styles.sectionHeader, { color: colors.textMuted }]}>APPEARANCE</Text>
@@ -205,17 +282,19 @@ export const SettingsScreen: React.FC = () => {
           <TappableRow icon="⭐" title="Rate Mhat Tan" colors={colors} last />
         </View>
 
-        {/* Sign Out */}
-        <View style={[styles.sectionCard, { backgroundColor: colors.surface }, shadows.sm, { marginTop: spacing.xl }]}>
-          <TappableRow
-            icon="🚪"
-            title="Sign Out"
-            danger
-            onPress={() => Alert.alert('Sign Out', 'Are you sure?')}
-            colors={colors}
-            last
-          />
-        </View>
+        {/* Sign Out (only when signed in) */}
+        {!isLocalUser && (
+          <View style={[styles.sectionCard, { backgroundColor: colors.surface }, shadows.sm, { marginTop: spacing.xl }]}>
+            <TappableRow
+              icon="🚪"
+              title="Sign Out"
+              danger
+              onPress={handleSignOut}
+              colors={colors}
+              last
+            />
+          </View>
+        )}
 
         <View style={{ height: 100 }} />
       </ScrollView>
@@ -262,6 +341,13 @@ const styles = StyleSheet.create({
   profileInfo: { flex: 1, marginLeft: spacing.lg },
   profileName: { fontSize: 16, fontWeight: '600' },
   profileEmail: { fontSize: 13, marginTop: 2 },
+  syncBadge: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
 
   // Section
   sectionHeader: {

@@ -19,9 +19,7 @@ import { formatRelativeTime, formatHeaderDate, getGreeting } from '../theme';
 import { Entry } from '../types';
 import { listRecordings, deleteAudioFile } from '../services/audioStorage';
 import { getEntries, getTodayEntries } from '../services/storage';
-
-// Temporary hardcoded userId until Firebase Auth is implemented
-const DEFAULT_USER_ID = 'default-user';
+import { useAuth } from '../context/AuthContext';
 
 type RootStackParamList = {
   HomeMain: undefined;
@@ -36,6 +34,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = () => {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { theme, isDark } = useTheme();
   const { colors } = theme;
+  const { userId } = useAuth();
   const shadows = createShadows(isDark, colors.primary);
 
   const [entries, setEntries] = useState<Entry[]>([]);
@@ -53,8 +52,8 @@ export const HomeScreen: React.FC<HomeScreenProps> = () => {
       const loadData = async () => {
         try {
           const [allEntries, todayEntries] = await Promise.all([
-            getEntries(DEFAULT_USER_ID),
-            getTodayEntries(DEFAULT_USER_ID),
+            getEntries(userId),
+            getTodayEntries(userId),
           ]);
 
           if (cancelled) return;
