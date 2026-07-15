@@ -1,5 +1,5 @@
 // RecordScreen
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -9,6 +9,10 @@ import {
   SafeAreaView,
   Animated,
   ActivityIndicator,
+  TextInput,
+  ScrollView,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
@@ -22,6 +26,7 @@ import { transcribeAudio } from '../services/transcription';
 import { categorizeEntry } from '../services/categorization';
 import { saveEntry } from '../services/storage';
 import { useAuth } from '../context/AuthContext';
+import { CATEGORIES, Category } from '../types';
 
 export const RecordScreen: React.FC = () => {
   const navigation = useNavigation();
@@ -41,6 +46,15 @@ export const RecordScreen: React.FC = () => {
     discardRecording,
     formatDuration,
   } = useRecording();
+
+  const [transcript, setTranscript] = useState<string>('');
+  const [isTranscribing, setIsTranscribing] = useState(false);
+  const [transcribeError, setTranscribeError] = useState<string | null>(null);
+  const [category, setCategory] = useState<Category>('other');
+  const [summary, setSummary] = useState('');
+  const [mood, setMood] = useState('neutral');
+  const [isCategorizing, setIsCategorizing] = useState(false);
+  const categorizeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Animations
   const fadeIn = useRef(new Animated.Value(0)).current;
@@ -63,8 +77,54 @@ export const RecordScreen: React.FC = () => {
           useNativeDriver: true,
         }),
       ]).start();
+
+      // Auto-transcribe after recording finishes
+      handleTranscribe();
     }
   }, [state.status]);
+
+  const handleTranscribe = async () => {
+    if (!state.uri || isTranscribing) return;
+    setIsTranscribing(true);
+    setTranscribeError(null);
+    try {
+      const permanentUri = await saveAudioLocally(state.uri);
+      const text = await transcribeAudio(permanentUri);
+      setTranscript(text);
+      // Auto-categorize after transcription
+      handleCategorize(text);
+    } catch (err: any) {
+      console.error('[RecordScreen] Transcribe failed:', err);
+      setTranscribeError(err.message || 'Transcription failed');
+    } finally {
+      setIsTranscribing(false);
+    }
+  };
+
+  const handleCategorize = async (text: string) => {
+    if (!text.trim()) return;
+    setIsCategorizing(true);
+    try {
+      const result = await categorizeEntry(text);
+      setCategory(result.category);
+      setSummary(result.summary);
+      setMood(result.mood);
+    } catch (err: any) {
+      console.error('[RecordScreen] Categorize failed:', err);
+      // Keep defaults on failure
+    } finally {
+      setIsCategorizing(false);
+    }
+  };
+
+  const handleTranscriptChange = (text: string) => {
+    setTranscript(text);
+    // Debounce re-categorization on edit
+    if (categorizeTimerRef.current) clearTimeout(categorizeTimerRef.current);
+    categorizeTimerRef.current = setTimeout(() => {
+      handleCategorize(text);
+    }, 1000);
+  };
 
   const handleRecordPress = async () => {
     try {
@@ -90,7 +150,7 @@ export const RecordScreen: React.FC = () => {
   };
 
   const handleSave = async () => {
-    if (!state.uri) return;
+    if (!state.uri || !transcript.trim()) return;
     setSaving();
     await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 
@@ -98,18 +158,12 @@ export const RecordScreen: React.FC = () => {
       // Step 1: Save audio to permanent local storage
       const permanentUri = await saveAudioLocally(state.uri);
 
-      // Step 2: Transcribe audio (ElevenLabs)
-      const transcript = await transcribeAudio(permanentUri);
-
-      // Step 3: Categorize transcript (Gemini)
-      const categorized = await categorizeEntry(transcript);
-
-      // Step 4: Save entry to SQLite database
+      // Step 2: Save entry to SQLite database (category already from local state)
       await saveEntry(userId, {
         transcript,
-        category: categorized.category,
-        summary: categorized.summary,
-        mood: categorized.mood,
+        category,
+        summary,
+        mood,
         audioUri: permanentUri,
         audioDuration: state.duration,
         isPinned: false,
@@ -137,6 +191,12 @@ export const RecordScreen: React.FC = () => {
 
   const handleDiscard = async () => {
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+    if (categorizeTimerRef.current) clearTimeout(categorizeTimerRef.current);
+    setTranscript('');
+    setTranscribeError(null);
+    setCategory('other');
+    setSummary('');
+    setMood('neutral');
     discardRecording();
     navigation.goBack();
   };
@@ -150,15 +210,30 @@ export const RecordScreen: React.FC = () => {
   let statusLabel = 'Max 60 seconds';
   if (isRecording && isPaused) statusLabel = 'Paused';
   else if (isRecording) statusLabel = 'Recording...';
+  else if (isTranscribing) statusLabel = 'Transcribing...';
+  else if (hasRecording && transcript) statusLabel = 'Ready to save';
   else if (hasRecording) statusLabel = 'Recording complete';
-  else if (isSaving) statusLabel = 'Processing...';
+  else if (isSaving) statusLabel = 'Saving...';
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.bg }]}>
+      <KeyboardAvoidingView
+        style={styles.flex}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        keyboardVerticalOffset={0}
+      >
       {/* Header */}
       <View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
         <TouchableOpacity
-          onPress={() => navigation.goBack()}
+          onPress={() => {
+            if (categorizeTimerRef.current) clearTimeout(categorizeTimerRef.current);
+            setTranscript('');
+            setTranscribeError(null);
+            setCategory('other');
+            setSummary('');
+            setMood('neutral');
+            navigation.goBack();
+          }}
           hitSlop={styles.hitSlop}
           disabled={isSaving}
         >
@@ -245,36 +320,94 @@ export const RecordScreen: React.FC = () => {
             </TouchableOpacity>
           </View>
 
-          {/* Discard + Save */}
-          <View style={styles.actionContainer}>
-            <TouchableOpacity
-              style={[
-                styles.discardButton,
-                { borderColor: colors.border },
-              ]}
-              onPress={handleDiscard}
-              activeOpacity={0.7}
-            >
-              <Text style={[styles.discardText, { color: colors.textSecondary }]}>
-                Discard
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.saveButton, { backgroundColor: colors.primary }]}
-              onPress={handleSave}
-              activeOpacity={0.7}
-            >
-              <Text style={styles.saveText}>Save Entry</Text>
-            </TouchableOpacity>
-          </View>
+          {/* Scrollable content: category + transcript + actions */}
+          <ScrollView
+            style={styles.scrollContent}
+            contentContainerStyle={styles.scrollContentContainer}
+            keyboardShouldPersistTaps="handled"
+            keyboardDismissMode="interactive"
+          >
+            {/* Category Badge */}
+            {isCategorizing ? (
+              <View style={styles.categoryLoading}>
+                <ActivityIndicator size="small" color={colors.primary} />
+                <Text style={[styles.categoryLoadingText, { color: colors.textMuted }]}>
+                  Categorizing...
+                </Text>
+              </View>
+            ) : (
+              <View style={[styles.categoryBadge, { backgroundColor: CATEGORIES[category].color + '15', borderColor: CATEGORIES[category].color + '30' }]}>
+                <Text style={styles.categoryIcon}>{CATEGORIES[category].icon}</Text>
+                <Text style={[styles.categoryLabel, { color: CATEGORIES[category].color }]}>
+                  {CATEGORIES[category].label}
+                </Text>
+              </View>
+            )}
+
+            {/* Editable Transcript */}
+            <View style={[styles.transcriptBox, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+              {isTranscribing ? (
+                <View style={styles.transcriptLoading}>
+                  <ActivityIndicator size="small" color={colors.primary} />
+                  <Text style={[styles.transcriptLoadingText, { color: colors.textMuted }]}>
+                    Transcribing...
+                  </Text>
+                </View>
+              ) : transcribeError ? (
+                <View style={styles.transcriptError}>
+                  <Text style={[styles.transcriptErrorText, { color: colors.danger }]}>
+                    {transcribeError}
+                  </Text>
+                  <TouchableOpacity onPress={handleTranscribe}>
+                    <Text style={[styles.retryText, { color: colors.primary }]}>Retry</Text>
+                  </TouchableOpacity>
+                </View>
+              ) : (
+                <TextInput
+                  style={[styles.transcriptInput, { color: colors.text }]}
+                  value={transcript}
+                  onChangeText={handleTranscriptChange}
+                  multiline
+                  placeholder="Your transcript will appear here..."
+                  placeholderTextColor={colors.textMuted}
+                  textAlignVertical="top"
+                />
+              )}
+            </View>
+
+            {/* Discard + Save */}
+            <View style={styles.actionContainer}>
+              <TouchableOpacity
+                style={[styles.discardButton, { borderColor: colors.border }]}
+                onPress={handleDiscard}
+                activeOpacity={0.7}
+              >
+                <Text style={[styles.discardText, { color: colors.textSecondary }]}>
+                  Discard
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.saveButton, { backgroundColor: transcript.trim() ? colors.primary : colors.textMuted }]}
+                onPress={handleSave}
+                disabled={!transcript.trim()}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.saveText}>Save Entry</Text>
+              </TouchableOpacity>
+            </View>
+          </ScrollView>
         </Animated.View>
       )}
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
+    flex: 1,
+  },
+  flex: {
     flex: 1,
   },
   header: {
@@ -372,6 +505,76 @@ const styles = StyleSheet.create({
   saveText: {
     fontSize: 16,
     color: 'white',
+    fontWeight: '600',
+  },
+  scrollContent: {
+    flex: 1,
+  },
+  scrollContentContainer: {
+    paddingHorizontal: 24,
+    paddingTop: 4,
+    paddingBottom: 24,
+    gap: 12,
+  },
+  categoryLoading: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 8,
+  },
+  categoryLoadingText: {
+    fontSize: 13,
+  },
+  categoryBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'center',
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 20,
+    borderWidth: 1,
+    gap: 6,
+  },
+  categoryIcon: {
+    fontSize: 16,
+  },
+  categoryLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  transcriptBox: {
+    borderRadius: 12,
+    borderWidth: 1,
+    padding: 14,
+    minHeight: 120,
+  },
+  transcriptInput: {
+    fontSize: 16,
+    lineHeight: 24,
+    minHeight: 100,
+  },
+  transcriptLoading: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    minHeight: 100,
+  },
+  transcriptLoadingText: {
+    fontSize: 14,
+  },
+  transcriptError: {
+    alignItems: 'center',
+    gap: 8,
+    paddingVertical: 20,
+  },
+  transcriptErrorText: {
+    fontSize: 13,
+    textAlign: 'center',
+  },
+  retryText: {
+    fontSize: 14,
     fontWeight: '600',
   },
 });
