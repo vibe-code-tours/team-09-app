@@ -108,11 +108,13 @@ export const userSettings = sqliteTable('user_settings', {
   autoTranscribe: integer('auto_transcribe', { mode: 'boolean' }).notNull().default(true),
   theme: text('theme').notNull().default('system'), // light, dark, system
   notifications: integer('notifications', { mode: 'boolean' }).notNull().default(true),
+  categorizer: text('categorizer').notNull().default('gemini'), // gemini, custom
   createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
   updatedAt: integer('updated_at', { mode: 'timestamp' }).notNull(),
 }, (t) => [
   check('user_settings_language_code_check', sql`${t.languageCode} IN ('my', 'en')`),
   check('user_settings_theme_check', sql`${t.theme} IN ('light', 'dark', 'system')`),
+  check('user_settings_categorizer_check', sql`${t.categorizer} IN ('gemini', 'custom')`),
 ]);
 
 // =============================================================================
@@ -190,3 +192,4 @@ export const CATEGORY_TYPES = ['expense', 'income'] as const;
 export const THEMES = ['light', 'dark', 'system'] as const;
 export const LANGUAGE_CODES = ['my', 'en'] as const;
 export const CORRECTION_FIELDS = ['entry_type', 'category', 'mood', 'summary'] as const;
+export const CATEGORIZERS = ['gemini', 'custom'] as const;

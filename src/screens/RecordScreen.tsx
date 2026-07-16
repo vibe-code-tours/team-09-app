@@ -23,7 +23,7 @@ import { useTheme } from '../theme/ThemeContext';
 import { createShadows } from '../theme';
 import { saveAudioLocally } from '../services/audioStorage';
 import { transcribeAudio } from '../services/transcription';
-import { categorizeEntry } from '../services/categorization';
+import { categorizeEntrySmart } from '../services/categorize';
 import { saveEntry } from '../services/storage';
 import { useAuth } from '../context/AuthContext';
 import { CATEGORIES, Category } from '../types';
@@ -91,7 +91,8 @@ export const RecordScreen: React.FC = () => {
       const permanentUri = await saveAudioLocally(state.uri);
       const text = await transcribeAudio(permanentUri);
       setTranscript(text);
-      // Auto-categorize after transcription
+      // Show transcript immediately, then categorize in background
+      setIsTranscribing(false);
       handleCategorize(text);
     } catch (err: any) {
       console.error('[RecordScreen] Transcribe failed:', err);
@@ -105,7 +106,7 @@ export const RecordScreen: React.FC = () => {
     if (!text.trim()) return;
     setIsCategorizing(true);
     try {
-      const result = await categorizeEntry(text);
+      const result = await categorizeEntrySmart(userId, text);
       setCategory(result.category);
       setSummary(result.summary);
       setMood(result.mood);

@@ -121,6 +121,7 @@ export async function initDatabase(): Promise<void> {
       auto_transcribe INTEGER NOT NULL DEFAULT 1,
       theme TEXT NOT NULL DEFAULT 'system' CHECK(theme IN ('light', 'dark', 'system')),
       notifications INTEGER NOT NULL DEFAULT 1,
+      categorizer TEXT NOT NULL DEFAULT 'gemini' CHECK(categorizer IN ('gemini', 'custom')),
       created_at INTEGER NOT NULL DEFAULT CURRENT_TIMESTAMP,
       updated_at INTEGER NOT NULL DEFAULT CURRENT_TIMESTAMP
     );
@@ -152,6 +153,16 @@ export async function initDatabase(): Promise<void> {
     CREATE INDEX IF NOT EXISTS idx_corrections_entry ON corrections(entry_id);
     CREATE INDEX IF NOT EXISTS idx_corrections_field ON corrections(field);
   `);
+
+  // ── Migrations for existing databases ──────────────────────────
+  // Add categorizer column to user_settings if it doesn't exist
+  try {
+    await sqlite.execAsync(`
+      ALTER TABLE user_settings ADD COLUMN categorizer TEXT NOT NULL DEFAULT 'gemini' CHECK(categorizer IN ('gemini', 'custom'));
+    `);
+  } catch {
+    // Column already exists — ignore
+  }
 
   // Create FTS5 virtual table for full-text search
   // Uses a uuid TEXT column to store the entry's UUID (entries.id is TEXT, not integer rowid)
