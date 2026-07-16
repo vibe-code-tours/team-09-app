@@ -1,32 +1,32 @@
-// Gemini Categorization Service
+// Gemini Categorization Service — calls Firebase Cloud Function (API key stays server-side)
 import { CategorizedEntry, Category } from '../types';
+import { getFunctions, httpsCallable } from 'firebase/functions';
+import app from '../../config/firebase';
 
-const API_KEY = process.env.EXPO_PUBLIC_GEMINI_API_KEY;
+interface CategorizeResult {
+  category: string;
+  summary: string;
+  items: string[];
+  mood: string;
+  date: string;
+}
+
+const functions = getFunctions(app);
+const categorizeCallable = httpsCallable<{ transcript: string }, CategorizeResult>(
+  functions,
+  'categorizeEntry'
+);
 
 export const categorizeEntry = async (transcript: string): Promise<CategorizedEntry> => {
-  const prompt = `Categorize this entry into: money, feelings, work, health, ideas, or other.
-Return JSON: { "category": "...", "summary": "English summary", "items": ["item1"], "mood": "mood", "date": "today" }
-Entry: "${transcript}"`;
-
-  const response = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${API_KEY}`,
-    {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] }),
-    }
-  );
-
-  const result = await response.json();
-  const text = result.candidates[0].content.parts[0].text;
-  const parsed = JSON.parse(text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim());
+  const result = await categorizeCallable({ transcript });
+  const data = result.data;
 
   const valid: Category[] = ['money', 'feelings', 'work', 'health', 'ideas', 'other'];
   return {
-    category: valid.includes(parsed.category) ? parsed.category : 'other',
-    summary: parsed.summary || '',
-    items: parsed.items || [],
-    mood: parsed.mood || 'neutral',
-    date: parsed.date || 'today',
+    category: valid.includes(data.category as Category) ? (data.category as Category) : 'other',
+    summary: data.summary || '',
+    items: data.items || [],
+    mood: data.mood || 'neutral',
+    date: data.date || 'today',
   };
 };

@@ -1,19 +1,20 @@
-// ElevenLabs Transcription Service
-const API_KEY = process.env.EXPO_PUBLIC_ELEVENLABS_API_KEY;
+// ElevenLabs Transcription Service — calls Firebase Cloud Function (API key stays server-side)
+import * as FileSystem from 'expo-file-system';
+import { getFunctions, httpsCallable } from 'firebase/functions';
+import app from '../../config/firebase';
+
+const functions = getFunctions(app);
+const transcribeCallable = httpsCallable<{ audioBase64: string; mimeType: string }, { text: string }>(
+  functions,
+  'transcribeAudio'
+);
 
 export const transcribeAudio = async (audioUri: string): Promise<string> => {
-  const formData = new FormData();
-  formData.append('file', { uri: audioUri, type: 'audio/m4a', name: 'recording.m4a' } as any);
-  formData.append('model_id', 'scribe_v2');
-  formData.append('language_code', 'my');
-
-  const response = await fetch('https://api.elevenlabs.io/v1/speech-to-text', {
-    method: 'POST',
-    headers: { 'xi-api-key': API_KEY || '' },
-    body: formData,
+  // Read audio file as base64 — the cloud function handles the ElevenLabs API call
+  const base64 = await FileSystem.readAsStringAsync(audioUri, {
+    encoding: FileSystem.EncodingType.Base64,
   });
 
-  if (!response.ok) throw new Error('Transcription failed');
-  const result = await response.json();
-  return result.text;
+  const result = await transcribeCallable({ audioBase64: base64, mimeType: 'audio/m4a' });
+  return result.data.text;
 };

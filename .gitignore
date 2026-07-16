@@ -3,6 +3,11 @@
 .env.*
 !.env.example
 
+# Firebase Cloud Functions
+functions/node_modules/
+functions/lib/
+functions/.firebaserc
+
 # Node
 node_modules/
 npm-debug.log*
