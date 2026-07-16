@@ -9,8 +9,8 @@ import {
   SafeAreaView,
   Alert,
   ActivityIndicator,
+  Linking,
 } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../theme/ThemeContext';
 import { ThemeMode } from '../theme/ThemeContext';
@@ -86,7 +86,6 @@ const TappableRow: React.FC<{
 
 // ── Component ─────────────────────────────────────────────
 export const SettingsScreen: React.FC = () => {
-  const navigation = useNavigation();
   const { theme, isDark, mode, setMode } = useTheme();
   const { colors } = theme;
   const shadows = createShadows(isDark, colors.primary);
@@ -136,17 +135,6 @@ export const SettingsScreen: React.FC = () => {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.bg }]}>
-      {/* Header */}
-      <View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
-        <View style={styles.headerRow}>
-          <TouchableOpacity onPress={() => navigation.goBack()} hitSlop={styles.hitSlop}>
-            <Ionicons name="arrow-back" size={24} color={colors.text} />
-          </TouchableOpacity>
-          <Text style={[styles.headerTitle, { color: colors.text }]}>Settings</Text>
-          <View style={styles.headerSpacer} />
-        </View>
-      </View>
-
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         {/* Profile Card / Sign In */}
         {isLocalUser ? (
@@ -245,7 +233,6 @@ export const SettingsScreen: React.FC = () => {
         {/* Section: Data & Storage */}
         <Text style={[styles.sectionHeader, { color: colors.textMuted }]}>DATA & STORAGE</Text>
         <View style={[styles.sectionCard, { backgroundColor: colors.surface }, shadows.sm]}>
-          <TappableRow icon="☁️" title="Cloud Backup" colors={colors} />
           <TappableRow icon="📥" title="Export Data" colors={colors} />
           <TappableRow
             icon="🗑️"
@@ -264,7 +251,13 @@ export const SettingsScreen: React.FC = () => {
         <Text style={[styles.sectionHeader, { color: colors.textMuted }]}>ABOUT</Text>
         <View style={[styles.sectionCard, { backgroundColor: colors.surface }, shadows.sm]}>
           <TappableRow icon="ℹ️" title="Version" rightLabel="1.0.0" colors={colors} />
-          <TappableRow icon="⭐" title="Rate Mhat Tan" colors={colors} last />
+          <TappableRow
+            icon="⭐"
+            title="Rate Mhat Tan"
+            onPress={() => Linking.openURL('https://github.com/vibe-code-tours/team-09-app')}
+            colors={colors}
+            last
+          />
         </View>
 
         {/* Sign Out (only when signed in) */}
@@ -290,18 +283,6 @@ export const SettingsScreen: React.FC = () => {
 // ── Styles ────────────────────────────────────────────────
 const styles = StyleSheet.create({
   container: { flex: 1 },
-
-  // Header
-  header: {
-    paddingHorizontal: spacing.xl,
-    paddingTop: spacing.xxl + spacing.sm,
-    paddingBottom: spacing.lg,
-    borderBottomWidth: 1,
-  },
-  headerRow: { flexDirection: 'row', alignItems: 'center' },
-  headerTitle: { fontSize: 18, fontWeight: '600', marginLeft: spacing.md },
-  headerSpacer: { width: 24 },
-  hitSlop: { top: 10, bottom: 10, left: 10, right: 10 },
 
   // Scroll
   scrollContent: { paddingTop: spacing.xl },
