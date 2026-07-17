@@ -17,7 +17,7 @@ type TabConfig = {
 const TABS: TabConfig[] = [
   { key: 'Home', label: 'Home', icon: 'home-outline', iconFocused: 'home' },
   { key: 'Search', label: 'Search', icon: 'search-outline', iconFocused: 'search' },
-  { key: 'Record', label: 'Record', icon: 'mic', iconFocused: 'mic' }, // Center
+  { key: 'Record', label: 'Record', icon: 'add', iconFocused: 'add' }, // Center
   { key: 'Settings', label: 'Settings', icon: 'settings-outline', iconFocused: 'settings' },
 ];
 
@@ -61,8 +61,8 @@ export const ElevatedTabBar: React.FC<Props> = ({
                   shadows.primary,
                 ]}>
                   <Ionicons
-                    name={isRecording ? 'mic' : 'mic-outline'}
-                    size={26}
+                    name="add"
+                    size={32}
                     color="#FFFFFF"
                   />
                 </View>
