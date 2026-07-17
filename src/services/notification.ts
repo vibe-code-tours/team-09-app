@@ -14,7 +14,7 @@ Notifications.setNotificationHandler({
 });
 
 /**
- * Create Android notification channel
+ * Create Android notification channel (no-op on iOS)
  */
 export const setupNotificationChannel = async (): Promise<void> => {
   if (Platform.OS === 'android') {
@@ -24,6 +24,7 @@ export const setupNotificationChannel = async (): Promise<void> => {
       sound: 'default',
     });
   }
+  // iOS doesn't need notification channels
 };
 
 /**
