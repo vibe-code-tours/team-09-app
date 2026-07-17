@@ -107,9 +107,17 @@ export const SettingsScreen: React.FC = () => {
 
   const loadReminderSettings = async () => {
     // TODO: Load from user_settings in DB when service is ready
-    // For now, use defaults
-    setReminderEnabled(true);
-    setReminderTime('20:00');
+    // For now, use defaults and schedule notification
+    const enabled = true;
+    const time = '20:00';
+    setReminderEnabled(enabled);
+    setReminderTime(time);
+
+    // Schedule notification if enabled
+    if (enabled) {
+      const [h, m] = time.split(':').map(Number);
+      await scheduleDailyReminder(h, m);
+    }
   };
 
   const handleToggleReminder = async () => {
