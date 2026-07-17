@@ -43,12 +43,12 @@
 
 | Requirement | Phase | Plan | Status |
 |-------------|-------|------|--------|
-| NOTE-01 | — | — | Pending |
-| NOTE-02 | — | — | Pending |
-| NOTE-03 | — | — | Pending |
-| SHEET-01 | — | — | Pending |
-| SHEET-02 | — | — | Pending |
-| SHEET-03 | — | — | Pending |
-| SHEET-04 | — | — | Pending |
-| EMPTY-01 | — | — | Pending |
-| EMPTY-02 | — | — | Pending |
+| NOTE-01 | Phase 1 | — | Pending |
+| NOTE-02 | Phase 1 | — | Pending |
+| NOTE-03 | Phase 1 | — | Pending |
+| SHEET-01 | Phase 2 | — | Pending |
+| SHEET-02 | Phase 2 | — | Pending |
+| SHEET-03 | Phase 2 | — | Pending |
+| SHEET-04 | Phase 2 | — | Pending |
+| EMPTY-01 | Phase 3 | — | Pending |
+| EMPTY-02 | Phase 3 | — | Pending |
