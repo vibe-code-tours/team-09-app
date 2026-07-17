@@ -98,7 +98,7 @@ export const SettingsScreen: React.FC = () => {
   const { user, isLocalUser, signIn, signOut } = useAuth();
   const [isSigningIn, setIsSigningIn] = useState(false);
   const [reminderEnabled, setReminderEnabled] = useState(false);
-  const [reminderTime, setReminderTime] = useState('19:43');
+  const [reminderTime, setReminderTime] = useState('20:00');
 
   // Load reminder settings on mount
   useEffect(() => {
@@ -109,7 +109,7 @@ export const SettingsScreen: React.FC = () => {
     // TODO: Load from user_settings in DB when service is ready
     // For now, use defaults
     setReminderEnabled(true);
-    setReminderTime('19:43');
+    setReminderTime('20:00');
   };
 
   const handleToggleReminder = async () => {
