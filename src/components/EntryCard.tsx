@@ -40,8 +40,15 @@ export const EntryCard: React.FC<EntryCardProps> = ({ entry, onPress }) => {
         </Text>
       </View>
 
+      {/* Title */}
+      {entry.title ? (
+        <Text style={[styles.title, { color: colors.text }]} numberOfLines={1}>
+          {entry.title}
+        </Text>
+      ) : null}
+
       {/* Summary */}
-      <Text style={[styles.summary, { color: colors.text }]} numberOfLines={2}>
+      <Text style={[styles.summary, { color: colors.textSecondary }]} numberOfLines={2}>
         {entry.summary}
       </Text>
 
@@ -49,7 +56,7 @@ export const EntryCard: React.FC<EntryCardProps> = ({ entry, onPress }) => {
       <View style={styles.footer}>
         <Text style={[styles.mood, { color: colors.textMuted }]}>{entry.mood}</Text>
         {entry.isPinned && (
-          <Text style={[styles.pinned, { color: colors.accent }]}>⭐ Pinned</Text>
+          <Text style={[styles.pinned, { color: colors.accent }]}>📌 Pinned</Text>
         )}
       </View>
     </TouchableOpacity>
@@ -84,6 +91,11 @@ const styles = StyleSheet.create({
   },
   time: {
     fontSize: 12,
+  },
+  title: {
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: spacing.xs,
   },
   summary: {
     fontSize: 14,

@@ -4,6 +4,21 @@ import { File, Directory, Paths } from 'expo-file-system';
 const RECORDINGS_DIR = new Directory(Paths.document, 'recordings');
 
 /**
+ * Format a date as a filename-safe string: YYYY-MM-DD_HH-mm-ss
+ * This format sorts lexicographically in chronological order.
+ */
+const formatDateToFileName = (date: Date): string => {
+  const pad = (n: number) => n.toString().padStart(2, '0');
+  const year = date.getFullYear();
+  const month = pad(date.getMonth() + 1);
+  const day = pad(date.getDate());
+  const hours = pad(date.getHours());
+  const minutes = pad(date.getMinutes());
+  const seconds = pad(date.getSeconds());
+  return `${year}-${month}-${day}_${hours}-${minutes}-${seconds}`;
+};
+
+/**
  * Ensure the recordings directory exists.
  */
 const ensureDir = () => {
@@ -19,8 +34,8 @@ const ensureDir = () => {
 export const saveAudioLocally = async (tempUri: string): Promise<string> => {
   ensureDir();
 
-  // Generate a unique filename with timestamp
-  const filename = `recording-${Date.now()}.m4a`;
+  // Generate filename with human-readable datetime format
+  const filename = `recording-${formatDateToFileName(new Date())}.m4a`;
   const permanentFile = new File(RECORDINGS_DIR, filename);
 
   // Copy from temp to permanent storage (copy is safer than move)

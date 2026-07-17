@@ -8,8 +8,9 @@ export const categorizeEntry = async (transcript: string): Promise<CategorizedEn
     throw new Error('Gemini API key not configured. Set EXPO_PUBLIC_GEMINI_API_KEY in .env');
   }
 
-  const prompt = `Categorize this entry into: money, feelings, work, health, ideas, or other.
-Return JSON: { "category": "...", "summary": "English summary", "items": ["item1"], "mood": "mood", "date": "today" }
+  const prompt = `Categorize this Burmese voice entry into: feelings, work, health, ideas, money, or other.
+Generate a short title (max 5 words) that captures the main topic.
+Return JSON: { "category": "...", "title": "short title", "summary": "English summary", "items": ["item1"], "mood": "mood", "date": "today" }
 Entry: "${transcript}"`;
 
   const response = await fetch(
@@ -35,6 +36,7 @@ Entry: "${transcript}"`;
     // Return a safe default instead of crashing
     return {
       category: 'other',
+      title: transcript.slice(0, 30),
       summary: transcript.slice(0, 100),
       items: [],
       mood: 'neutral',
@@ -44,9 +46,10 @@ Entry: "${transcript}"`;
 
   const parsed = JSON.parse(text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim());
 
-  const valid: Category[] = ['money', 'feelings', 'work', 'health', 'ideas', 'other'];
+  const valid: Category[] = ['feelings', 'work', 'health', 'ideas', 'money', 'other'];
   return {
     category: valid.includes(parsed.category) ? parsed.category : 'other',
+    title: parsed.title || transcript.slice(0, 30),
     summary: parsed.summary || '',
     items: parsed.items || [],
     mood: parsed.mood || 'neutral',

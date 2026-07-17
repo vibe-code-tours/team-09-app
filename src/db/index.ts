@@ -39,36 +39,14 @@ export async function initDatabase(): Promise<void> {
     CREATE UNIQUE INDEX IF NOT EXISTS idx_users_phone ON users(phone);
     CREATE UNIQUE INDEX IF NOT EXISTS idx_users_email ON users(email);
 
-    -- 2. categories
-    CREATE TABLE IF NOT EXISTS categories (
-      id TEXT PRIMARY KEY,
-      user_id TEXT NOT NULL REFERENCES users(id),
-      name TEXT NOT NULL,
-      name_en TEXT,
-      name_my TEXT,
-      type TEXT NOT NULL CHECK(type IN ('expense', 'income')),
-      icon TEXT,
-      color TEXT,
-      sort_order INTEGER NOT NULL DEFAULT 0,
-      is_active INTEGER NOT NULL DEFAULT 1,
-      is_deleted INTEGER NOT NULL DEFAULT 0,
-      created_at INTEGER NOT NULL DEFAULT CURRENT_TIMESTAMP,
-      updated_at INTEGER NOT NULL DEFAULT CURRENT_TIMESTAMP,
-      UNIQUE(user_id, name, type)
-    );
-
-    CREATE INDEX IF NOT EXISTS idx_categories_user_type ON categories(user_id, type);
-    CREATE INDEX IF NOT EXISTS idx_categories_user_active ON categories(user_id, is_active);
-
-    -- 3. entries
+    -- 2. entries (core data unit)
     CREATE TABLE IF NOT EXISTS entries (
       id TEXT PRIMARY KEY,
       user_id TEXT NOT NULL REFERENCES users(id),
-      entry_type TEXT NOT NULL CHECK(entry_type IN ('money', 'feelings', 'work', 'health', 'ideas', 'other')),
+      title TEXT,
+      entry_type TEXT NOT NULL CHECK(entry_type IN ('feelings', 'work', 'health', 'ideas', 'money', 'other')),
       transcript TEXT NOT NULL,
       edited_transcript TEXT,
-      predicted_category_id TEXT REFERENCES categories(id),
-      final_category_id TEXT REFERENCES categories(id),
       mood TEXT CHECK(mood IN ('happy', 'sad', 'neutral', 'excited', 'stressed', 'grateful')),
       mood_confidence REAL,
       summary TEXT,
@@ -87,33 +65,11 @@ export async function initDatabase(): Promise<void> {
 
     CREATE INDEX IF NOT EXISTS idx_entries_user_created ON entries(user_id, created_at);
     CREATE INDEX IF NOT EXISTS idx_entries_user_type ON entries(user_id, entry_type);
-    CREATE INDEX IF NOT EXISTS idx_entries_user_category ON entries(user_id, predicted_category_id);
     CREATE INDEX IF NOT EXISTS idx_entries_user_pinned ON entries(user_id, is_pinned);
     CREATE INDEX IF NOT EXISTS idx_entries_user_deleted ON entries(user_id, is_deleted);
     CREATE INDEX IF NOT EXISTS idx_entries_user_occurred ON entries(user_id, occurred_at);
 
-    -- 4. expense_items
-    CREATE TABLE IF NOT EXISTS expense_items (
-      id TEXT PRIMARY KEY,
-      entry_id TEXT NOT NULL REFERENCES entries(id),
-      final_category_id TEXT REFERENCES categories(id),
-      description TEXT NOT NULL,
-      amount INTEGER NOT NULL,
-      currency TEXT NOT NULL,
-      occurred_at INTEGER NOT NULL,
-      receipt_path TEXT,
-      receipt_size INTEGER,
-      receipt_type TEXT,
-      is_deleted INTEGER NOT NULL DEFAULT 0,
-      created_at INTEGER NOT NULL DEFAULT CURRENT_TIMESTAMP,
-      updated_at INTEGER NOT NULL DEFAULT CURRENT_TIMESTAMP
-    );
-
-    CREATE INDEX IF NOT EXISTS idx_expense_items_entry ON expense_items(entry_id);
-    CREATE INDEX IF NOT EXISTS idx_expense_items_deleted ON expense_items(is_deleted);
-    CREATE INDEX IF NOT EXISTS idx_expense_items_occurred ON expense_items(occurred_at);
-
-    -- 5. user_settings
+    -- 3. user_settings
     CREATE TABLE IF NOT EXISTS user_settings (
       user_id TEXT PRIMARY KEY REFERENCES users(id),
       language_code TEXT NOT NULL DEFAULT 'my' CHECK(language_code IN ('my', 'en')),
@@ -125,7 +81,7 @@ export async function initDatabase(): Promise<void> {
       updated_at INTEGER NOT NULL DEFAULT CURRENT_TIMESTAMP
     );
 
-    -- 6. daily_usage
+    -- 4. daily_usage
     CREATE TABLE IF NOT EXISTS daily_usage (
       id TEXT PRIMARY KEY,
       user_id TEXT NOT NULL REFERENCES users(id),
@@ -136,12 +92,12 @@ export async function initDatabase(): Promise<void> {
       UNIQUE(user_id, date)
     );
 
-    -- 7. corrections
+    -- 5. corrections
     CREATE TABLE IF NOT EXISTS corrections (
       id TEXT PRIMARY KEY,
       user_id TEXT NOT NULL REFERENCES users(id),
       entry_id TEXT NOT NULL REFERENCES entries(id),
-      field TEXT NOT NULL CHECK(field IN ('entry_type', 'category', 'mood', 'summary')),
+      field TEXT NOT NULL CHECK(field IN ('entry_type', 'mood', 'summary')),
       ai_value TEXT NOT NULL,
       ai_confidence REAL,
       user_value TEXT NOT NULL,
@@ -152,6 +108,13 @@ export async function initDatabase(): Promise<void> {
     CREATE INDEX IF NOT EXISTS idx_corrections_entry ON corrections(entry_id);
     CREATE INDEX IF NOT EXISTS idx_corrections_field ON corrections(field);
   `);
+
+  // Migration: add title column if missing (for existing databases)
+  try {
+    await sqlite.execAsync('ALTER TABLE entries ADD COLUMN title TEXT');
+  } catch {
+    // Column already exists — safe to ignore
+  }
 
   // Create FTS5 virtual table for full-text search
   // Uses a uuid TEXT column to store the entry's UUID (entries.id is TEXT, not integer rowid)

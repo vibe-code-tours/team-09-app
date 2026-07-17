@@ -18,7 +18,6 @@ const TABS: TabConfig[] = [
   { key: 'Home', label: 'Home', icon: 'home-outline', iconFocused: 'home' },
   { key: 'Search', label: 'Search', icon: 'search-outline', iconFocused: 'search' },
   { key: 'Record', label: 'Record', icon: 'mic', iconFocused: 'mic' }, // Center
-  { key: 'Money', label: 'Money', icon: 'wallet-outline', iconFocused: 'wallet' },
   { key: 'Settings', label: 'Settings', icon: 'settings-outline', iconFocused: 'settings' },
 ];
 
