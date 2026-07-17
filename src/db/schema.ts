@@ -61,6 +61,7 @@ export const userSettings = sqliteTable('user_settings', {
   autoTranscribe: integer('auto_transcribe', { mode: 'boolean' }).notNull().default(true),
   theme: text('theme').notNull().default('system'), // light, dark, system
   notifications: integer('notifications', { mode: 'boolean' }).notNull().default(true),
+  reminderTime: text('reminder_time').notNull().default('20:00'), // HH:MM format
   createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
   updatedAt: integer('updated_at', { mode: 'timestamp' }).notNull(),
 }, (t) => [

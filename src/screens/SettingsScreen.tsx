@@ -1,5 +1,5 @@
 // SettingsScreen — Sketch 006 Variant A: iOS Grouped Cards
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -10,12 +10,18 @@ import {
   Alert,
   ActivityIndicator,
   Linking,
+  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../theme/ThemeContext';
 import { ThemeMode } from '../theme/ThemeContext';
 import { spacing, radius, createShadows } from '../theme';
 import { useAuth } from '../context/AuthContext';
+import {
+  requestNotificationPermission,
+  scheduleDailyReminder,
+  cancelDailyReminder,
+} from '../services/notification';
 
 // ── Theme options ─────────────────────────────────────────
 const THEME_OPTIONS: { key: ThemeMode; icon: string; label: string }[] = [
@@ -91,6 +97,91 @@ export const SettingsScreen: React.FC = () => {
   const shadows = createShadows(isDark, colors.primary);
   const { user, isLocalUser, signIn, signOut } = useAuth();
   const [isSigningIn, setIsSigningIn] = useState(false);
+  const [reminderEnabled, setReminderEnabled] = useState(false);
+  const [reminderTime, setReminderTime] = useState('20:00');
+
+  // Load reminder settings on mount
+  useEffect(() => {
+    loadReminderSettings();
+  }, []);
+
+  const loadReminderSettings = async () => {
+    // TODO: Load from user_settings in DB when service is ready
+    // For now, use defaults and schedule notification
+    const enabled = true;
+    const time = '20:00';
+    setReminderEnabled(enabled);
+    setReminderTime(time);
+
+    // Schedule notification if enabled
+    if (enabled) {
+      const [h, m] = time.split(':').map(Number);
+      await scheduleDailyReminder(h, m);
+    }
+  };
+
+  const handleToggleReminder = async () => {
+    if (!reminderEnabled) {
+      // Enabling
+      const granted = await requestNotificationPermission();
+      if (granted) {
+        const [h, m] = reminderTime.split(':').map(Number);
+        await scheduleDailyReminder(h, m);
+        setReminderEnabled(true);
+        // TODO: Save to DB
+      } else {
+        Alert.alert(
+          'Notifications Blocked',
+          'Please enable notifications in your device Settings to receive reminders.',
+          [{ text: 'OK' }]
+        );
+      }
+    } else {
+      // Disabling
+      await cancelDailyReminder();
+      setReminderEnabled(false);
+      // TODO: Save to DB
+    }
+  };
+
+  const handleTimePress = () => {
+    if (Platform.OS === 'android') {
+      Alert.prompt(
+        'Set Reminder Time',
+        'Enter time in HH:MM format (24-hour)',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Set',
+            onPress: (value?: string) => {
+              if (value && /^\d{2}:\d{2}$/.test(value)) {
+                handleTimeChange(value);
+              }
+            },
+          },
+        ],
+        'plain-text',
+        reminderTime
+      );
+    }
+  };
+
+  const handleTimeChange = async (time: string) => {
+    setReminderTime(time);
+    if (reminderEnabled) {
+      const [h, m] = time.split(':').map(Number);
+      await cancelDailyReminder();
+      await scheduleDailyReminder(h, m);
+      // TODO: Save to DB
+    }
+  };
+
+  const formatTime = (time: string): string => {
+    const [hour, minute] = time.split(':').map(Number);
+    const period = hour >= 12 ? 'PM' : 'AM';
+    const displayHour = hour % 12 || 12;
+    return `${displayHour}:${minute.toString().padStart(2, '0')} ${period}`;
+  };
 
   const handleSignIn = async () => {
     try {
@@ -213,11 +304,29 @@ export const SettingsScreen: React.FC = () => {
             icon="🔔"
             title="Daily Reminders"
             subtitle="Remind to record entries"
-            value={true}
-            onToggle={() => {}}
+            value={reminderEnabled}
+            onToggle={handleToggleReminder}
             colors={colors}
             shadows={shadows}
           />
+          {reminderEnabled && (
+            <TouchableOpacity
+              style={[styles.row, { borderBottomColor: colors.border, borderBottomWidth: 1 }]}
+              onPress={handleTimePress}
+              activeOpacity={0.7}
+            >
+              <View style={styles.rowLeft}>
+                <Text style={styles.rowIcon}>⏰</Text>
+                <View>
+                  <Text style={[styles.rowTitle, { color: colors.text }]}>Reminder Time</Text>
+                  <Text style={[styles.rowSubtitle, { color: colors.textMuted }]}>
+                    {formatTime(reminderTime)}
+                  </Text>
+                </View>
+              </View>
+              <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
+            </TouchableOpacity>
+          )}
           <ToggleRow
             icon="📊"
             title="Weekly Summary"

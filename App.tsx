@@ -1,7 +1,7 @@
 // Mhat Tan - Main App
 import React, { useState, useEffect, useRef } from 'react';
 import { StatusBar } from 'expo-status-bar';
-import { NavigationContainer } from '@react-navigation/native';
+import { NavigationContainer, NavigationContainerRef } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { View, ActivityIndicator } from 'react-native';
@@ -15,6 +15,11 @@ import { SearchScreen } from './src/screens/SearchScreen';
 import { CreateNoteScreen } from './src/screens/CreateNoteScreen';
 import { ElevatedTabBar } from './src/components/ElevatedTabBar';
 import { CreateSheet } from './src/components/CreateSheet';
+import {
+  setupNotificationChannel,
+  getInitialNotification,
+  addNotificationTapListener,
+} from './src/services/notification';
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
@@ -93,6 +98,7 @@ function AppContent() {
   const { isDark } = useTheme();
   const { isReady: authReady } = useAuth();
   const [dbReady, setDbReady] = useState(false);
+  const navigationRef = useRef<NavigationContainerRef<any>>(null);
 
   useEffect(() => {
     initDatabase()
@@ -101,6 +107,29 @@ function AppContent() {
         console.error('[DB] Init failed:', err);
         setDbReady(true); // proceed anyway — screens will show errors
       });
+  }, []);
+
+  // Setup notifications on app mount
+  useEffect(() => {
+    // Create Android notification channel
+    setupNotificationChannel();
+
+    // Handle notification tap when app was closed
+    getInitialNotification().then((response) => {
+      if (response) {
+        // App opened by tapping notification
+        setTimeout(() => {
+          navigationRef.current?.navigate('Record');
+        }, 1000);
+      }
+    });
+
+    // Handle notification tap when app is in foreground
+    const subscription = addNotificationTapListener((response) => {
+      navigationRef.current?.navigate('Record');
+    });
+
+    return () => subscription.remove();
   }, []);
 
   if (!dbReady || !authReady) {
@@ -112,7 +141,7 @@ function AppContent() {
   }
 
   return (
-    <NavigationContainer>
+    <NavigationContainer ref={navigationRef}>
       <StatusBar style={isDark ? 'light' : 'dark'} />
       <MainTabs />
     </NavigationContainer>
