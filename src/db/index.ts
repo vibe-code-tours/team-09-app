@@ -121,7 +121,7 @@ export async function initDatabase(): Promise<void> {
       auto_transcribe INTEGER NOT NULL DEFAULT 1,
       theme TEXT NOT NULL DEFAULT 'system' CHECK(theme IN ('light', 'dark', 'system')),
       notifications INTEGER NOT NULL DEFAULT 1,
-      reminder_time TEXT NOT NULL DEFAULT '19:40',
+      reminder_time TEXT NOT NULL DEFAULT '19:43',
       created_at INTEGER NOT NULL DEFAULT CURRENT_TIMESTAMP,
       updated_at INTEGER NOT NULL DEFAULT CURRENT_TIMESTAMP
     );
