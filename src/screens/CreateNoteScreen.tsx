@@ -1,5 +1,5 @@
 // CreateNoteScreen - Unified notepad for creating and editing notes
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -15,7 +15,6 @@ import {
 } from 'react-native';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
-import Markdown from 'react-native-markdown-display';
 import { useTheme } from '../theme/ThemeContext';
 import { CATEGORIES, Category, spacing, radius } from '../theme';
 import { getEntryById, saveEntry, updateEntry } from '../services/storage';
@@ -54,7 +53,6 @@ export const CreateNoteScreen: React.FC = () => {
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
 
   const contentInputRef = useRef<TextInput>(null);
-  const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Load existing entry if editing
   useEffect(() => {
@@ -64,6 +62,13 @@ export const CreateNoteScreen: React.FC = () => {
       setContent(prefilledText);
     }
   }, [entryId, prefilledText]);
+
+  // Cleanup on unmount — unload any pending audio resources
+  useEffect(() => {
+    return () => {
+      // AudioPlayer handles its own cleanup via its useEffect return
+    };
+  }, []);
 
   const loadEntry = async (id: string) => {
     try {
@@ -75,90 +80,19 @@ export const CreateNoteScreen: React.FC = () => {
         setIsPinned(entry.isPinned);
       }
     } catch (error) {
-      console.error('Error loading entry:', error);
+      console.error('[CreateNoteScreen] Error loading entry:', error);
     }
   };
 
-  // Autosave with debounce
-  const scheduleAutosave = useCallback(() => {
-    if (saveTimeoutRef.current) {
-      clearTimeout(saveTimeoutRef.current);
+  // ── Manual Save ──────────────────────────────────────────────
+  const handleManualSave = async () => {
+    if (!title.trim() && !content.trim()) {
+      Alert.alert('Empty Note', 'Please add a title or content before saving.');
+      return;
     }
 
-    saveTimeoutRef.current = setTimeout(async () => {
-      if (!title.trim() && !content.trim()) {
-        // Don't save blank drafts
-        return;
-      }
-
-      try {
-        setIsSaving(true);
-        if (entryId) {
-          await updateEntry(entryId, {
-            title: title.trim(),
-            transcript: content.trim(),
-            category,
-            isPinned,
-          });
-        } else {
-          // Create new entry
-          const newEntryId = await saveEntry(userId, {
-            title: title.trim(),
-            transcript: content.trim(),
-            category,
-            summary: '',
-            mood: 'neutral',
-            audioUri: audioFile || '',
-            audioDuration: 0,
-            isPinned,
-          });
-          // Update route params with new entry ID for future saves
-          navigation.setParams({ entryId: newEntryId } as any);
-        }
-        setHasUnsavedChanges(false);
-        if (Platform.OS === 'android') {
-          ToastAndroid.show('Changes saved automatically', ToastAndroid.SHORT);
-        }
-      } catch (error) {
-        console.error('Autosave error:', error);
-      } finally {
-        setIsSaving(false);
-      }
-    }, 2000); // 2 second debounce
-  }, [title, content, category, isPinned, entryId, userId, audioFile, navigation]);
-
-  // Trigger autosave on text changes
-  useEffect(() => {
-    if (hasUnsavedChanges && !isViewOnly) {
-      scheduleAutosave();
-    }
-    return () => {
-      if (saveTimeoutRef.current) {
-        clearTimeout(saveTimeoutRef.current);
-      }
-    };
-  }, [title, content, category, isPinned, hasUnsavedChanges, isViewOnly, scheduleAutosave]);
-
-  const handleBack = () => {
-    if (hasUnsavedChanges) {
-      // Save before going back
-      if (saveTimeoutRef.current) {
-        clearTimeout(saveTimeoutRef.current);
-      }
-      setIsSaving(true);
-      saveEntryFinally();
-    } else {
-      navigation.goBack();
-    }
-  };
-
-  const saveEntryFinally = async () => {
     try {
-      if (!title.trim() && !content.trim()) {
-        navigation.goBack();
-        return;
-      }
-
+      setIsSaving(true);
       if (entryId) {
         await updateEntry(entryId, {
           title: title.trim(),
@@ -167,7 +101,7 @@ export const CreateNoteScreen: React.FC = () => {
           isPinned,
         });
       } else {
-        await saveEntry(userId, {
+        const newEntryId = await saveEntry(userId, {
           title: title.trim(),
           transcript: content.trim(),
           category,
@@ -177,19 +111,38 @@ export const CreateNoteScreen: React.FC = () => {
           audioDuration: 0,
           isPinned,
         });
+        navigation.setParams({ entryId: newEntryId } as any);
       }
+      setHasUnsavedChanges(false);
       if (Platform.OS === 'android') {
         ToastAndroid.show('Note saved', ToastAndroid.SHORT);
       }
-      navigation.goBack();
     } catch (error) {
-      console.error('Save error:', error);
-      Alert.alert('Error', 'Failed to save note');
+      console.error('[CreateNoteScreen] Save error:', error);
+      Alert.alert('Error', 'Failed to save note. Please try again.');
     } finally {
       setIsSaving(false);
     }
   };
 
+  // ── Back Navigation ──────────────────────────────────────────
+  const handleBack = () => {
+    if (hasUnsavedChanges) {
+      Alert.alert(
+        'Unsaved Changes',
+        'You have unsaved changes. What would you like to do?',
+        [
+          { text: 'Discard', style: 'destructive', onPress: () => navigation.goBack() },
+          { text: 'Save', onPress: handleManualSave },
+          { text: 'Cancel', style: 'cancel' },
+        ]
+      );
+    } else {
+      navigation.goBack();
+    }
+  };
+
+  // ── View / Edit Toggle ───────────────────────────────────────
   const handleEdit = () => {
     setIsViewOnly(false);
     setTimeout(() => {
@@ -197,12 +150,23 @@ export const CreateNoteScreen: React.FC = () => {
     }, 100);
   };
 
-  const handleSaveAndView = async () => {
-    setIsSaving(true);
-    await saveEntryFinally();
-    setIsViewOnly(true);
+  const handleView = () => {
+    if (hasUnsavedChanges) {
+      Alert.alert(
+        'Unsaved Changes',
+        'Save your changes before switching to view mode?',
+        [
+          { text: 'Discard', style: 'destructive', onPress: () => { setHasUnsavedChanges(false); setIsViewOnly(true); } },
+          { text: 'Save', onPress: async () => { await handleManualSave(); setIsViewOnly(true); } },
+          { text: 'Cancel', style: 'cancel' },
+        ]
+      );
+    } else {
+      setIsViewOnly(true);
+    }
   };
 
+  // ── Category & Pin ───────────────────────────────────────────
   const toggleCategory = () => {
     const categories: Category[] = ['feelings', 'work', 'health', 'ideas', 'money', 'other'];
     const currentIndex = categories.indexOf(category);
@@ -236,29 +200,47 @@ export const CreateNoteScreen: React.FC = () => {
 
         <View style={styles.headerActions}>
           {isViewOnly ? (
+            <TouchableOpacity
+              style={[styles.headerButton, { backgroundColor: colors.primary }]}
+              onPress={handleEdit}
+            >
+              <Ionicons name="create-outline" size={16} color="#FFFFFF" />
+              <Text style={[styles.headerButtonText, { color: '#FFFFFF' }]}>Edit</Text>
+            </TouchableOpacity>
+          ) : (
             <>
               <TouchableOpacity
-                style={[styles.headerButton, { backgroundColor: colors.primaryLight }]}
-                onPress={handleEdit}
+                style={[styles.headerButton, { backgroundColor: colors.surfaceAlt }]}
+                onPress={handleView}
               >
-                <Text style={[styles.headerButtonText, { color: colors.primary }]}>Edit Note</Text>
+                <Ionicons name="eye-outline" size={16} color={colors.text} />
+                <Text style={[styles.headerButtonText, { color: colors.text }]}>View</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={[styles.headerButton, { backgroundColor: colors.primary }]}
-                onPress={handleSaveAndView}
-                disabled={isSaving}
+                style={[
+                  styles.headerButton,
+                  hasUnsavedChanges
+                    ? { backgroundColor: colors.primary }
+                    : { backgroundColor: colors.primaryLight },
+                ]}
+                onPress={handleManualSave}
+                disabled={isSaving || !hasUnsavedChanges}
               >
-                <Text style={[styles.headerButtonText, { color: '#FFFFFF' }]}>
-                  {isSaving ? 'Saving...' : 'Save Note'}
+                <Ionicons
+                  name="checkmark"
+                  size={16}
+                  color={hasUnsavedChanges ? '#FFFFFF' : colors.textMuted}
+                />
+                <Text
+                  style={[
+                    styles.headerButtonText,
+                    { color: hasUnsavedChanges ? '#FFFFFF' : colors.textMuted },
+                  ]}
+                >
+                  {isSaving ? 'Saving...' : 'Save'}
                 </Text>
               </TouchableOpacity>
             </>
-          ) : (
-            <View style={styles.headerRight}>
-              {isSaving && (
-                <Text style={[styles.savingText, { color: colors.textMuted }]}>Saving...</Text>
-              )}
-            </View>
           )}
         </View>
       </View>
@@ -316,15 +298,14 @@ export const CreateNoteScreen: React.FC = () => {
             </View>
           )}
 
-          {/* Content — rendered markdown in view mode, raw text in edit mode */}
+          {/* Content — plain text in view mode, TextInput in edit mode */}
           {isViewOnly ? (
             content.trim() ? (
-              <Markdown
-                style={markdownStyles(colors)}
-                mergeStyle
-              >
-                {content}
-              </Markdown>
+              <ScrollView style={styles.viewContentContainer} nestedScrollEnabled>
+                <Text style={[styles.viewContent, { color: colors.text }]}>
+                  {content}
+                </Text>
+              </ScrollView>
             ) : (
               <Text style={[styles.emptyContent, { color: colors.textMuted }]}>
                 Empty note
@@ -336,7 +317,7 @@ export const CreateNoteScreen: React.FC = () => {
               style={[styles.contentInput, { color: colors.text }]}
               value={content}
               onChangeText={handleTextChange}
-              placeholder="Start writing... (supports **markdown**)"
+              placeholder="Start writing..."
               placeholderTextColor={colors.textMuted}
               editable={!isViewOnly}
               multiline
@@ -370,21 +351,16 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   headerButton: {
-    paddingHorizontal: spacing.lg,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
     borderRadius: radius.sm,
+    gap: spacing.xs,
   },
   headerButtonText: {
     fontSize: 14,
     fontWeight: '600',
-  },
-  headerRight: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  savingText: {
-    fontSize: 12,
-    marginRight: spacing.sm,
   },
   keyboardAvoid: {
     flex: 1,
@@ -439,6 +415,13 @@ const styles = StyleSheet.create({
   audioSection: {
     marginBottom: spacing.xl,
   },
+  viewContentContainer: {
+    maxHeight: 400,
+  },
+  viewContent: {
+    fontSize: 16,
+    lineHeight: 24,
+  },
   contentInput: {
     fontSize: 16,
     lineHeight: 24,
@@ -451,23 +434,3 @@ const styles = StyleSheet.create({
     minHeight: 300,
   },
 });
-
-// Markdown styles that match the app theme
-function markdownStyles(colors: { text: string; textSecondary: string; textMuted: string; primary: string; border: string }) {
-  return {
-    body: { color: colors.text, fontSize: 16, lineHeight: 24 },
-    heading1: { color: colors.text, fontSize: 28, fontWeight: '700' as const, marginBottom: 12, marginTop: 16 },
-    heading2: { color: colors.text, fontSize: 24, fontWeight: '700' as const, marginBottom: 8, marginTop: 12 },
-    heading3: { color: colors.text, fontSize: 20, fontWeight: '600' as const, marginBottom: 8, marginTop: 12 },
-    bold: { fontWeight: '700' as const },
-    italic: { fontStyle: 'italic' as const },
-    link: { color: colors.primary },
-    blockquote: { borderLeftColor: colors.border, borderLeftWidth: 3, paddingLeft: 12, color: colors.textSecondary },
-    code_block: { backgroundColor: colors.border, padding: 12, borderRadius: 8, fontFamily: 'monospace' as const },
-    fence: { backgroundColor: colors.border, padding: 12, borderRadius: 8 },
-    bullet_list: { marginVertical: 8 },
-    ordered_list: { marginVertical: 8 },
-    list_item: { marginVertical: 4 },
-    hr: { backgroundColor: colors.border, height: 1, marginVertical: 16 },
-  };
-}

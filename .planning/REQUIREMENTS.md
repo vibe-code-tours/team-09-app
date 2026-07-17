@@ -3,9 +3,9 @@
 ## v1 Requirements
 
 ### Note Editor
-- [ ] **NOTE-01**: User can save notes with an explicit "Save Changes" button (replaces broken autosave)
-- [ ] **NOTE-02**: User can toggle between View mode (read-only) and Edit mode (TextInput) via toolbar buttons
-- [ ] **NOTE-03**: User can play/pause audio recordings associated with a note, with progress bar and time display
+- [x] **NOTE-01**: User can save notes with an explicit "Save Changes" button (replaces broken autosave)
+- [x] **NOTE-02**: User can toggle between View mode (read-only) and Edit mode (TextInput) via toolbar buttons
+- [x] **NOTE-03**: User can play/pause audio recordings associated with a note, with progress bar and time display
 
 ### Bottom Sheet
 - [ ] **SHEET-01**: User can tap center FAB (+) to open a creation sheet with two options: "Record Voice" and "New Note"
@@ -43,9 +43,9 @@
 
 | Requirement | Phase | Plan | Status |
 |-------------|-------|------|--------|
-| NOTE-01 | Phase 1 | — | Pending |
-| NOTE-02 | Phase 1 | — | Pending |
-| NOTE-03 | Phase 1 | — | Pending |
+| NOTE-01 | Phase 1 | 01-01 | Done |
+| NOTE-02 | Phase 1 | 01-03 | Done |
+| NOTE-03 | Phase 1 | 01-02 | Done |
 | SHEET-01 | Phase 2 | — | Pending |
 | SHEET-02 | Phase 2 | — | Pending |
 | SHEET-03 | Phase 2 | — | Pending |

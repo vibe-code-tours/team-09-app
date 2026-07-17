@@ -6,7 +6,7 @@ Mhat Tan is a voice-first daily record app for Burmese speakers. The v1 roadmap 
 
 ## Phases
 
-- [ ] **Phase 1: Note Editor Stabilization** - Fix critical correctness issues and refine the editor to match sketch 010
+- [x] **Phase 1: Note Editor Stabilization** - Fix critical correctness issues and refine the editor to match sketch 010
 - [ ] **Phase 2: Bottom Sheet Creation Menu** - Extract and polish the creation sheet with proper animation and Android touch handling
 - [ ] **Phase 3: Empty States and First Entry Flow** - Animated empty state with dual CTAs guiding new users to their first entry
 
@@ -25,9 +25,9 @@ Mhat Tan is a voice-first daily record app for Burmese speakers. The v1 roadmap 
 **Plans**: TBD
 
 Plans:
-- [ ] 01-01: Replace autosave with manual Save Changes button
-- [ ] 01-02: Fix Audio.Sound resource leak and integrate AudioPlayer into CreateNoteScreen
-- [ ] 01-03: Refine View/Edit toggle and remove markdown rendering
+- [x] 01-01: Replace autosave with manual Save Changes button
+- [x] 01-02: Fix Audio.Sound resource leak and integrate AudioPlayer into CreateNoteScreen
+- [x] 01-03: Refine View/Edit toggle and remove markdown rendering
 
 ### Phase 2: Bottom Sheet Creation Menu
 **Goal**: Users can access creation options through a polished bottom sheet triggered by the center FAB
@@ -69,6 +69,6 @@ Phases execute in numeric order: 1 -> 2 -> 3
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Note Editor Stabilization | 0/3 | Not started | - |
+| 1. Note Editor Stabilization | 3/3 | Completed | 2026-07-18 |
 | 2. Bottom Sheet Creation Menu | 0/2 | Not started | - |
 | 3. Empty States and First Entry Flow | 0/2 | Not started | - |
