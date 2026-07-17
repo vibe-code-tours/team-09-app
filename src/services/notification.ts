@@ -33,12 +33,14 @@ export const setupNotificationChannel = async (): Promise<void> => {
  */
 export const requestNotificationPermission = async (): Promise<boolean> => {
   const { status: existingStatus } = await Notifications.getPermissionsAsync();
+  console.log(`[Notification] Existing permission status: ${existingStatus}`);
 
   if (existingStatus === 'granted') {
     return true;
   }
 
   const { status } = await Notifications.requestPermissionsAsync();
+  console.log(`[Notification] New permission status: ${status}`);
   return status === 'granted';
 };
 
@@ -54,7 +56,9 @@ export const scheduleDailyReminder = async (
   // Cancel any existing notifications first
   await cancelDailyReminder();
 
-  await Notifications.scheduleNotificationAsync({
+  console.log(`[Notification] Scheduling daily reminder at ${hour}:${minute.toString().padStart(2, '0')}`);
+
+  const notificationId = await Notifications.scheduleNotificationAsync({
     content: {
       title: 'မှတ်တမ်း',
       body: "Today's record is waiting! 🎙️",
@@ -68,12 +72,15 @@ export const scheduleDailyReminder = async (
       channelId: 'daily-reminder',
     },
   });
+
+  console.log(`[Notification] Scheduled with ID: ${notificationId}`);
 };
 
 /**
  * Cancel all scheduled daily reminders
  */
 export const cancelDailyReminder = async (): Promise<void> => {
+  console.log('[Notification] Cancelling all scheduled notifications');
   await Notifications.cancelAllScheduledNotificationsAsync();
 };
 
