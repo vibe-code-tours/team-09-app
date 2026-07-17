@@ -7,7 +7,7 @@ Mhat Tan is a voice-first daily record app for Burmese speakers. The v1 roadmap 
 ## Phases
 
 - [x] **Phase 1: Note Editor Stabilization** - Fix critical correctness issues and refine the editor to match sketch 010
-- [ ] **Phase 2: Bottom Sheet Creation Menu** - Extract and polish the creation sheet with proper animation and Android touch handling
+- [x] **Phase 2: Bottom Sheet Creation Menu** - Extract and polish the creation sheet with proper animation and Android touch handling
 - [ ] **Phase 3: Empty States and First Entry Flow** - Animated empty state with dual CTAs guiding new users to their first entry
 
 ## Phase Details
@@ -43,8 +43,8 @@ Plans:
 **Plans**: TBD
 
 Plans:
-- [ ] 02-01: Extract inline bottom sheet from App.tsx into dedicated CreateSheet component
-- [ ] 02-02: Integrate @gorhom/bottom-sheet with spring animation and Android touch handling
+- [x] 02-01: Extract inline bottom sheet from App.tsx into dedicated CreateSheet component
+- [x] 02-02: Polish bottom sheet with PanResponder swipe-to-dismiss and spring animation
 
 ### Phase 3: Empty States and First Entry Flow
 **Goal**: New users see a welcoming empty state that guides them to create their first entry
@@ -70,5 +70,5 @@ Phases execute in numeric order: 1 -> 2 -> 3
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Note Editor Stabilization | 3/3 | Completed | 2026-07-18 |
-| 2. Bottom Sheet Creation Menu | 0/2 | Not started | - |
+| 2. Bottom Sheet Creation Menu | 2/2 | Completed | 2026-07-18 |
 | 3. Empty States and First Entry Flow | 0/2 | Not started | - |
