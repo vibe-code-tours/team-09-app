@@ -15,7 +15,7 @@ let db = drizzle(sqlite, { schema });
 async function rebuildDatabase(): Promise<void> {
   console.warn('[DB] Rebuilding database...');
   await sqlite.closeAsync();
-  await SQLite.SQLiteDatabase.deleteDatabaseAsync(DB_NAME);
+  await SQLite.deleteDatabaseAsync(DB_NAME);
   sqlite = SQLite.openDatabaseSync(DB_NAME);
   db = drizzle(sqlite, { schema });
 }
