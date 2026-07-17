@@ -4,18 +4,17 @@ import { StatusBar } from 'expo-status-bar';
 import { NavigationContainer, NavigationContainerRef } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { View, Text, StyleSheet, Animated, TouchableOpacity, ActivityIndicator } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { View, ActivityIndicator } from 'react-native';
 import { ThemeProvider, useTheme } from './src/theme/ThemeContext';
 import { AuthProvider, useAuth } from './src/context/AuthContext';
 import { initDatabase } from './src/db';
 import { HomeScreen } from './src/screens/HomeScreen';
 import { RecordScreen } from './src/screens/RecordScreen';
-import { MoneyScreen } from './src/screens/MoneyScreen';
-import { ExpenseListScreen } from './src/screens/ExpenseListScreen';
 import { SettingsScreen } from './src/screens/SettingsScreen';
 import { SearchScreen } from './src/screens/SearchScreen';
+import { CreateNoteScreen } from './src/screens/CreateNoteScreen';
 import { ElevatedTabBar } from './src/components/ElevatedTabBar';
+import { CreateSheet } from './src/components/CreateSheet';
 import {
   setupNotificationChannel,
   getInitialNotification,
@@ -29,15 +28,7 @@ function HomeStack() {
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
       <Stack.Screen name="HomeMain" component={HomeScreen} />
-    </Stack.Navigator>
-  );
-}
-
-function MoneyStack() {
-  return (
-    <Stack.Navigator screenOptions={{ headerShown: false }}>
-      <Stack.Screen name="MoneyMain" component={MoneyScreen} />
-      <Stack.Screen name="ExpenseList" component={ExpenseListScreen} />
+      <Stack.Screen name="CreateNote" component={CreateNoteScreen} />
     </Stack.Navigator>
   );
 }
@@ -51,24 +42,55 @@ function SettingsStack() {
 }
 
 function MainTabs() {
+  const [sheetVisible, setSheetVisible] = useState(false);
+  const tabNavigationRef = useRef<any>(null);
+
+  const handleRecordVoice = () => {
+    setSheetVisible(false);
+    if (tabNavigationRef.current) {
+      tabNavigationRef.current.navigate('Record');
+    }
+  };
+
+  const handleNewNote = () => {
+    setSheetVisible(false);
+    if (tabNavigationRef.current) {
+      tabNavigationRef.current.navigate('Home', {
+        screen: 'CreateNote',
+        params: {},
+      });
+    }
+  };
+
   return (
-    <Tab.Navigator
-      tabBar={(props) => (
-        <ElevatedTabBar
-          {...props}
-          onCenterPress={() => props.navigation.navigate('Record')}
-        />
-      )}
-      screenOptions={{
-        headerShown: false,
-      }}
-    >
-      <Tab.Screen name="Home" component={HomeStack} />
-      <Tab.Screen name="Search" component={SearchScreen} />
-      <Tab.Screen name="Record" component={RecordScreen} />
-      <Tab.Screen name="Money" component={MoneyStack} />
-      <Tab.Screen name="Settings" component={SettingsStack} />
-    </Tab.Navigator>
+    <View style={{ flex: 1 }}>
+      <Tab.Navigator
+        tabBar={(props) => {
+          tabNavigationRef.current = props.navigation;
+          return (
+            <ElevatedTabBar
+              {...props}
+              onCenterPress={() => setSheetVisible(true)}
+            />
+          );
+        }}
+        screenOptions={{
+          headerShown: false,
+        }}
+      >
+        <Tab.Screen name="Home" component={HomeStack} />
+        <Tab.Screen name="Search" component={SearchScreen} />
+        <Tab.Screen name="Record" component={RecordScreen} />
+        <Tab.Screen name="Settings" component={SettingsStack} />
+      </Tab.Navigator>
+
+      <CreateSheet
+        visible={sheetVisible}
+        onClose={() => setSheetVisible(false)}
+        onRecordVoice={handleRecordVoice}
+        onNewNote={handleNewNote}
+      />
+    </View>
   );
 }
 

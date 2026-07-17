@@ -1,7 +1,7 @@
 // Mhat Tan - Type Definitions
 // Category types for entries
 
-export type Category = 'money' | 'feelings' | 'work' | 'health' | 'ideas' | 'other';
+export type Category = 'feelings' | 'work' | 'health' | 'ideas' | 'money' | 'other';
 
 /**
  * App-facing entry type — simplified view of the DB schema.
@@ -11,11 +11,13 @@ export interface Entry {
   id: string;
   transcript: string;
   category: Category;
+  title: string;
   summary: string;
   mood: string;
   audioUri: string;
   audioDuration: number; // seconds — recording length
   createdAt: Date;
+  updatedAt: Date;
   isPinned: boolean;
   userId: string;
 }
@@ -25,6 +27,7 @@ export interface Entry {
  */
 export interface CategorizedEntry {
   category: Category;
+  title: string;
   summary: string;
   items: string[];
   mood: string;
@@ -43,10 +46,10 @@ export interface RecordingState {
 }
 
 export const CATEGORIES = {
-  money: { icon: '💰', label: 'Money', color: '#4CAF50' },
   feelings: { icon: '😊', label: 'Feelings', color: '#E91E63' },
   work: { icon: '💼', label: 'Work', color: '#2196F3' },
   health: { icon: '🏥', label: 'Health', color: '#FF9800' },
   ideas: { icon: '💡', label: 'Ideas', color: '#9C27B0' },
+  money: { icon: '💰', label: 'Money', color: '#4CAF50' },
   other: { icon: '📝', label: 'Other', color: '#607D8B' },
 } as const;

@@ -108,6 +108,10 @@ EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=
 EXPO_PUBLIC_FIREBASE_APP_ID=
 ```
 
+## Design Skills
+
+- **Sketch findings for mhat-tan** (design decisions, CSS patterns, visual direction) → `Skill("sketch-findings-mhat-tan")`
+
 ## Git Workflow
 
 - Branch naming: `feat/`, `fix/`, `chore/`

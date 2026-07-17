@@ -21,3 +21,6 @@ Vibrant yet professional — bold accent colors on a calm, structured base. Card
 | 007 | search-overlay | Does a Notion-style centered overlay feel right for search? | null | [search, overlay, modal, notion] |
 | 008 | search-fullscreen | How should a dedicated full-screen search screen feel? | null | [search, fullscreen, filters, cards] |
 | 009 | search-tab-integrated | Does a tab-integrated search with inline results work best? | A | [search, tab, inline, results] |
+| 010 | note-editor | How should the note editor look in edit vs view mode? | B | [note, editor, markdown, create, edit] |
+| 011 | bottom-sheet-menu | How should the + button's bottom sheet feel? | A | [bottom-sheet, fab, menu, navigation] |
+| 012 | empty-states | What should empty/home screen states look like? | A | [empty-state, onboarding, home, illustration] |

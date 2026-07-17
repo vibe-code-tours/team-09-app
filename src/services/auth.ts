@@ -79,7 +79,7 @@ export const subscribeToAuthState = (callback: (user: any) => void): (() => void
 
 /**
  * Migrate local data to Firebase user.
- * Re-assigns all entries, categories, settings from localUserId to firebaseUserId.
+ * Re-assigns all entries, settings from localUserId to firebaseUserId.
  */
 export const migrateLocalData = async (
   localUserId: string,
@@ -94,7 +94,6 @@ export const migrateLocalData = async (
 
   // Migrate all data from local user to Firebase user
   await db.update(schema.entries).set({ userId: firebaseUserId }).where(eq(schema.entries.userId, localUserId));
-  await db.update(schema.categories).set({ userId: firebaseUserId }).where(eq(schema.categories.userId, localUserId));
   await db.update(schema.userSettings).set({ userId: firebaseUserId }).where(eq(schema.userSettings.userId, localUserId));
   await db.update(schema.dailyUsage).set({ userId: firebaseUserId }).where(eq(schema.dailyUsage.userId, localUserId));
   await db.update(schema.corrections).set({ userId: firebaseUserId }).where(eq(schema.corrections.userId, localUserId));

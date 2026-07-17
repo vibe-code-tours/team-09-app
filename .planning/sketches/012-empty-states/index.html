@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sketch 012: Empty States</title>
+<link rel="stylesheet" href="../themes/default.css">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: var(--font-sans); background: var(--color-bg); color: var(--color-text); }
+
+  #variant-nav {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 9998;
+    background: var(--color-surface); border-bottom: 1px solid var(--color-border);
+    padding: 8px 16px; display: flex; gap: 8px; font-family: system-ui;
+  }
+  .variant-tab {
+    padding: 6px 14px; border-radius: var(--radius-full); border: 1px solid var(--color-border);
+    background: transparent; cursor: pointer; font-size: 13px; font-weight: 500;
+    transition: all 0.15s ease; color: var(--color-text-muted);
+  }
+  .variant-tab:hover { background: var(--color-surface-alt); }
+  .variant-tab.active { background: var(--color-primary); color: white; border-color: var(--color-primary); }
+
+  .variant { display: none; padding-top: 56px; min-height: 100vh; }
+  .variant.active { display: block; }
+
+  .phone-frame {
+    max-width: 390px; margin: 24px auto; background: var(--color-bg);
+    border-radius: 32px; box-shadow: var(--shadow-xl); overflow: hidden;
+    border: 8px solid #1a1a1a; min-height: 844px; position: relative;
+  }
+
+  /* ===== VARIANT A: Illustration + CTA ===== */
+  .a-container { display: flex; flex-direction: column; min-height: 100vh; }
+  .a-header {
+    padding: 60px 24px 20px; background: var(--color-surface);
+    border-bottom: 1px solid var(--color-border);
+  }
+  .a-greeting { font-size: 14px; color: var(--color-text-muted); margin-bottom: 4px; }
+  .a-title { font-size: 28px; font-weight: 700; }
+
+  .a-empty {
+    flex: 1; display: flex; flex-direction: column; align-items: center;
+    justify-content: center; padding: 40px 32px; text-align: center;
+  }
+  .a-illustration {
+    width: 120px; height: 120px; border-radius: 50%; background: var(--color-primary-light);
+    display: flex; align-items: center; justify-content: center; font-size: 56px;
+    margin-bottom: 24px; position: relative;
+  }
+  .a-illustration::after {
+    content: ''; position: absolute; width: 140px; height: 140px;
+    border-radius: 50%; border: 2px dashed var(--color-primary); opacity: 0.2;
+    animation: pulse 2s ease-in-out infinite;
+  }
+  @keyframes pulse { 0%, 100% { transform: scale(1); opacity: 0.2; } 50% { transform: scale(1.05); opacity: 0.3; } }
+
+  .a-empty-title { font-size: 20px; font-weight: 600; margin-bottom: 8px; }
+  .a-empty-desc { font-size: 14px; color: var(--color-text-muted); line-height: 1.5; margin-bottom: 24px; max-width: 280px; }
+  .a-cta {
+    display: flex; flex-direction: column; gap: 10px; width: 100%; max-width: 260px;
+  }
+  .a-cta-btn {
+    padding: 14px 24px; border-radius: var(--radius-lg); font-size: 15px;
+    font-weight: 600; cursor: pointer; border: none; transition: all 0.2s ease;
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+  }
+  .a-cta-primary { background: var(--color-primary); color: white; box-shadow: var(--shadow-primary); }
+  .a-cta-primary:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(233,30,99,0.3); }
+  .a-cta-secondary { background: var(--color-surface); color: var(--color-text); border: 1px solid var(--color-border); }
+  .a-cta-secondary:hover { background: var(--color-surface-alt); }
+
+  /* ===== VARIANT B: Minimal Text ===== */
+  .b-container { display: flex; flex-direction: column; min-height: 100vh; }
+  .b-header {
+    padding: 60px 24px 20px; background: var(--color-surface);
+    border-bottom: 1px solid var(--color-border);
+  }
+  .b-greeting { font-size: 14px; color: var(--color-text-muted); margin-bottom: 4px; }
+  .b-title { font-size: 28px; font-weight: 700; }
+
+  .b-empty {
+    flex: 1; display: flex; flex-direction: column; align-items: center;
+    justify-content: center; padding: 40px 32px; text-align: center;
+  }
+  .b-icon { font-size: 48px; margin-bottom: 16px; opacity: 0.6; }
+  .b-empty-title { font-size: 18px; font-weight: 600; margin-bottom: 8px; color: var(--color-text); }
+  .b-empty-desc { font-size: 14px; color: var(--color-text-muted); line-height: 1.5; max-width: 260px; margin-bottom: 24px; }
+  .b-cta {
+    padding: 12px 24px; border-radius: var(--radius-full); font-size: 14px;
+    font-weight: 600; cursor: pointer; border: none; background: var(--color-primary);
+    color: white; transition: all 0.2s ease;
+  }
+  .b-cta:hover { background: var(--color-primary-hover); }
+
+  /* ===== VARIANT C: Onboarding Steps ===== */
+  .c-container { display: flex; flex-direction: column; min-height: 100vh; }
+  .c-header {
+    padding: 60px 24px 20px; background: var(--color-surface);
+    border-bottom: 1px solid var(--color-border);
+  }
+  .c-greeting { font-size: 14px; color: var(--color-text-muted); margin-bottom: 4px; }
+  .c-title { font-size: 28px; font-weight: 700; }
+
+  .c-empty {
+    flex: 1; padding: 32px 24px;
+  }
+  .c-welcome {
+    text-align: center; margin-bottom: 32px; padding: 24px;
+    background: var(--color-surface); border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-sm);
+  }
+  .c-welcome-icon { font-size: 48px; margin-bottom: 12px; }
+  .c-welcome-title { font-size: 20px; font-weight: 700; margin-bottom: 8px; }
+  .c-welcome-desc { font-size: 14px; color: var(--color-text-muted); line-height: 1.5; }
+
+  .c-steps { display: flex; flex-direction: column; gap: 12px; }
+  .c-step {
+    display: flex; gap: 14px; padding: 16px; background: var(--color-surface);
+    border-radius: var(--radius-lg); box-shadow: var(--shadow-sm);
+    cursor: pointer; transition: all 0.2s ease; border: 2px solid transparent;
+  }
+  .c-step:hover { border-color: var(--color-primary); transform: translateY(-1px); }
+  .c-step-num {
+    width: 36px; height: 36px; border-radius: 50%; background: var(--color-primary-light);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 16px; font-weight: 700; color: var(--color-primary); flex-shrink: 0;
+  }
+  .c-step-text { flex: 1; }
+  .c-step-title { font-size: 15px; font-weight: 600; margin-bottom: 2px; }
+  .c-step-desc { font-size: 13px; color: var(--color-text-muted); }
+  .c-step-arrow { color: var(--color-text-muted); font-size: 18px; align-self: center; }
+
+  /* Tab bar */
+  .tab-bar {
+    position: absolute; bottom: 0; left: 0; right: 0; z-index: 5;
+    background: var(--color-surface); border-top: 1px solid var(--color-border);
+    display: flex; align-items: center; justify-content: space-around;
+    padding: 8px 0 28px;
+  }
+  .tab-item { display: flex; flex-direction: column; align-items: center; gap: 2px; font-size: 10px; color: var(--color-text-muted); }
+  .tab-center {
+    width: 56px; height: 56px; border-radius: 50%; background: var(--color-primary);
+    display: flex; align-items: center; justify-content: center;
+    margin-top: -28px; box-shadow: var(--shadow-primary); cursor: pointer;
+    border: 4px solid var(--color-surface); color: white; font-size: 28px;
+  }
+</style>
+</head>
+<body>
+
+<div id="variant-nav">
+  <button class="variant-tab active" onclick="showVariant('a')">A: Illustration + CTA ★</button>
+  <button class="variant-tab" onclick="showVariant('b')">B: Minimal Text</button>
+  <button class="variant-tab" onclick="showVariant('c')">C: Onboarding Steps</button>
+</div>
+
+<!-- ===== VARIANT A: Illustration + CTA ===== -->
+<div id="variant-a" class="variant active">
+  <div class="phone-frame">
+    <div class="a-container">
+      <div class="a-header">
+        <div class="a-greeting">🌅 Good Morning</div>
+        <div class="a-title">Hello, User</div>
+      </div>
+      <div class="a-empty">
+        <div class="a-illustration">🎙️</div>
+        <div class="a-empty-title">No entries yet</div>
+        <div class="a-empty-desc">Start recording your daily thoughts, expenses, and ideas. Your first entry is just a tap away.</div>
+        <div class="a-cta">
+          <button class="a-cta-btn a-cta-primary">🎤 Record Your First Entry</button>
+          <button class="a-cta-btn a-cta-secondary">📝 Write a Note</button>
+        </div>
+      </div>
+    </div>
+    <div class="tab-bar">
+      <div class="tab-item">🏠<br>Home</div>
+      <div class="tab-item">🔍<br>Search</div>
+      <div class="tab-center">+</div>
+      <div class="tab-item">⚙️<br>Settings</div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== VARIANT B: Minimal Text ===== -->
+<div id="variant-b" class="variant" style="display:none">
+  <div class="phone-frame">
+    <div class="b-container">
+      <div class="b-header">
+        <div class="b-greeting">🌅 Good Morning</div>
+        <div class="b-title">Hello, User</div>
+      </div>
+      <div class="b-empty">
+        <div class="b-icon">📝</div>
+        <div class="b-empty-title">Your journal is empty</div>
+        <div class="b-empty-desc">Speak or type to capture your first moment.</div>
+        <button class="b-cta">Get Started</button>
+      </div>
+    </div>
+    <div class="tab-bar">
+      <div class="tab-item">🏠<br>Home</div>
+      <div class="tab-item">🔍<br>Search</div>
+      <div class="tab-center">+</div>
+      <div class="tab-item">⚙️<br>Settings</div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== VARIANT C: Onboarding Steps ===== -->
+<div id="variant-c" class="variant" style="display:none">
+  <div class="phone-frame">
+    <div class="c-container">
+      <div class="c-header">
+        <div class="c-greeting">🌅 Good Morning</div>
+        <div class="c-title">Hello, User</div>
+      </div>
+      <div class="c-empty">
+        <div class="c-welcome">
+          <div class="c-welcome-icon">✨</div>
+          <div class="c-welcome-title">Welcome to Mhat Tan</div>
+          <div class="c-welcome-desc">Your personal voice journal. Here's how to get started:</div>
+        </div>
+        <div class="c-steps">
+          <div class="c-step">
+            <div class="c-step-num">1</div>
+            <div class="c-step-text">
+              <div class="c-step-title">Record your first entry</div>
+              <div class="c-step-desc">Tap the + button and speak in Burmese</div>
+            </div>
+            <div class="c-step-arrow">›</div>
+          </div>
+          <div class="c-step">
+            <div class="c-step-num">2</div>
+            <div class="c-step-text">
+              <div class="c-step-title">AI categorizes automatically</div>
+              <div class="c-step-desc">Your entry is sorted into Feelings, Work, Money, and more</div>
+            </div>
+            <div class="c-step-arrow">›</div>
+          </div>
+          <div class="c-step">
+            <div class="c-step-num">3</div>
+            <div class="c-step-text">
+              <div class="c-step-title">Review and edit anytime</div>
+              <div class="c-step-desc">Tap any entry to read the full transcript or make changes</div>
+            </div>
+            <div class="c-step-arrow">›</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="tab-bar">
+      <div class="tab-item">🏠<br>Home</div>
+      <div class="tab-item">🔍<br>Search</div>
+      <div class="tab-center">+</div>
+      <div class="tab-item">⚙️<br>Settings</div>
+    </div>
+  </div>
+</div>
+
+<!-- Sketch Toolbar -->
+<div id="sketch-tools" style="position:fixed;bottom:12px;right:12px;z-index:9999;font-family:system-ui;font-size:12px;background:rgba(0,0,0,0.7);color:white;padding:8px 12px;border-radius:8px;opacity:0.4;transition:opacity 0.2s;" onmouseenter="this.style.opacity='1'" onmouseleave="this.style.opacity='0.4'">
+  <div style="margin-bottom:6px;font-weight:600;">Sketch 012</div>
+  <select onchange="document.querySelector('link[href*=themes]').href='../themes/'+this.value+'.css'" style="background:transparent;color:white;border:1px solid rgba(255,255,255,0.3);border-radius:4px;padding:2px 4px;font-size:11px;">
+    <option value="default">Default</option>
+  </select>
+</div>
+
+<script>
+function showVariant(id) {
+  document.querySelectorAll('.variant').forEach(v => { v.style.display = 'none'; v.classList.remove('active'); });
+  document.querySelectorAll('.variant-tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('variant-' + id).style.display = 'block';
+  event.target.classList.add('active');
+}
+</script>
+</body>
+</html>

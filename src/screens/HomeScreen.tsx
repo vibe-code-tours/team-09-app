@@ -1,37 +1,27 @@
 // HomeScreen - Redesigned per sketches 001-C, 002-A, 003-A
-import React, { useState, useCallback, useRef } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
   FlatList,
+  ScrollView,
   SafeAreaView,
-  Alert,
 } from 'react-native';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
-import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
-import { Audio } from 'expo-av';
 import { useTheme } from '../theme/ThemeContext';
 import { CATEGORIES, Category, spacing, radius, createShadows } from '../theme';
 import { formatRelativeTime, formatHeaderDate, getGreeting } from '../theme';
 import { Entry } from '../types';
-import { listRecordings, deleteAudioFile } from '../services/audioStorage';
 import { getEntries, getTodayEntries } from '../services/storage';
 import { useAuth } from '../context/AuthContext';
+import AudioPlayer from '../components/AudioPlayer';
+import { EmptyState } from '../components/EmptyState';
 
-type RootStackParamList = {
-  HomeMain: undefined;
-  Record: undefined;
-};
-
-interface HomeScreenProps {
-  // Props can be added here as needed
-}
-
-export const HomeScreen: React.FC<HomeScreenProps> = () => {
-  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+export const HomeScreen: React.FC = () => {
+  const navigation = useNavigation<any>();
   const { theme, isDark } = useTheme();
   const { colors } = theme;
   const { userId } = useAuth();
@@ -40,11 +30,8 @@ export const HomeScreen: React.FC<HomeScreenProps> = () => {
   const [entries, setEntries] = useState<Entry[]>([]);
   const [stats, setStats] = useState({ today: 0, week: 0, total: 0 });
   const [selectedCategory, setSelectedCategory] = useState<Category | 'all'>('all');
-  const [recordings, setRecordings] = useState<Array<{ name: string; uri: string; size: number }>>([]);
-  const [playingUri, setPlayingUri] = useState<string | null>(null);
-  const soundRef = useRef<Audio.Sound | null>(null);
 
-  // Load entries and recordings every time screen comes into focus
+  // Load entries every time screen comes into focus
   useFocusEffect(
     useCallback(() => {
       let cancelled = false;
@@ -75,82 +62,46 @@ export const HomeScreen: React.FC<HomeScreenProps> = () => {
       };
 
       loadData();
-      setRecordings(listRecordings());
 
-      // Cleanup playback on blur
       return () => {
         cancelled = true;
-        if (soundRef.current) {
-          soundRef.current.unloadAsync();
-          soundRef.current = null;
-        }
-        setPlayingUri(null);
       };
     }, [])
   );
-
-  const handleDeleteRecording = (uri: string, name: string) => {
-    Alert.alert(
-      'Delete Recording',
-      `Are you sure you want to delete "${name.replace('recording-', '').replace('.m4a', '')}"?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: () => {
-            // Stop playback if this recording is playing
-            if (playingUri === uri && soundRef.current) {
-              soundRef.current.unloadAsync();
-              soundRef.current = null;
-              setPlayingUri(null);
-            }
-            deleteAudioFile(uri);
-            setRecordings(listRecordings());
-          },
-        },
-      ]
-    );
-  };
-
-  const handlePlayRecording = async (uri: string) => {
-    try {
-      // If something is playing, stop it first
-      if (soundRef.current) {
-        await soundRef.current.unloadAsync();
-        soundRef.current = null;
-      }
-
-      // If tapping the same recording, just stop (toggle off)
-      if (playingUri === uri) {
-        setPlayingUri(null);
-        return;
-      }
-
-      // Play the new recording
-      const { sound } = await Audio.Sound.createAsync(
-        { uri },
-        { shouldPlay: true }
-      );
-      soundRef.current = sound;
-      setPlayingUri(uri);
-
-      // When playback finishes, reset state
-      sound.setOnPlaybackStatusUpdate((status) => {
-        if (status.isLoaded && status.didJustFinish) {
-          setPlayingUri(null);
-          soundRef.current = null;
-        }
-      });
-    } catch (err) {
-      setPlayingUri(null);
-    }
-  };
 
   // Filter entries based on selected category
   const filteredEntries = selectedCategory === 'all'
     ? entries
     : entries.filter(entry => entry.category === selectedCategory);
+
+  // Split into pinned and unpinned
+  const pinnedEntries = filteredEntries.filter(e => e.isPinned);
+  const unpinnedEntries = filteredEntries.filter(e => !e.isPinned);
+
+  // Group unpinned entries by day
+  const groupEntriesByDay = (entries: Entry[]): Array<{ date: string; entries: Entry[] }> => {
+    const groups: Record<string, Entry[]> = {};
+    entries.forEach(entry => {
+      const dateKey = entry.createdAt.toDateString();
+      if (!groups[dateKey]) {
+        groups[dateKey] = [];
+      }
+      groups[dateKey].push(entry);
+    });
+
+    return Object.entries(groups)
+      .map(([dateStr, entries]) => ({
+        date: dateStr,
+        entries,
+        dateObj: new Date(dateStr),
+      }))
+      .sort((a, b) => b.dateObj.getTime() - a.dateObj.getTime())
+      .map(({ date, entries }) => ({ date, entries }));
+  };
+
+  const groupedEntries = groupEntriesByDay(unpinnedEntries);
+  const limitedGroupedEntries = groupedEntries.slice(0, 5); // Limit to 5 most recent entries
+  const hasMoreEntries = unpinnedEntries.length > 5;
 
   // Category options for the chip list
   const categoryOptions: Array<{ key: Category | 'all'; label: string; icon: string; color: string }> = [
@@ -197,44 +148,51 @@ export const HomeScreen: React.FC<HomeScreenProps> = () => {
       <TouchableOpacity
         style={[styles.entryCard, { backgroundColor: colors.surface, borderLeftColor: cat.color }, shadows.sm]}
         activeOpacity={0.7}
-        onPress={() => {/* navigate to detail */}}
+        onPress={() => navigation.navigate('CreateNote', { entryId: item.id, startViewOnly: true })}
       >
-        {/* Header: icon + category + time */}
+        {/* Header: icon + category + time + audio badge */}
         <View style={styles.entryHeader}>
           <View style={styles.entryCategoryRow}>
             <Text style={styles.entryIcon}>{cat.icon}</Text>
             <Text style={[styles.entryCategory, { color: cat.color }]}>{cat.label}</Text>
+            {item.audioUri ? (
+              <View style={[styles.audioBadge, { backgroundColor: colors.primaryLight }]}>
+                <Ionicons name="mic" size={10} color={colors.primary} />
+                <Text style={[styles.audioBadgeText, { color: colors.primary }]}>Audio</Text>
+              </View>
+            ) : null}
           </View>
           <Text style={[styles.entryTime, { color: colors.textMuted }]}>
             {formatRelativeTime(item.createdAt)}
           </Text>
         </View>
 
+        {/* Title */}
+        {item.title ? (
+          <Text style={[styles.entryTitle, { color: colors.text }]} numberOfLines={1}>
+            {item.title}
+          </Text>
+        ) : null}
+
         {/* Summary */}
-        <Text style={[styles.entrySummary, { color: colors.text }]} numberOfLines={2}>
+        <Text style={[styles.entrySummary, { color: colors.textSecondary }]} numberOfLines={2}>
           {item.summary}
         </Text>
 
-        {/* Footer: mood + pinned */}
+        {/* Footer: mood + pinned + audio player */}
         <View style={styles.entryFooter}>
           <Text style={[styles.entryMood, { color: colors.textMuted }]}>{item.mood}</Text>
           {item.isPinned && (
-            <Text style={[styles.entryPinned, { color: colors.accent }]}>⭐ Pinned</Text>
+            <Text style={[styles.entryPinned, { color: colors.accent }]}>📌 Pinned</Text>
           )}
+          {item.audioUri ? (
+            <AudioPlayer audioUri={item.audioUri} compact />
+          ) : null}
         </View>
       </TouchableOpacity>
     );
-  }, [colors, shadows]);
+  }, [colors, shadows, navigation]);
 
-  const renderEmpty = useCallback(() => (
-    <View style={styles.emptyContainer}>
-      <Ionicons name="document-text-outline" size={48} color={colors.border} />
-      <Text style={[styles.emptyTitle, { color: colors.textSecondary }]}>No entries yet</Text>
-      <Text style={[styles.emptySubtitle, { color: colors.textMuted }]}>
-        Tap the mic to record your first entry
-      </Text>
-    </View>
-  ), [colors]);
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.bg }]}>
@@ -256,96 +214,82 @@ export const HomeScreen: React.FC<HomeScreenProps> = () => {
       </View>
 
       {/* Scrollable content */}
-      <FlatList
-        data={filteredEntries}
-        renderItem={renderEntry}
-        keyExtractor={(item) => item.id}
-        contentContainerStyle={styles.listContent}
-        ListHeaderComponent={
-          <>
-            {/* Metric Cards */}
-            <View style={styles.metricsRow}>
-              <View style={[styles.metricCard, { backgroundColor: colors.surface }, shadows.sm]}>
-                <Text style={[styles.metricNumber, { color: colors.primary }]}>{stats.today}</Text>
-                <Text style={[styles.metricLabel, { color: colors.textMuted }]}>Today</Text>
-              </View>
-              <View style={[styles.metricCard, styles.metricCardHighlight, shadows.primary]}>
-                <Text style={[styles.metricNumber, styles.metricNumberWhite]}>{stats.week}</Text>
-                <Text style={[styles.metricLabel, styles.metricLabelWhite]}>This Week</Text>
-              </View>
-              <View style={[styles.metricCard, { backgroundColor: colors.surface }, shadows.sm]}>
-                <Text style={[styles.metricNumber, { color: colors.primary }]}>{stats.total}</Text>
-                <Text style={[styles.metricLabel, { color: colors.textMuted }]}>Total</Text>
-              </View>
-            </View>
+      <ScrollView contentContainerStyle={styles.listContent}>
+        {/* Metric Cards */}
+        <View style={styles.metricsRow}>
+          <View style={[styles.metricCard, { backgroundColor: colors.surface }, shadows.sm]}>
+            <Text style={[styles.metricNumber, { color: colors.primary }]}>{stats.today}</Text>
+            <Text style={[styles.metricLabel, { color: colors.textMuted }]}>Today</Text>
+          </View>
+          <View style={[styles.metricCard, styles.metricCardHighlight, shadows.primary]}>
+            <Text style={[styles.metricNumber, styles.metricNumberWhite]}>{stats.week}</Text>
+            <Text style={[styles.metricLabel, styles.metricLabelWhite]}>This Week</Text>
+          </View>
+          <View style={[styles.metricCard, { backgroundColor: colors.surface }, shadows.sm]}>
+            <Text style={[styles.metricNumber, { color: colors.primary }]}>{stats.total}</Text>
+            <Text style={[styles.metricLabel, { color: colors.textMuted }]}>Total</Text>
+          </View>
+        </View>
 
-            {/* Category Chips */}
-            <View style={styles.categorySection}>
-              <Text style={[styles.categorySectionTitle, { color: colors.text }]}>Categories</Text>
-              <FlatList
-                data={categoryOptions}
-                renderItem={renderCategoryChip}
-                keyExtractor={(item) => item.key}
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.categoryChipsContainer}
-              />
-            </View>
+        {/* Category Chips */}
+        <View style={styles.categorySection}>
+          <Text style={[styles.categorySectionTitle, { color: colors.text }]}>Categories</Text>
+          <FlatList
+            data={categoryOptions}
+            renderItem={renderCategoryChip}
+            keyExtractor={(item) => item.key}
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.categoryChipsContainer}
+          />
+        </View>
 
-            {/* Section Header */}
+        {/* Pinned Entries Section */}
+        {pinnedEntries.length > 0 && (
+          <View style={styles.sectionContainer}>
             <View style={styles.sectionHeader}>
-              <Text style={[styles.sectionTitle, { color: colors.text }]}>Recent Entries</Text>
-              <TouchableOpacity>
-                <Text style={[styles.sectionLink, { color: colors.primary }]}>See all →</Text>
-              </TouchableOpacity>
+              <Text style={[styles.sectionTitle, { color: colors.text }]}>📌 Pinned Entries</Text>
             </View>
-
-            {/* Saved Recordings */}
-            {recordings.length > 0 && (
-              <View style={styles.recordingsSection}>
-                <Text style={[styles.sectionTitle, { color: colors.text, marginBottom: spacing.md }]}>
-                  🎙️ Saved Recordings ({recordings.length})
-                </Text>
-                {recordings.map((rec) => {
-                  const isPlaying = playingUri === rec.uri;
-                  return (
-                    <View
-                      key={rec.name}
-                      style={[styles.recordingItem, { backgroundColor: colors.surface, borderLeftColor: isPlaying ? colors.danger : colors.primary }, shadows.sm]}
-                    >
-                      <TouchableOpacity
-                        style={styles.recordingPlayArea}
-                        onPress={() => handlePlayRecording(rec.uri)}
-                        activeOpacity={0.7}
-                      >
-                        <Ionicons name={isPlaying ? 'pause' : 'mic'} size={18} color={isPlaying ? colors.danger : colors.primary} />
-                        <View style={styles.recordingInfo}>
-                          <Text style={[styles.recordingName, { color: colors.text }]} numberOfLines={1}>
-                            {rec.name}
-                          </Text>
-                          <Text style={[styles.recordingSize, { color: colors.textMuted }]}>
-                            {(rec.size / 1024).toFixed(1)} KB
-                          </Text>
-                        </View>
-                        <Ionicons name={isPlaying ? 'stop-circle' : 'play-circle'} size={28} color={isPlaying ? colors.danger : colors.primary} />
-                      </TouchableOpacity>
-                      <TouchableOpacity
-                        style={styles.recordingDeleteBtn}
-                        onPress={() => handleDeleteRecording(rec.uri, rec.name)}
-                        hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                      >
-                        <Ionicons name="trash-outline" size={18} color={colors.danger} />
-                      </TouchableOpacity>
-                    </View>
-                  );
-                })}
+            {pinnedEntries.map(item => (
+              <View key={item.id}>
+                {renderEntry({ item })}
               </View>
-            )}
-          </>
-        }
-        ListEmptyComponent={renderEmpty}
-        showsVerticalScrollIndicator={false}
-      />
+            ))}
+          </View>
+        )}
+
+        {/* Section Header */}
+        <View style={styles.sectionHeader}>
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>Recent Entries</Text>
+          {hasMoreEntries && (
+            <TouchableOpacity onPress={() => navigation.getParent()?.navigate('Search')}>
+              <Text style={[styles.seeAllText, { color: colors.primary }]}>See all</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+
+        {/* Day-grouped entries */}
+        {limitedGroupedEntries.map(group => (
+          <View key={group.date} style={styles.dayGroup}>
+            <Text style={[styles.dayHeader, { color: colors.textMuted }]}>
+              {formatHeaderDate(new Date(group.date))}
+            </Text>
+            {group.entries.map(item => (
+              <View key={item.id}>
+                {renderEntry({ item })}
+              </View>
+            ))}
+          </View>
+        ))}
+
+        {/* Empty State */}
+        {unpinnedEntries.length === 0 && pinnedEntries.length === 0 && (
+          <EmptyState
+            onRecord={() => navigation.getParent()?.navigate('Record')}
+            onWriteNote={() => navigation.navigate('CreateNote', {})}
+          />
+        )}
+      </ScrollView>
     </SafeAreaView>
   );
 };
@@ -449,7 +393,10 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '500',
   },
-  // Section Header
+  // Section
+  sectionContainer: {
+    marginTop: spacing.xxl,
+  },
   sectionHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -461,10 +408,6 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 16,
     fontWeight: '600',
-  },
-  sectionLink: {
-    fontSize: 14,
-    fontWeight: '500',
   },
   // Entry Cards
   entryCard: {
@@ -492,8 +435,25 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
   },
+  audioBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+    borderRadius: radius.sm,
+    gap: spacing.xs,
+  },
+  audioBadgeText: {
+    fontSize: 10,
+    fontWeight: '500',
+  },
   entryTime: {
     fontSize: 12,
+  },
+  entryTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: spacing.xs,
   },
   entrySummary: {
     fontSize: 14,
@@ -512,57 +472,23 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '500',
   },
-  // Empty State
-  emptyContainer: {
-    alignItems: 'center',
-    paddingVertical: spacing.xxxl * 2,
+  // Day Grouping
+  dayGroup: {
+    marginBottom: spacing.md,
   },
-  emptyTitle: {
-    fontSize: 16,
-    fontWeight: '500',
-    marginTop: spacing.lg,
-  },
-  emptySubtitle: {
-    fontSize: 14,
+  dayHeader: {
+    fontSize: 13,
+    fontWeight: '600',
+    paddingHorizontal: spacing.xl,
+    marginBottom: spacing.sm,
     marginTop: spacing.sm,
+  },
+  seeAllText: {
+    fontSize: 14,
+    fontWeight: '500',
   },
   // List
   listContent: {
     paddingBottom: 100,
-  },
-  // Saved Recordings
-  recordingsSection: {
-    paddingHorizontal: spacing.xl,
-    marginTop: spacing.xxl,
-    marginBottom: spacing.md,
-  },
-  recordingItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: spacing.md,
-    borderRadius: radius.sm,
-    marginBottom: spacing.sm,
-    borderLeftWidth: 3,
-  },
-  recordingPlayArea: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.md,
-  },
-  recordingDeleteBtn: {
-    padding: spacing.md,
-    marginLeft: spacing.sm,
-  },
-  recordingInfo: {
-    flex: 1,
-  },
-  recordingName: {
-    fontSize: 14,
-    fontWeight: '500',
-  },
-  recordingSize: {
-    fontSize: 12,
-    marginTop: 2,
   },
 });

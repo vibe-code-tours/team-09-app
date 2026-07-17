@@ -330,7 +330,7 @@ export const SettingsScreen: React.FC = () => {
           <ToggleRow
             icon="📊"
             title="Weekly Summary"
-            subtitle="Coming soon"
+            subtitle="Weekly activity digest every Sunday"
             value={false}
             onToggle={() => {}}
             colors={colors}

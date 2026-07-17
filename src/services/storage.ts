@@ -1,7 +1,8 @@
 // SQLite Storage Service (Drizzle ORM)
 import { eq, and, gte, desc, sql } from 'drizzle-orm';
+import * as Crypto from 'expo-crypto';
 import { getDb } from '../db';
-import { entries, expenseItems, type NewEntry, type Entry } from '../db/schema';
+import { entries, type NewEntry, type Entry } from '../db/schema';
 import { Entry as AppEntry, Category } from '../types';
 
 // =============================================================================
@@ -13,11 +14,13 @@ function toAppEntry(row: Entry): AppEntry {
     id: row.id,
     transcript: row.transcript,
     category: (row.entryType as Category) || 'other',
+    title: row.title || '',
     summary: row.summary || '',
     mood: row.mood || 'neutral',
     audioUri: row.audioPath,
     audioDuration: row.audioDuration,
     createdAt: new Date(row.createdAt),
+    updatedAt: new Date(row.updatedAt),
     isPinned: row.isPinned,
     userId: row.userId,
   };
@@ -33,16 +36,17 @@ function toAppEntry(row: Entry): AppEntry {
  */
 export const saveEntry = async (
   userId: string,
-  entry: Omit<AppEntry, 'id' | 'createdAt' | 'userId'>
+  entry: Omit<AppEntry, 'id' | 'createdAt' | 'updatedAt' | 'userId'>
 ): Promise<string> => {
   const db = getDb();
-  const id = crypto.randomUUID();
+  const id = Crypto.randomUUID();
   const now = new Date();
 
   const newEntry: NewEntry = {
     id,
     userId,
     entryType: entry.category,
+    title: entry.title || null,
     transcript: entry.transcript,
     mood: entry.mood,
     summary: entry.summary,
@@ -120,6 +124,7 @@ export const updateEntry = async (
     .update(entries)
     .set({
       ...(updates.category && { entryType: updates.category }),
+      ...(updates.title !== undefined && { title: updates.title || null }),
       ...(updates.transcript && { transcript: updates.transcript }),
       ...(updates.mood && { mood: updates.mood }),
       ...(updates.summary && { summary: updates.summary }),
@@ -164,58 +169,4 @@ export const searchEntries = async (
     .orderBy(desc(entries.createdAt));
 
   return rows.map(toAppEntry);
-};
-
-// =============================================================================
-// Money-specific queries
-// =============================================================================
-
-export interface MoneyEntry {
-  id: string;
-  entryId: string;
-  description: string;
-  amount: number;
-  currency: string;
-  transcript: string;
-  summary: string;
-  createdAt: Date;
-}
-
-/**
- * Get all money entries with expense items for a user, newest first.
- */
-export const getMoneyEntries = async (userId: string): Promise<MoneyEntry[]> => {
-  const db = getDb();
-  const rows = await db
-    .select({
-      id: expenseItems.id,
-      entryId: expenseItems.entryId,
-      description: expenseItems.description,
-      amount: expenseItems.amount,
-      currency: expenseItems.currency,
-      transcript: entries.transcript,
-      summary: entries.summary,
-      createdAt: entries.createdAt,
-    })
-    .from(expenseItems)
-    .innerJoin(entries, eq(expenseItems.entryId, entries.id))
-    .where(
-      and(
-        eq(entries.userId, userId),
-        eq(entries.isDeleted, false),
-        eq(expenseItems.isDeleted, false)
-      )
-    )
-    .orderBy(desc(entries.createdAt));
-
-  return rows.map((row) => ({
-    id: row.id,
-    entryId: row.entryId,
-    description: row.description,
-    amount: row.amount,
-    currency: row.currency,
-    transcript: row.transcript,
-    summary: row.summary || '',
-    createdAt: new Date(row.createdAt),
-  }));
 };

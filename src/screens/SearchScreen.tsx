@@ -19,14 +19,14 @@ import { Entry } from '../types';
 import { getEntries, searchEntries } from '../services/storage';
 import { useAuth } from '../context/AuthContext';
 
-// ── Filter tabs ────────────────────────────────────────────
+// ── Filter tabs (without money) ─────────────────────────────
 const FILTERS: { key: string; label: string; icon?: string }[] = [
   { key: 'all', label: 'All' },
-  { key: 'money', label: 'Money', icon: '💰' },
   { key: 'feelings', label: 'Feelings', icon: '💗' },
   { key: 'work', label: 'Work', icon: '💼' },
   { key: 'health', label: 'Health', icon: '🏃' },
   { key: 'ideas', label: 'Ideas', icon: '💡' },
+  { key: 'other', label: 'Other', icon: '📝' },
 ];
 
 // ── Helpers ────────────────────────────────────────────────
@@ -141,9 +141,6 @@ export function SearchScreen() {
               <Text style={{ fontSize: 16, color: colors.textMuted }}>✕</Text>
             </TouchableOpacity>
           )}
-          <TouchableOpacity style={styles.voiceBtn}>
-            <Text style={{ fontSize: 18 }}>🎤</Text>
-          </TouchableOpacity>
         </View>
 
         {/* Category Pills */}
@@ -225,7 +222,7 @@ export function SearchScreen() {
                     {/* Content */}
                     <View style={styles.entryContent}>
                       <Text style={[styles.entryTitle, { color: colors.text }]} numberOfLines={1}>
-                        {entry.summary || 'Untitled entry'}
+                        {entry.title || 'Untitled entry'}
                       </Text>
                       <Text style={[styles.entryExcerpt, { color: colors.textMuted }]} numberOfLines={1}>
                         {entry.transcript ? `"${entry.transcript}"` : 'No transcript'}
@@ -286,9 +283,6 @@ const styles = StyleSheet.create({
     padding: 0,
   },
   clearBtn: {
-    padding: 2,
-  },
-  voiceBtn: {
     padding: 2,
   },
   pillsContainer: {

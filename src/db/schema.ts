@@ -15,31 +15,7 @@ export const users = sqliteTable('users', {
 });
 
 // =============================================================================
-// 2. categories (money sub-categories only)
-// =============================================================================
-
-export const categories = sqliteTable('categories', {
-  id: text('id').primaryKey(), // UUID v4
-  userId: text('user_id')
-    .notNull()
-    .references(() => users.id),
-  name: text('name').notNull(),
-  nameEn: text('name_en'),
-  nameMy: text('name_my'),
-  type: text('type').notNull(), // 'expense' or 'income'
-  icon: text('icon'),
-  color: text('color'),
-  sortOrder: integer('sort_order').notNull().default(0),
-  isActive: integer('is_active', { mode: 'boolean' }).notNull().default(true),
-  isDeleted: integer('is_deleted', { mode: 'boolean' }).notNull().default(false),
-  createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
-  updatedAt: integer('updated_at', { mode: 'timestamp' }).notNull(),
-}, (t) => [
-  unique('categories_user_id_name_type_unique').on(t.userId, t.name, t.type),
-]);
-
-// =============================================================================
-// 3. entries (core data unit)
+// 2. entries (core data unit)
 // =============================================================================
 
 export const entries = sqliteTable('entries', {
@@ -47,11 +23,10 @@ export const entries = sqliteTable('entries', {
   userId: text('user_id')
     .notNull()
     .references(() => users.id),
-  entryType: text('entry_type').notNull(), // money, feelings, work, health, ideas, other
+  title: text('title'), // AI-generated short title (optional)
+  entryType: text('entry_type').notNull(), // feelings, work, health, ideas, other
   transcript: text('transcript').notNull(),
   editedTranscript: text('edited_transcript'),
-  predictedCategoryId: text('predicted_category_id').references(() => categories.id),
-  finalCategoryId: text('final_category_id').references(() => categories.id),
   mood: text('mood'), // happy, sad, neutral, excited, stressed, grateful
   moodConfidence: real('mood_confidence'),
   summary: text('summary'),
@@ -67,36 +42,14 @@ export const entries = sqliteTable('entries', {
   createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
   updatedAt: integer('updated_at', { mode: 'timestamp' }).notNull(),
 }, (t) => [
-  check('entries_entry_type_check', sql`${t.entryType} IN ('money', 'feelings', 'work', 'health', 'ideas', 'other')`),
+  check('entries_entry_type_check', sql`${t.entryType} IN ('feelings', 'work', 'health', 'ideas', 'money', 'other')`),
   check('entries_mood_check', sql`${t.mood} IN ('happy', 'sad', 'neutral', 'excited', 'stressed', 'grateful')`),
   check('entries_processing_status_check', sql`${t.processingStatus} IN ('pending', 'processing', 'completed', 'failed')`),
   check('entries_sync_status_check', sql`${t.syncStatus} IN ('pending', 'synced', 'failed')`),
 ]);
 
 // =============================================================================
-// 4. expense_items (money extracted from entries)
-// =============================================================================
-
-export const expenseItems = sqliteTable('expense_items', {
-  id: text('id').primaryKey(), // UUID v4
-  entryId: text('entry_id')
-    .notNull()
-    .references(() => entries.id),
-  finalCategoryId: text('final_category_id').references(() => categories.id),
-  description: text('description').notNull(),
-  amount: integer('amount').notNull(), // minor units (pyas/cents)
-  currency: text('currency').notNull(), // ISO 4217 (MMK, USD, THB)
-  occurredAt: integer('occurred_at', { mode: 'timestamp' }).notNull(),
-  receiptPath: text('receipt_path'),
-  receiptSize: integer('receipt_size'),
-  receiptType: text('receipt_type'),
-  isDeleted: integer('is_deleted', { mode: 'boolean' }).notNull().default(false),
-  createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
-  updatedAt: integer('updated_at', { mode: 'timestamp' }).notNull(),
-});
-
-// =============================================================================
-// 5. user_settings (1:1 with users)
+// 3. user_settings (1:1 with users)
 // =============================================================================
 
 export const userSettings = sqliteTable('user_settings', {
@@ -117,7 +70,7 @@ export const userSettings = sqliteTable('user_settings', {
 ]);
 
 // =============================================================================
-// 6. daily_usage (free tier enforcement)
+// 4. daily_usage (free tier enforcement)
 // =============================================================================
 
 export const dailyUsage = sqliteTable('daily_usage', {
@@ -134,7 +87,7 @@ export const dailyUsage = sqliteTable('daily_usage', {
 ]);
 
 // =============================================================================
-// 7. corrections (write-once audit log)
+// 5. corrections (write-once audit log)
 // =============================================================================
 
 export const corrections = sqliteTable('corrections', {
@@ -145,13 +98,13 @@ export const corrections = sqliteTable('corrections', {
   entryId: text('entry_id')
     .notNull()
     .references(() => entries.id),
-  field: text('field').notNull(), // entry_type, category, mood, summary
+  field: text('field').notNull(), // entry_type, mood, summary
   aiValue: text('ai_value').notNull(),
   aiConfidence: real('ai_confidence'),
   userValue: text('user_value').notNull(),
   createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
 }, (t) => [
-  check('corrections_field_check', sql`${t.field} IN ('entry_type', 'category', 'mood', 'summary')`),
+  check('corrections_field_check', sql`${t.field} IN ('entry_type', 'mood', 'summary')`),
 ]);
 
 // =============================================================================
@@ -161,14 +114,8 @@ export const corrections = sqliteTable('corrections', {
 export type User = typeof users.$inferSelect;
 export type NewUser = typeof users.$inferInsert;
 
-export type Category = typeof categories.$inferSelect;
-export type NewCategory = typeof categories.$inferInsert;
-
 export type Entry = typeof entries.$inferSelect;
 export type NewEntry = typeof entries.$inferInsert;
-
-export type ExpenseItem = typeof expenseItems.$inferSelect;
-export type NewExpenseItem = typeof expenseItems.$inferInsert;
 
 export type UserSetting = typeof userSettings.$inferSelect;
 export type NewUserSetting = typeof userSettings.$inferInsert;
@@ -183,11 +130,10 @@ export type NewCorrection = typeof corrections.$inferInsert;
 // Constants (matching V1 spec)
 // =============================================================================
 
-export const ENTRY_TYPES = ['money', 'feelings', 'work', 'health', 'ideas', 'other'] as const;
+export const ENTRY_TYPES = ['feelings', 'work', 'health', 'ideas', 'money', 'other'] as const;
 export const MOODS = ['happy', 'sad', 'neutral', 'excited', 'stressed', 'grateful'] as const;
 export const PROCESSING_STATUSES = ['pending', 'processing', 'completed', 'failed'] as const;
 export const SYNC_STATUSES = ['pending', 'synced', 'failed'] as const;
-export const CATEGORY_TYPES = ['expense', 'income'] as const;
 export const THEMES = ['light', 'dark', 'system'] as const;
 export const LANGUAGE_CODES = ['my', 'en'] as const;
-export const CORRECTION_FIELDS = ['entry_type', 'category', 'mood', 'summary'] as const;
+export const CORRECTION_FIELDS = ['entry_type', 'mood', 'summary'] as const;
