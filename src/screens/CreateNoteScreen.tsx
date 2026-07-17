@@ -15,6 +15,7 @@ import {
 } from 'react-native';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
+import Markdown from 'react-native-markdown-display';
 import { useTheme } from '../theme/ThemeContext';
 import { CATEGORIES, Category, spacing, radius } from '../theme';
 import { getEntryById, saveEntry, updateEntry } from '../services/storage';
@@ -315,18 +316,33 @@ export const CreateNoteScreen: React.FC = () => {
             </View>
           )}
 
-          {/* Content Input */}
-          <TextInput
-            ref={contentInputRef}
-            style={[styles.contentInput, { color: colors.text }]}
-            value={content}
-            onChangeText={handleTextChange}
-            placeholder="Start writing..."
-            placeholderTextColor={colors.textMuted}
-            editable={!isViewOnly}
-            multiline
-            textAlignVertical="top"
-          />
+          {/* Content — rendered markdown in view mode, raw text in edit mode */}
+          {isViewOnly ? (
+            content.trim() ? (
+              <Markdown
+                style={markdownStyles(colors)}
+                mergeStyle
+              >
+                {content}
+              </Markdown>
+            ) : (
+              <Text style={[styles.emptyContent, { color: colors.textMuted }]}>
+                Empty note
+              </Text>
+            )
+          ) : (
+            <TextInput
+              ref={contentInputRef}
+              style={[styles.contentInput, { color: colors.text }]}
+              value={content}
+              onChangeText={handleTextChange}
+              placeholder="Start writing... (supports **markdown**)"
+              placeholderTextColor={colors.textMuted}
+              editable={!isViewOnly}
+              multiline
+              textAlignVertical="top"
+            />
+          )}
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -429,4 +445,29 @@ const styles = StyleSheet.create({
     minHeight: 300,
     padding: 0,
   },
+  emptyContent: {
+    fontSize: 16,
+    fontStyle: 'italic',
+    minHeight: 300,
+  },
 });
+
+// Markdown styles that match the app theme
+function markdownStyles(colors: { text: string; textSecondary: string; textMuted: string; primary: string; border: string }) {
+  return {
+    body: { color: colors.text, fontSize: 16, lineHeight: 24 },
+    heading1: { color: colors.text, fontSize: 28, fontWeight: '700' as const, marginBottom: 12, marginTop: 16 },
+    heading2: { color: colors.text, fontSize: 24, fontWeight: '700' as const, marginBottom: 8, marginTop: 12 },
+    heading3: { color: colors.text, fontSize: 20, fontWeight: '600' as const, marginBottom: 8, marginTop: 12 },
+    bold: { fontWeight: '700' as const },
+    italic: { fontStyle: 'italic' as const },
+    link: { color: colors.primary },
+    blockquote: { borderLeftColor: colors.border, borderLeftWidth: 3, paddingLeft: 12, color: colors.textSecondary },
+    code_block: { backgroundColor: colors.border, padding: 12, borderRadius: 8, fontFamily: 'monospace' as const },
+    fence: { backgroundColor: colors.border, padding: 12, borderRadius: 8 },
+    bullet_list: { marginVertical: 8 },
+    ordered_list: { marginVertical: 8 },
+    list_item: { marginVertical: 4 },
+    hr: { backgroundColor: colors.border, height: 1, marginVertical: 16 },
+  };
+}

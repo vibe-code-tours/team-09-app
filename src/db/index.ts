@@ -6,10 +6,19 @@ import * as schema from './schema';
 const DB_NAME = 'mhat-tan.db';
 
 // Initialize SQLite database
-const sqlite = SQLite.openDatabaseSync(DB_NAME);
+let sqlite = SQLite.openDatabaseSync(DB_NAME);
+let db = drizzle(sqlite, { schema });
 
-// Create Drizzle ORM instance
-const db = drizzle(sqlite, { schema });
+/**
+ * Delete and recreate the database file.
+ */
+async function rebuildDatabase(): Promise<void> {
+  console.warn('[DB] Rebuilding database...');
+  await sqlite.closeAsync();
+  await SQLite.SQLiteDatabase.deleteDatabaseAsync(DB_NAME);
+  sqlite = SQLite.openDatabaseSync(DB_NAME);
+  db = drizzle(sqlite, { schema });
+}
 
 // =============================================================================
 // Database initialization
@@ -20,6 +29,14 @@ const db = drizzle(sqlite, { schema });
  * Call this once on app startup.
  */
 export async function initDatabase(): Promise<void> {
+  // Check for corruption and rebuild if needed
+  try {
+    await sqlite.getFirstAsync('PRAGMA quick_check');
+  } catch {
+    console.warn('[DB] Database check failed — rebuilding...');
+    await rebuildDatabase();
+  }
+
   // Enable WAL mode for better performance
   await sqlite.execAsync('PRAGMA journal_mode = WAL;');
   await sqlite.execAsync('PRAGMA foreign_keys = ON;');
