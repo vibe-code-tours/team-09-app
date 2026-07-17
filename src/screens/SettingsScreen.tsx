@@ -145,7 +145,7 @@ export const SettingsScreen: React.FC = () => {
           { text: 'Cancel', style: 'cancel' },
           {
             text: 'Set',
-            onPress: (value) => {
+            onPress: (value?: string) => {
               if (value && /^\d{2}:\d{2}$/.test(value)) {
                 handleTimeChange(value);
               }
