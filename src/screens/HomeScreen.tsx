@@ -18,6 +18,7 @@ import { Entry } from '../types';
 import { getEntries, getTodayEntries } from '../services/storage';
 import { useAuth } from '../context/AuthContext';
 import AudioPlayer from '../components/AudioPlayer';
+import { EmptyState } from '../components/EmptyState';
 
 export const HomeScreen: React.FC = () => {
   const navigation = useNavigation<any>();
@@ -283,13 +284,10 @@ export const HomeScreen: React.FC = () => {
 
         {/* Empty State */}
         {unpinnedEntries.length === 0 && pinnedEntries.length === 0 && (
-          <View style={styles.emptyContainer}>
-            <Ionicons name="document-text-outline" size={48} color={colors.border} />
-            <Text style={[styles.emptyTitle, { color: colors.textSecondary }]}>No entries yet</Text>
-            <Text style={[styles.emptySubtitle, { color: colors.textMuted }]}>
-              Tap the mic to record your first entry
-            </Text>
-          </View>
+          <EmptyState
+            onRecord={() => navigation.getParent()?.navigate('Record')}
+            onWriteNote={() => navigation.navigate('CreateNote', {})}
+          />
         )}
       </ScrollView>
     </SafeAreaView>
@@ -488,20 +486,6 @@ const styles = StyleSheet.create({
   seeAllText: {
     fontSize: 14,
     fontWeight: '500',
-  },
-  // Empty State
-  emptyContainer: {
-    alignItems: 'center',
-    paddingVertical: spacing.xxxl * 2,
-  },
-  emptyTitle: {
-    fontSize: 16,
-    fontWeight: '500',
-    marginTop: spacing.lg,
-  },
-  emptySubtitle: {
-    fontSize: 14,
-    marginTop: spacing.sm,
   },
   // List
   listContent: {

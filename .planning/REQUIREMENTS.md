@@ -14,8 +14,8 @@
 - [x] **SHEET-04**: User can swipe down to dismiss the sheet
 
 ### Empty States
-- [ ] **EMPTY-01**: User sees an animated microphone illustration with pulse effect when no entries exist
-- [ ] **EMPTY-02**: User can tap "Record Your First Entry" or "Write a Note" CTAs to create their first entry
+- [x] **EMPTY-01**: User sees an animated microphone illustration with pulse effect when no entries exist
+- [x] **EMPTY-02**: User can tap "Record Your First Entry" or "Write a Note" CTAs to create their first entry
 
 ---
 
@@ -50,5 +50,5 @@
 | SHEET-02 | Phase 2 | 02-02 | Done |
 | SHEET-03 | Phase 2 | 02-02 | Done |
 | SHEET-04 | Phase 2 | 02-02 | Done |
-| EMPTY-01 | Phase 3 | — | Pending |
-| EMPTY-02 | Phase 3 | — | Pending |
+| EMPTY-01 | Phase 3 | 03-01 | Done |
+| EMPTY-02 | Phase 3 | 03-02 | Done |
