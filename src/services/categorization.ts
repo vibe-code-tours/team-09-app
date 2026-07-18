@@ -1,11 +1,13 @@
-// Gemini Categorization Service
+// Custom AI Categorization Service (OpenAI-compatible proxy)
 import { CategorizedEntry, Category } from '../types';
 
-const API_KEY = process.env.EXPO_PUBLIC_GEMINI_API_KEY;
+const API_KEY = process.env.EXPO_PUBLIC_VIBE_CODE_API_KEY;
+const BASE_URL = process.env.EXPO_PUBLIC_VIBE_CODE_BASE_URL || 'https://proxy.vibecode.tours/v1';
+const MODEL = process.env.EXPO_PUBLIC_VIBE_CODE_MODEL || 'mimo-v2.5-pro';
 
 export const categorizeEntry = async (transcript: string): Promise<CategorizedEntry> => {
   if (!API_KEY) {
-    throw new Error('Gemini API key not configured. Set EXPO_PUBLIC_GEMINI_API_KEY in .env');
+    throw new Error('Custom AI API key not configured. Set EXPO_PUBLIC_VIBE_CODE_API_KEY in .env');
   }
 
   const prompt = `Categorize this Burmese voice entry into: feelings, work, health, ideas, money, or other.
@@ -13,14 +15,18 @@ Generate a short title (max 5 words) that captures the main topic.
 Return JSON: { "category": "...", "title": "short title", "summary": "English summary", "items": ["item1"], "mood": "mood", "date": "today" }
 Entry: "${transcript}"`;
 
-  const response = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${API_KEY}`,
-    {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] }),
-    }
-  );
+  const response = await fetch(`${BASE_URL}/chat/completions`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${API_KEY}`,
+    },
+    body: JSON.stringify({
+      model: MODEL,
+      messages: [{ role: 'user', content: prompt }],
+      response_format: { type: 'json_object' },
+    }),
+  });
 
   if (!response.ok) {
     const errBody = await response.text();
@@ -29,10 +35,10 @@ Entry: "${transcript}"`;
 
   const result = await response.json();
 
-  // Validate response structure — handle safety blocks or empty responses
-  const text = result?.candidates?.[0]?.content?.parts?.[0]?.text;
+  // Validate response structure — handle empty or malformed responses
+  const text = result?.choices?.[0]?.message?.content;
   if (!text) {
-    console.warn('[Categorization] Empty or blocked response:', JSON.stringify(result));
+    console.warn('[Categorization] Empty response:', JSON.stringify(result));
     // Return a safe default instead of crashing
     return {
       category: 'other',

@@ -1,4 +1,4 @@
-// AudioPlayer - Reusable audio player with play/pause, progress bar, and time display
+// AudioPlayer - Reusable audio player with play/pause, seek slider, and time display
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Audio, AVPlaybackStatus } from 'expo-av';
@@ -90,6 +90,17 @@ export default function AudioPlayer({
     }
   };
 
+  const seekTo = async (millis: number) => {
+    const sound = soundRef.current;
+    if (!sound) return;
+
+    try {
+      await sound.setPositionAsync(Math.max(0, Math.min(millis, duration)));
+    } catch (error) {
+      console.error('Error seeking:', error);
+    }
+  };
+
   const formatTime = (milliseconds: number): string => {
     const totalSeconds = Math.floor(milliseconds / 1000);
     const minutes = Math.floor(totalSeconds / 60);
@@ -124,7 +135,7 @@ export default function AudioPlayer({
     );
   }
 
-  // Full mode for CreateNote screen
+  // Full mode for CreateNote screen — with seek slider
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.surfaceAlt, borderColor: theme.colors.border }]}>
       {/* Play/Pause button */}
@@ -135,26 +146,14 @@ export default function AudioPlayer({
       >
         <Ionicons
           name={isPlaying ? 'pause' : 'play'}
-          size={20}
+          size={22}
           color="#FFFFFF"
         />
       </TouchableOpacity>
 
       {/* Progress section */}
       <View style={styles.progressSection}>
-        {/* Progress bar */}
-        <View
-          style={[styles.progressBar, { backgroundColor: theme.colors.border }]}
-        >
-          <View
-            style={[
-              styles.progressFill,
-              { width: `${progress * 100}%`, backgroundColor: theme.colors.primary },
-            ]}
-          />
-        </View>
-
-        {/* Time display */}
+        {/* Time labels */}
         <View style={styles.timeRow}>
           <Text style={[styles.timeText, { color: theme.colors.textMuted }]}>
             {formatTime(position)}
@@ -163,7 +162,81 @@ export default function AudioPlayer({
             -{formatTime(duration - position)}
           </Text>
         </View>
+
+        {/* Seek slider */}
+        <View style={[styles.sliderTrack, { backgroundColor: theme.colors.border }]}>
+          {/* Filled progress */}
+          <View
+            style={[
+              styles.sliderFill,
+              { width: `${progress * 100}%`, backgroundColor: theme.colors.primary },
+            ]}
+          />
+          {/* Touchable overlay for seeking */}
+          <SeekBar
+            progress={progress}
+            onSeek={(ratio) => seekTo(ratio * duration)}
+            trackColor={theme.colors.border}
+            fillColor={theme.colors.primary}
+          />
+        </View>
+
+        {/* Duration label */}
+        <Text style={[styles.durationText, { color: theme.colors.textMuted }]}>
+          {formatTime(duration)}
+        </Text>
       </View>
+    </View>
+  );
+}
+
+// ── SeekBar — custom touch seek slider ──────────────────────────
+function SeekBar({
+  progress,
+  onSeek,
+  trackColor,
+  fillColor,
+}: {
+  progress: number;
+  onSeek: (ratio: number) => void;
+  trackColor: string;
+  fillColor: string;
+}) {
+  const trackRef = useRef<View>(null);
+  const [trackWidth, setTrackWidth] = useState(0);
+
+  const handleLayout = useCallback((event: any) => {
+    setTrackWidth(event.nativeEvent.layout.width);
+  }, []);
+
+  const handleTouchEnd = useCallback(
+    (event: any) => {
+      if (trackWidth <= 0) return;
+      const { locationX } = event.nativeEvent;
+      const ratio = Math.max(0, Math.min(1, locationX / trackWidth));
+      onSeek(ratio);
+    },
+    [trackWidth, onSeek]
+  );
+
+  return (
+    <View
+      ref={trackRef}
+      style={styles.sliderContainer}
+      onLayout={handleLayout}
+      onTouchEnd={handleTouchEnd}
+    >
+      {/* Thumb */}
+      <View
+        style={[
+          styles.sliderThumb,
+          {
+            left: `${progress * 100}%`,
+            backgroundColor: fillColor,
+            borderColor: trackColor,
+          },
+        ]}
+      />
     </View>
   );
 }
@@ -177,9 +250,9 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   playButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -187,23 +260,55 @@ const styles = StyleSheet.create({
     flex: 1,
     marginLeft: spacing.md,
   },
-  progressBar: {
-    height: 4,
-    borderRadius: 2,
-    overflow: 'hidden',
-  },
-  progressFill: {
-    height: '100%',
-    borderRadius: 2,
-  },
   timeRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginTop: spacing.xs,
+    marginBottom: spacing.xs,
   },
   timeText: {
     fontSize: 12,
   },
+  sliderTrack: {
+    height: 6,
+    borderRadius: 3,
+    overflow: 'visible',
+    position: 'relative',
+  },
+  sliderFill: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    height: '100%',
+    borderRadius: 3,
+  },
+  sliderContainer: {
+    position: 'absolute',
+    top: -6,
+    left: 0,
+    right: 0,
+    height: 18,
+    justifyContent: 'center',
+  },
+  sliderThumb: {
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    borderWidth: 2,
+    position: 'absolute',
+    top: 1,
+    marginLeft: -8,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
+  },
+  durationText: {
+    fontSize: 11,
+    textAlign: 'right',
+    marginTop: spacing.xs,
+  },
+  // Compact mode
   compactContainer: {
     flexDirection: 'row',
     alignItems: 'center',

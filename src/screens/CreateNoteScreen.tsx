@@ -40,7 +40,7 @@ export const CreateNoteScreen: React.FC = () => {
     entryId,
     prefilledText,
     predictedCategory,
-    audioFile,
+    audioFile: initialAudioFile,
     startViewOnly = false,
   } = route.params || {};
 
@@ -51,6 +51,7 @@ export const CreateNoteScreen: React.FC = () => {
   const [isViewOnly, setIsViewOnly] = useState(startViewOnly);
   const [isSaving, setIsSaving] = useState(false);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [audioFile, setAudioFile] = useState<string | undefined>(initialAudioFile);
 
   const contentInputRef = useRef<TextInput>(null);
 
@@ -78,6 +79,9 @@ export const CreateNoteScreen: React.FC = () => {
         setContent(entry.transcript);
         setCategory(entry.category);
         setIsPinned(entry.isPinned);
+        if (entry.audioUri) {
+          setAudioFile(entry.audioUri);
+        }
       }
     } catch (error) {
       console.error('[CreateNoteScreen] Error loading entry:', error);
