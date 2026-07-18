@@ -1,5 +1,5 @@
 // CreateNoteScreen - Unified notepad for creating and editing notes
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from "react";
 import {
   View,
   Text,
@@ -7,19 +7,24 @@ import {
   TextInput,
   TouchableOpacity,
   ScrollView,
-  SafeAreaView,
   KeyboardAvoidingView,
   Platform,
   ToastAndroid,
   Alert,
-} from 'react-native';
-import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
-import { Ionicons } from '@expo/vector-icons';
-import { useTheme } from '../theme/ThemeContext';
-import { CATEGORIES, Category, spacing, radius } from '../theme';
-import { getEntryById, saveEntry, updateEntry } from '../services/storage';
-import { useAuth } from '../context/AuthContext';
-import AudioPlayer from '../components/AudioPlayer';
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { useNavigation, useRoute, RouteProp } from "@react-navigation/native";
+import { Ionicons } from "@expo/vector-icons";
+import { useTheme } from "../theme/ThemeContext";
+import { CATEGORIES, Category, spacing, radius } from "../theme";
+import {
+  getEntryById,
+  saveEntry,
+  updateEntry,
+  deleteEntry,
+} from "../services/storage";
+import { useAuth } from "../context/AuthContext";
+import AudioPlayer from "../components/AudioPlayer";
 
 type CreateNoteParams = {
   entryId?: string;
@@ -31,7 +36,7 @@ type CreateNoteParams = {
 
 export const CreateNoteScreen: React.FC = () => {
   const navigation = useNavigation();
-  const route = useRoute<RouteProp<{ params: CreateNoteParams }, 'params'>>();
+  const route = useRoute<RouteProp<{ params: CreateNoteParams }, "params">>();
   const { theme } = useTheme();
   const { colors } = theme;
   const { userId } = useAuth();
@@ -44,14 +49,18 @@ export const CreateNoteScreen: React.FC = () => {
     startViewOnly = false,
   } = route.params || {};
 
-  const [title, setTitle] = useState('');
-  const [content, setContent] = useState('');
-  const [category, setCategory] = useState<Category>(predictedCategory || 'other');
+  const [title, setTitle] = useState("");
+  const [content, setContent] = useState("");
+  const [category, setCategory] = useState<Category>(
+    predictedCategory || "other",
+  );
   const [isPinned, setIsPinned] = useState(false);
   const [isViewOnly, setIsViewOnly] = useState(startViewOnly);
   const [isSaving, setIsSaving] = useState(false);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
-  const [audioFile, setAudioFile] = useState<string | undefined>(initialAudioFile);
+  const [audioFile, setAudioFile] = useState<string | undefined>(
+    initialAudioFile,
+  );
 
   const contentInputRef = useRef<TextInput>(null);
 
@@ -84,14 +93,14 @@ export const CreateNoteScreen: React.FC = () => {
         }
       }
     } catch (error) {
-      console.error('[CreateNoteScreen] Error loading entry:', error);
+      console.error("[CreateNoteScreen] Error loading entry:", error);
     }
   };
 
   // ── Manual Save ──────────────────────────────────────────────
   const handleManualSave = async () => {
     if (!title.trim() && !content.trim()) {
-      Alert.alert('Empty Note', 'Please add a title or content before saving.');
+      Alert.alert("Empty Note", "Please add a title or content before saving.");
       return;
     }
 
@@ -109,37 +118,63 @@ export const CreateNoteScreen: React.FC = () => {
           title: title.trim(),
           transcript: content.trim(),
           category,
-          summary: '',
-          mood: 'neutral',
-          audioUri: audioFile || '',
+          summary: "",
+          mood: "neutral",
+          audioUri: audioFile || "",
           audioDuration: 0,
           isPinned,
         });
         navigation.setParams({ entryId: newEntryId } as any);
       }
       setHasUnsavedChanges(false);
-      if (Platform.OS === 'android') {
-        ToastAndroid.show('Note saved', ToastAndroid.SHORT);
+      if (Platform.OS === "android") {
+        ToastAndroid.show("Note saved", ToastAndroid.SHORT);
       }
     } catch (error) {
-      console.error('[CreateNoteScreen] Save error:', error);
-      Alert.alert('Error', 'Failed to save note. Please try again.');
+      console.error("[CreateNoteScreen] Save error:", error);
+      Alert.alert("Error", "Failed to save note. Please try again.");
     } finally {
       setIsSaving(false);
     }
+  };
+
+  // ── Delete ───────────────────────────────────────────────────
+  const handleDelete = () => {
+    if (!entryId) return;
+
+    Alert.alert("Delete Entry", "Are you sure you want to delete this entry?", [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Delete",
+        style: "destructive",
+        onPress: async () => {
+          try {
+            await deleteEntry(entryId);
+            navigation.goBack();
+          } catch (error) {
+            console.error("[CreateNoteScreen] Delete error:", error);
+            Alert.alert("Error", "Failed to delete entry.");
+          }
+        },
+      },
+    ]);
   };
 
   // ── Back Navigation ──────────────────────────────────────────
   const handleBack = () => {
     if (hasUnsavedChanges) {
       Alert.alert(
-        'Unsaved Changes',
-        'You have unsaved changes. What would you like to do?',
+        "Unsaved Changes",
+        "You have unsaved changes. What would you like to do?",
         [
-          { text: 'Discard', style: 'destructive', onPress: () => navigation.goBack() },
-          { text: 'Save', onPress: handleManualSave },
-          { text: 'Cancel', style: 'cancel' },
-        ]
+          {
+            text: "Discard",
+            style: "destructive",
+            onPress: () => navigation.goBack(),
+          },
+          { text: "Save", onPress: handleManualSave },
+          { text: "Cancel", style: "cancel" },
+        ],
       );
     } else {
       navigation.goBack();
@@ -157,13 +192,26 @@ export const CreateNoteScreen: React.FC = () => {
   const handleView = () => {
     if (hasUnsavedChanges) {
       Alert.alert(
-        'Unsaved Changes',
-        'Save your changes before switching to view mode?',
+        "Unsaved Changes",
+        "Save your changes before switching to view mode?",
         [
-          { text: 'Discard', style: 'destructive', onPress: () => { setHasUnsavedChanges(false); setIsViewOnly(true); } },
-          { text: 'Save', onPress: async () => { await handleManualSave(); setIsViewOnly(true); } },
-          { text: 'Cancel', style: 'cancel' },
-        ]
+          {
+            text: "Discard",
+            style: "destructive",
+            onPress: () => {
+              setHasUnsavedChanges(false);
+              setIsViewOnly(true);
+            },
+          },
+          {
+            text: "Save",
+            onPress: async () => {
+              await handleManualSave();
+              setIsViewOnly(true);
+            },
+          },
+          { text: "Cancel", style: "cancel" },
+        ],
       );
     } else {
       setIsViewOnly(true);
@@ -171,17 +219,50 @@ export const CreateNoteScreen: React.FC = () => {
   };
 
   // ── Category & Pin ───────────────────────────────────────────
-  const toggleCategory = () => {
-    const categories: Category[] = ['feelings', 'work', 'health', 'ideas', 'money', 'other'];
+  const toggleCategory = async () => {
+    const categories: Category[] = [
+      "feelings",
+      "work",
+      "health",
+      "ideas",
+      "money",
+      "other",
+    ];
     const currentIndex = categories.indexOf(category);
     const nextIndex = (currentIndex + 1) % categories.length;
-    setCategory(categories[nextIndex]);
-    setHasUnsavedChanges(true);
+    const newCategory = categories[nextIndex];
+    setCategory(newCategory);
+    // Auto-save if editing an existing entry
+    if (entryId) {
+      try {
+        await updateEntry(entryId, { category: newCategory });
+      } catch (err) {
+        console.error("[CreateNoteScreen] Auto-save category failed:", err);
+      }
+    } else {
+      setHasUnsavedChanges(true);
+    }
   };
 
-  const togglePin = () => {
-    setIsPinned(!isPinned);
-    setHasUnsavedChanges(true);
+  const togglePin = async () => {
+    const newPinned = !isPinned;
+    setIsPinned(newPinned);
+    // Auto-save if editing an existing entry
+    if (entryId) {
+      try {
+        await updateEntry(entryId, { isPinned: newPinned });
+        if (Platform.OS === "android") {
+          ToastAndroid.show(
+            newPinned ? "Pinned" : "Unpinned",
+            ToastAndroid.SHORT,
+          );
+        }
+      } catch (err) {
+        console.error("[CreateNoteScreen] Auto-save pin failed:", err);
+      }
+    } else {
+      setHasUnsavedChanges(true);
+    }
   };
 
   const handleTextChange = (text: string) => {
@@ -197,28 +278,60 @@ export const CreateNoteScreen: React.FC = () => {
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.bg }]}>
       {/* Header */}
-      <View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
+      <View
+        style={[
+          styles.header,
+          { backgroundColor: colors.surface, borderBottomColor: colors.border },
+        ]}
+      >
         <TouchableOpacity onPress={handleBack} style={styles.backButton}>
           <Ionicons name="arrow-back" size={24} color={colors.text} />
         </TouchableOpacity>
 
         <View style={styles.headerActions}>
           {isViewOnly ? (
-            <TouchableOpacity
-              style={[styles.headerButton, { backgroundColor: colors.primary }]}
-              onPress={handleEdit}
-            >
-              <Ionicons name="create-outline" size={16} color="#FFFFFF" />
-              <Text style={[styles.headerButtonText, { color: '#FFFFFF' }]}>Edit</Text>
-            </TouchableOpacity>
+            <>
+              {entryId && (
+                <TouchableOpacity
+                  style={[
+                    styles.headerButton,
+                    { backgroundColor: colors.danger + "15" },
+                  ]}
+                  onPress={handleDelete}
+                >
+                  <Ionicons
+                    name="trash-outline"
+                    size={16}
+                    color={colors.danger}
+                  />
+                </TouchableOpacity>
+              )}
+              <TouchableOpacity
+                style={[
+                  styles.headerButton,
+                  { backgroundColor: colors.primary },
+                ]}
+                onPress={handleEdit}
+              >
+                <Ionicons name="create-outline" size={16} color="#FFFFFF" />
+                <Text style={[styles.headerButtonText, { color: "#FFFFFF" }]}>
+                  Edit
+                </Text>
+              </TouchableOpacity>
+            </>
           ) : (
             <>
               <TouchableOpacity
-                style={[styles.headerButton, { backgroundColor: colors.surfaceAlt }]}
+                style={[
+                  styles.headerButton,
+                  { backgroundColor: colors.surfaceAlt },
+                ]}
                 onPress={handleView}
               >
                 <Ionicons name="eye-outline" size={16} color={colors.text} />
-                <Text style={[styles.headerButtonText, { color: colors.text }]}>View</Text>
+                <Text style={[styles.headerButtonText, { color: colors.text }]}>
+                  View
+                </Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={[
@@ -233,15 +346,15 @@ export const CreateNoteScreen: React.FC = () => {
                 <Ionicons
                   name="checkmark"
                   size={16}
-                  color={hasUnsavedChanges ? '#FFFFFF' : colors.textMuted}
+                  color={hasUnsavedChanges ? "#FFFFFF" : colors.textMuted}
                 />
                 <Text
                   style={[
                     styles.headerButtonText,
-                    { color: hasUnsavedChanges ? '#FFFFFF' : colors.textMuted },
+                    { color: hasUnsavedChanges ? "#FFFFFF" : colors.textMuted },
                   ]}
                 >
-                  {isSaving ? 'Saving...' : 'Save'}
+                  {isSaving ? "Saving..." : "Save"}
                 </Text>
               </TouchableOpacity>
             </>
@@ -251,7 +364,7 @@ export const CreateNoteScreen: React.FC = () => {
 
       <KeyboardAvoidingView
         style={styles.keyboardAvoid}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
       >
         <ScrollView
           style={styles.scrollView}
@@ -273,24 +386,44 @@ export const CreateNoteScreen: React.FC = () => {
           {/* Tools Strip */}
           <View style={styles.toolsStrip}>
             <TouchableOpacity
-              style={[styles.categoryPill, { backgroundColor: CATEGORIES[category].color + '20' }]}
+              style={[
+                styles.categoryPill,
+                { backgroundColor: CATEGORIES[category].color + "20" },
+              ]}
               onPress={toggleCategory}
-              disabled={isViewOnly}
             >
-              <Text style={styles.categoryEmoji}>{CATEGORIES[category].icon}</Text>
-              <Text style={[styles.categoryLabel, { color: CATEGORIES[category].color }]}>
+              <Text style={styles.categoryEmoji}>
+                {CATEGORIES[category].icon}
+              </Text>
+              <Text
+                style={[
+                  styles.categoryLabel,
+                  { color: CATEGORIES[category].color },
+                ]}
+              >
                 {CATEGORIES[category].label}
               </Text>
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={[styles.pinButton, { backgroundColor: isPinned ? colors.accent + '20' : colors.surfaceAlt }]}
+              style={[
+                styles.pinButton,
+                {
+                  backgroundColor: isPinned
+                    ? colors.accent + "20"
+                    : colors.surfaceAlt,
+                },
+              ]}
               onPress={togglePin}
-              disabled={isViewOnly}
             >
               <Text style={styles.pinEmoji}>📌</Text>
-              <Text style={[styles.pinLabel, { color: isPinned ? colors.accent : colors.textMuted }]}>
-                {isPinned ? 'Pinned' : 'Pin'}
+              <Text
+                style={[
+                  styles.pinLabel,
+                  { color: isPinned ? colors.accent : colors.textMuted },
+                ]}
+              >
+                {isPinned ? "Pinned" : "Pin"}
               </Text>
             </TouchableOpacity>
           </View>
@@ -302,32 +435,47 @@ export const CreateNoteScreen: React.FC = () => {
             </View>
           )}
 
-          {/* Content — plain text in view mode, TextInput in edit mode */}
-          {isViewOnly ? (
-            content.trim() ? (
-              <ScrollView style={styles.viewContentContainer} nestedScrollEnabled>
-                <Text style={[styles.viewContent, { color: colors.text }]}>
-                  {content}
+          {/* Content — paper card in both view and edit mode */}
+          <View
+            style={[
+              styles.paperCard,
+              {
+                backgroundColor: colors.surfaceAlt,
+                borderColor: colors.border,
+              },
+            ]}
+          >
+            {isViewOnly ? (
+              content.trim() ? (
+                <ScrollView
+                  style={styles.viewContentContainer}
+                  nestedScrollEnabled
+                >
+                  <Text style={[styles.viewContent, { color: colors.text }]}>
+                    {content}
+                  </Text>
+                </ScrollView>
+              ) : (
+                <Text
+                  style={[styles.emptyContent, { color: colors.textMuted }]}
+                >
+                  Empty note
                 </Text>
-              </ScrollView>
+              )
             ) : (
-              <Text style={[styles.emptyContent, { color: colors.textMuted }]}>
-                Empty note
-              </Text>
-            )
-          ) : (
-            <TextInput
-              ref={contentInputRef}
-              style={[styles.contentInput, { color: colors.text }]}
-              value={content}
-              onChangeText={handleTextChange}
-              placeholder="Start writing..."
-              placeholderTextColor={colors.textMuted}
-              editable={!isViewOnly}
-              multiline
-              textAlignVertical="top"
-            />
-          )}
+              <TextInput
+                ref={contentInputRef}
+                style={[styles.contentInput, { color: colors.text }]}
+                value={content}
+                onChangeText={handleTextChange}
+                placeholder="Start writing..."
+                placeholderTextColor={colors.textMuted}
+                editable={!isViewOnly}
+                multiline
+                textAlignVertical="top"
+              />
+            )}
+          </View>
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -339,9 +487,9 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.md,
     borderBottomWidth: 1,
@@ -350,13 +498,13 @@ const styles = StyleSheet.create({
     padding: spacing.sm,
   },
   headerActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: spacing.sm,
   },
   headerButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
     borderRadius: radius.sm,
@@ -364,7 +512,7 @@ const styles = StyleSheet.create({
   },
   headerButtonText: {
     fontSize: 14,
-    fontWeight: '600',
+    fontWeight: "600",
   },
   keyboardAvoid: {
     flex: 1,
@@ -377,18 +525,18 @@ const styles = StyleSheet.create({
   },
   titleInput: {
     fontSize: 28,
-    fontWeight: '700',
+    fontWeight: "700",
     marginBottom: spacing.lg,
     padding: 0,
   },
   toolsStrip: {
-    flexDirection: 'row',
+    flexDirection: "row",
     gap: spacing.sm,
     marginBottom: spacing.xl,
   },
   categoryPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
     borderRadius: radius.full,
@@ -399,11 +547,11 @@ const styles = StyleSheet.create({
   },
   categoryLabel: {
     fontSize: 14,
-    fontWeight: '500',
+    fontWeight: "500",
   },
   pinButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
     borderRadius: radius.full,
@@ -414,27 +562,34 @@ const styles = StyleSheet.create({
   },
   pinLabel: {
     fontSize: 14,
-    fontWeight: '500',
+    fontWeight: "500",
   },
   audioSection: {
     marginBottom: spacing.xl,
+  },
+  // Paper card style
+  paperCard: {
+    borderRadius: radius.md,
+    borderWidth: 1,
+    padding: spacing.lg,
+    minHeight: 200,
   },
   viewContentContainer: {
     maxHeight: 400,
   },
   viewContent: {
     fontSize: 16,
-    lineHeight: 24,
+    lineHeight: 30,
   },
   contentInput: {
     fontSize: 16,
-    lineHeight: 24,
+    lineHeight: 30,
     minHeight: 300,
     padding: 0,
   },
   emptyContent: {
     fontSize: 16,
-    fontStyle: 'italic',
+    fontStyle: "italic",
     minHeight: 300,
   },
 });

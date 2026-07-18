@@ -5,20 +5,27 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
-  SafeAreaView,
   Animated,
   ActivityIndicator,
+  Modal,
+  TextInput,
+  KeyboardAvoidingView,
+  Platform,
+  Alert,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { RecordButton } from '../components/RecordButton';
 import { useRecording } from '../hooks/useRecording';
 import { useTheme } from '../theme/ThemeContext';
+import { useAuth } from '../context/AuthContext';
 import { createShadows } from '../theme';
-import { saveAudioLocally } from '../services/audioStorage';
+import { saveAudioLocally, deleteAudioFile } from '../services/audioStorage';
 import { transcribeAudio } from '../services/transcription';
 import { categorizeEntry } from '../services/categorization';
+import { saveEntry, updateEntry } from '../services/storage';
 import { Category } from '../types';
 
 export const RecordScreen: React.FC = () => {
@@ -26,6 +33,7 @@ export const RecordScreen: React.FC = () => {
   const { theme, isDark } = useTheme();
   const { colors } = theme;
   const shadows = createShadows(isDark, colors.primary);
+  const { userId } = useAuth();
   const {
     state,
     startRecording,
@@ -46,11 +54,22 @@ export const RecordScreen: React.FC = () => {
   const [isCategorizing, setIsCategorizing] = useState(false);
   const [hasNavigatedToNote, setHasNavigatedToNote] = useState(false);
 
+  // Title modal state
+  const [showTitleModal, setShowTitleModal] = useState(false);
+  const [titleInput, setTitleInput] = useState('');
+  const [isSavingNote, setIsSavingNote] = useState(false);
+
   // Refs to avoid stale closures in effects
   const stateRef = useRef(state);
   stateRef.current = state;
   const hasNavigatedRef = useRef(hasNavigatedToNote);
   hasNavigatedRef.current = hasNavigatedToNote;
+  const transcriptRef = useRef(transcript);
+  transcriptRef.current = transcript;
+  const categoryRef = useRef(category);
+  categoryRef.current = category;
+  const permanentUriRef = useRef<string | null>(null);
+  const discardedRef = useRef(false);
 
   // Animations
   const fadeIn = useRef(new Animated.Value(0)).current;
@@ -82,7 +101,10 @@ export const RecordScreen: React.FC = () => {
         setTranscribeError(null);
         try {
           const permanentUri = await saveAudioLocally(currentUri);
+          if (discardedRef.current) return;
+          permanentUriRef.current = permanentUri;
           const text = await transcribeAudio(permanentUri);
+          if (discardedRef.current) return;
           setTranscript(text);
 
           // Auto-categorize
@@ -90,41 +112,32 @@ export const RecordScreen: React.FC = () => {
           setIsCategorizing(true);
           try {
             const result = await categorizeEntry(text);
+            if (discardedRef.current) return;
             setCategory(result.category);
+            // Show title modal instead of navigating
             if (!hasNavigatedRef.current) {
               setHasNavigatedToNote(true);
-              navigation.navigate('Home', {
-                screen: 'CreateNote',
-                params: {
-                  prefilledText: text,
-                  predictedCategory: result.category,
-                  audioFile: stateRef.current.uri || undefined,
-                  startViewOnly: true,
-                },
-              });
+              setShowTitleModal(true);
+              setTitleInput('');
             }
           } catch (catErr: any) {
             console.error('[RecordScreen] Categorize failed:', catErr);
+            if (discardedRef.current) return;
+            setCategory('other');
+            // Still show title modal with default category
             if (!hasNavigatedRef.current) {
               setHasNavigatedToNote(true);
-              navigation.navigate('Home', {
-                screen: 'CreateNote',
-                params: {
-                  prefilledText: text,
-                  predictedCategory: 'other',
-                  audioFile: stateRef.current.uri || undefined,
-                  startViewOnly: true,
-                },
-              });
+              setShowTitleModal(true);
+              setTitleInput('');
             }
           } finally {
-            setIsCategorizing(false);
+            if (!discardedRef.current) setIsCategorizing(false);
           }
         } catch (err: any) {
           console.error('[RecordScreen] Transcribe failed:', err);
-          setTranscribeError(err.message || 'Transcription failed');
+          if (!discardedRef.current) setTranscribeError(err.message || 'Transcription failed');
         } finally {
-          setIsTranscribing(false);
+          if (!discardedRef.current) setIsTranscribing(false);
         }
       };
 
@@ -138,6 +151,7 @@ export const RecordScreen: React.FC = () => {
         await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
         await stopRecording();
       } else {
+        discardedRef.current = false;
         await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
         await startRecording();
       }
@@ -156,13 +170,151 @@ export const RecordScreen: React.FC = () => {
   };
 
   const handleDiscard = async () => {
-    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
-    setTranscript('');
-    setTranscribeError(null);
-    setCategory('other');
-    setHasNavigatedToNote(false);
-    discardRecording();
-    navigation.goBack();
+    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    Alert.alert(
+      'Discard Recording?',
+      'What would you like to do?',
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+        {
+          text: 'Run in Background',
+          onPress: () => {
+            // Start background processing before navigating away
+            const currentUri = stateRef.current.uri;
+            if (currentUri) {
+              processInBackground(currentUri);
+            }
+            discardedRef.current = true;
+            setTranscript('');
+            setTranscribeError(null);
+            setCategory('other');
+            setHasNavigatedToNote(false);
+            setShowTitleModal(false);
+            setTitleInput('');
+            discardRecording();
+            navigation.goBack();
+          },
+        },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            discardedRef.current = true;
+            // Delete the saved audio file
+            if (permanentUriRef.current) {
+              deleteAudioFile(permanentUriRef.current);
+              permanentUriRef.current = null;
+            }
+            setTranscript('');
+            setTranscribeError(null);
+            setCategory('other');
+            setHasNavigatedToNote(false);
+            setShowTitleModal(false);
+            setTitleInput('');
+            discardRecording();
+            navigation.goBack();
+          },
+        },
+      ]
+    );
+  };
+
+  // Generate a title from the first few words of the transcript
+  const generateTitle = (text: string): string => {
+    const words = text.trim().split(/\s+/).slice(0, 6).join(' ');
+    return words.length > 0 ? words : 'Voice Note';
+  };
+
+  // Process and save in background — runs after user navigates away
+  const processInBackground = async (audioUri: string) => {
+    try {
+      const permanentUri = await saveAudioLocally(audioUri);
+
+      // Save note immediately with empty title so it appears on HomeScreen
+      const entryId = await saveEntry(userId, {
+        title: '',
+        transcript: '',
+        category: 'other',
+        summary: '',
+        mood: 'neutral',
+        audioUri: permanentUri,
+        audioDuration: 0,
+        isPinned: false,
+      });
+
+      // Transcribe
+      const text = await transcribeAudio(permanentUri);
+      if (!text.trim()) return;
+
+      // Categorize
+      let finalCategory: Category = 'other';
+      try {
+        const result = await categorizeEntry(text);
+        finalCategory = result.category;
+      } catch {
+        // Use default category
+      }
+
+      // Update the note with transcript and category
+      await updateEntry(entryId, {
+        transcript: text.trim(),
+        category: finalCategory,
+      });
+
+      // Notify HomeScreen that a note is ready for title
+      const { DeviceEventEmitter } = require('react-native');
+      DeviceEventEmitter.emit('note-ready-for-title', { entryId });
+      console.log('[RecordScreen] Background processing completed:', entryId);
+    } catch (err) {
+      console.error('[RecordScreen] Background save failed:', err);
+    }
+  };
+
+  // Save the note with the provided title
+  const handleSaveNote = async (title: string) => {
+    if (isSavingNote) return;
+    setIsSavingNote(true);
+    try {
+      const currentTranscript = transcriptRef.current;
+      const currentCategory = categoryRef.current;
+      const audioUri = stateRef.current.uri || '';
+
+      await saveEntry(userId, {
+        title: title.trim(),
+        transcript: currentTranscript.trim(),
+        category: currentCategory,
+        summary: '',
+        mood: 'neutral',
+        audioUri,
+        audioDuration: 0,
+        isPinned: false,
+      });
+
+      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      permanentUriRef.current = null;
+      setShowTitleModal(false);
+      setTitleInput('');
+      setTranscript('');
+      setTranscribeError(null);
+      setCategory('other');
+      setHasNavigatedToNote(false);
+      discardRecording();
+      navigation.goBack();
+    } catch (err: any) {
+      console.error('[RecordScreen] Save failed:', err);
+      setTranscribeError(err.message || 'Failed to save note');
+    } finally {
+      setIsSavingNote(false);
+    }
+  };
+
+  // Skip title — auto-save with generated title
+  const handleSkipTitle = async () => {
+    const autoTitle = generateTitle(transcriptRef.current);
+    await handleSaveNote(autoTitle);
   };
 
   const isSaving = state.status === 'saving';
@@ -177,20 +329,14 @@ export const RecordScreen: React.FC = () => {
   else if (isTranscribing) statusLabel = 'Transcribing...';
   else if (isCategorizing) statusLabel = 'Categorizing...';
   else if (hasRecording) statusLabel = 'Recording complete';
-  else if (isSaving) statusLabel = 'Saving...';
+  else if (isSaving || isSavingNote) statusLabel = 'Saving...';
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.bg }]}>
       {/* Header */}
       <View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
         <TouchableOpacity
-          onPress={() => {
-            setTranscript('');
-            setTranscribeError(null);
-            setCategory('other');
-            setHasNavigatedToNote(false);
-            navigation.goBack();
-          }}
+          onPress={handleDiscard}
           hitSlop={styles.hitSlop}
           disabled={isSaving}
         >
@@ -290,7 +436,7 @@ export const RecordScreen: React.FC = () => {
               <View style={styles.statusSuccess}>
                 <Ionicons name="checkmark-circle" size={20} color={colors.success} />
                 <Text style={[styles.statusText, { color: colors.success }]}>
-                  Redirecting to note editor...
+                  Ready to save!
                 </Text>
               </View>
             ) : transcribeError ? (
@@ -314,14 +460,8 @@ export const RecordScreen: React.FC = () => {
                       setCategory(result.category);
                       if (!hasNavigatedRef.current) {
                         setHasNavigatedToNote(true);
-                        navigation.navigate('Home', {
-                          screen: 'CreateNote',
-                          params: {
-                            predictedCategory: result.category,
-                            audioFile: stateRef.current.uri || undefined,
-                            startViewOnly: true,
-                          },
-                        });
+                        setShowTitleModal(true);
+                        setTitleInput('');
                       }
                     })
                     .catch(err => {
@@ -351,6 +491,86 @@ export const RecordScreen: React.FC = () => {
           </View>
         </Animated.View>
       )}
+      {/* Title Modal */}
+      <Modal
+        visible={showTitleModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => {
+          // Don't allow closing without saving — prompt to skip
+        }}
+      >
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={styles.modalOverlay}
+        >
+          <View style={[styles.modalContent, { backgroundColor: colors.surface }]}>
+            <Text style={[styles.modalTitle, { color: colors.text }]}>
+              🎙️ Recording saved!
+            </Text>
+            <Text style={[styles.modalSubtitle, { color: colors.textMuted }]}>
+              Give your note a title
+            </Text>
+
+            <TextInput
+              style={[
+                styles.modalInput,
+                {
+                  color: colors.text,
+                  backgroundColor: colors.bg,
+                  borderColor: colors.border,
+                },
+              ]}
+              placeholder="Enter title..."
+              placeholderTextColor={colors.textMuted}
+              value={titleInput}
+              onChangeText={setTitleInput}
+              autoFocus
+              returnKeyType="done"
+              onSubmitEditing={() => {
+                if (titleInput.trim()) {
+                  handleSaveNote(titleInput);
+                }
+              }}
+            />
+
+            <View style={styles.modalButtons}>
+              <TouchableOpacity
+                style={[styles.modalSkipBtn, { borderColor: colors.border }]}
+                onPress={handleSkipTitle}
+                disabled={isSavingNote}
+                activeOpacity={0.7}
+              >
+                <Text style={[styles.modalSkipText, { color: colors.textSecondary }]}>
+                  Skip
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[
+                  styles.modalSaveBtn,
+                  {
+                    backgroundColor: titleInput.trim() ? colors.primary : colors.border,
+                  },
+                ]}
+                onPress={() => {
+                  if (titleInput.trim()) {
+                    handleSaveNote(titleInput);
+                  }
+                }}
+                disabled={!titleInput.trim() || isSavingNote}
+                activeOpacity={0.7}
+              >
+                {isSavingNote ? (
+                  <ActivityIndicator size="small" color="#FFFFFF" />
+                ) : (
+                  <Text style={styles.modalSaveText}>Save Note</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
     </SafeAreaView>
   );
 };
@@ -473,5 +693,64 @@ const styles = StyleSheet.create({
   },
   discardText: {
     fontSize: 16,
+  },
+  // Modal styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 32,
+  },
+  modalContent: {
+    width: '100%',
+    borderRadius: 20,
+    padding: 28,
+    alignItems: 'center',
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    marginBottom: 4,
+  },
+  modalSubtitle: {
+    fontSize: 14,
+    marginBottom: 20,
+  },
+  modalInput: {
+    width: '100%',
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    fontSize: 16,
+    marginBottom: 20,
+  },
+  modalButtons: {
+    flexDirection: 'row',
+    gap: 12,
+    width: '100%',
+  },
+  modalSkipBtn: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 12,
+    borderWidth: 1,
+    alignItems: 'center',
+  },
+  modalSkipText: {
+    fontSize: 16,
+    fontWeight: '500',
+  },
+  modalSaveBtn: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  modalSaveText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#FFFFFF',
   },
 });

@@ -1,5 +1,5 @@
 // HomeScreen - Redesigned per sketches 001-C, 002-A, 003-A
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -7,16 +7,20 @@ import {
   TouchableOpacity,
   FlatList,
   ScrollView,
-  SafeAreaView,
   Alert,
+  DeviceEventEmitter,
+  Platform,
+  ToastAndroid,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
+import { Swipeable } from 'react-native-gesture-handler';
 import { useTheme } from '../theme/ThemeContext';
 import { CATEGORIES, Category, spacing, radius, createShadows } from '../theme';
 import { formatRelativeTime, formatHeaderDate, getGreeting } from '../theme';
 import { Entry } from '../types';
-import { getEntries, getTodayEntries, deleteEntry } from '../services/storage';
+import { getEntries, getTodayEntries, deleteEntry, updateEntry } from '../services/storage';
 import { useAuth } from '../context/AuthContext';
 import { EmptyState } from '../components/EmptyState';
 import AudioPlayer from '../components/AudioPlayer';
@@ -31,6 +35,7 @@ export const HomeScreen: React.FC = () => {
   const [entries, setEntries] = useState<Entry[]>([]);
   const [stats, setStats] = useState({ today: 0, week: 0, total: 0 });
   const [selectedCategory, setSelectedCategory] = useState<Category | 'all'>('all');
+  const [readyForTitleEntryId, setReadyForTitleEntryId] = useState<string | null>(null);
 
   // Load entries every time screen comes into focus
   useFocusEffect(
@@ -69,6 +74,16 @@ export const HomeScreen: React.FC = () => {
       };
     }, [])
   );
+
+  // Listen for background-processed notes ready for title
+  useEffect(() => {
+    const subscription = DeviceEventEmitter.addListener('note-ready-for-title', (data: { entryId: string }) => {
+      setReadyForTitleEntryId(data.entryId);
+      // Refresh entries list
+      getEntries(userId).then(setEntries);
+    });
+    return () => subscription.remove();
+  }, [userId]);
 
   // Filter entries based on selected category
   const filteredEntries = selectedCategory === 'all'
@@ -148,11 +163,20 @@ export const HomeScreen: React.FC = () => {
       'Delete Entry',
       'Are you sure you want to delete this entry?',
       [
-        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Cancel',
+          style: 'cancel',
+          onPress: () => {
+            // Close the swipeable when user cancels
+            swipeableRefs.current.get(entry.id)?.close();
+            swipeableRefs.current.delete(entry.id);
+          },
+        },
         {
           text: 'Delete',
           style: 'destructive',
           onPress: async () => {
+            swipeableRefs.current.delete(entry.id);
             try {
               await deleteEntry(entry.id);
               // Reload entries after delete
@@ -178,62 +202,146 @@ export const HomeScreen: React.FC = () => {
     );
   }, [userId]);
 
+  const handleTogglePin = useCallback(async (entry: Entry) => {
+    try {
+      await updateEntry(entry.id, { isPinned: !entry.isPinned });
+      if (Platform.OS === 'android') {
+        ToastAndroid.show(entry.isPinned ? 'Unpinned' : 'Pinned', ToastAndroid.SHORT);
+      }
+      // Reload entries
+      const [allEntries, todayEntries] = await Promise.all([
+        getEntries(userId),
+        getTodayEntries(userId),
+      ]);
+      setEntries(allEntries);
+      const now = new Date();
+      const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+      const weekEntries = allEntries.filter(e => e.createdAt >= weekAgo);
+      setStats({
+        today: todayEntries.length,
+        week: weekEntries.length,
+        total: allEntries.length,
+      });
+    } catch (err) {
+      console.error('[HomeScreen] Toggle pin failed:', err);
+    }
+  }, [userId]);
+
+  // Swipeable ref tracking — close others when one opens
+  const swipeableRefs = useRef<Map<string, Swipeable>>(new Map());
+
+  const closeAllSwipeables = useCallback(() => {
+    swipeableRefs.current.forEach(ref => ref?.close());
+    swipeableRefs.current.clear();
+  }, []);
+
+  const renderRightActions = useCallback((entry: Entry) => {
+    return (
+      <View
+        style={[styles.swipeAction, styles.swipeDelete, { backgroundColor: '#FF3B30' }]}
+      >
+        <Ionicons name="trash-outline" size={20} color="#FFFFFF" />
+        <Text style={styles.swipeActionText}>Delete</Text>
+      </View>
+    );
+  }, []);
+
+  const renderLeftActions = useCallback((entry: Entry) => {
+    const isPinned = entry.isPinned;
+    return (
+      <View
+        style={[
+          styles.swipeAction,
+          styles.swipePin,
+          { backgroundColor: isPinned ? '#FF9500' : '#34C759' },
+        ]}
+      >
+        <Text style={styles.swipeActionIcon}>{isPinned ? '📌' : '📍'}</Text>
+        <Text style={styles.swipeActionText}>{isPinned ? 'Unpin' : 'Pin'}</Text>
+      </View>
+    );
+  }, []);
+
   const renderEntry = useCallback(({ item }: { item: Entry }) => {
     const cat = CATEGORIES[item.category];
     return (
-      <TouchableOpacity
-        style={[styles.entryCard, { backgroundColor: colors.surface, borderLeftColor: cat.color }, shadows.sm]}
-        activeOpacity={0.7}
-        onPress={() => navigation.navigate('CreateNote', { entryId: item.id, startViewOnly: true })}
+      <Swipeable
+        renderRightActions={() => renderRightActions(item)}
+        renderLeftActions={() => renderLeftActions(item)}
+        onSwipeableRightOpen={() => {
+          handleDeleteEntry(item);
+        }}
+        onSwipeableLeftOpen={() => {
+          swipeableRefs.current.delete(item.id);
+          handleTogglePin(item);
+        }}
+        ref={(ref) => {
+          if (ref) swipeableRefs.current.set(item.id, ref);
+          else swipeableRefs.current.delete(item.id);
+        }}
+        overshootRight={false}
+        overshootLeft={false}
       >
-        {/* Main row: icon + content + actions */}
-        <View style={styles.entryMainRow}>
-          <Text style={styles.entryIcon}>{cat.icon}</Text>
-          <View style={styles.entryContent}>
-            {item.title ? (
-              <Text style={[styles.entryTitle, { color: colors.text }]} numberOfLines={1}>
-                {item.title}
+        <TouchableOpacity
+          style={[styles.entryCard, { backgroundColor: colors.surface, borderLeftColor: cat.color }, shadows.sm]}
+          activeOpacity={0.7}
+          onPress={() => navigation.navigate('CreateNote', { entryId: item.id, startViewOnly: true })}
+        >
+          {/* Main row: icon + content + actions */}
+          <View style={styles.entryMainRow}>
+            <Text style={styles.entryIcon}>{cat.icon}</Text>
+            <View style={styles.entryContent}>
+              {item.title ? (
+                <Text style={[styles.entryTitle, { color: colors.text }]} numberOfLines={1}>
+                  {item.title}
+                </Text>
+              ) : null}
+              <Text style={[styles.entrySummary, { color: colors.textSecondary }]} numberOfLines={1}>
+                {item.summary}
               </Text>
-            ) : null}
-            <Text style={[styles.entrySummary, { color: colors.textSecondary }]} numberOfLines={1}>
-              {item.summary}
-            </Text>
+            </View>
+            <View style={styles.entryActions}>
+              <Text style={[styles.entryTime, { color: colors.textMuted }]}>
+                {formatRelativeTime(item.createdAt)}
+              </Text>
+              {item.isPinned && (
+                <Text style={styles.entryPinnedIcon}>📌</Text>
+              )}
+            </View>
           </View>
-          <View style={styles.entryActions}>
-            <Text style={[styles.entryTime, { color: colors.textMuted }]}>
-              {formatRelativeTime(item.createdAt)}
-            </Text>
-            <TouchableOpacity
-              style={styles.entryDeleteBtn}
-              onPress={() => handleDeleteEntry(item)}
-              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-            >
-              <Ionicons name="trash-outline" size={16} color={colors.textMuted} />
-            </TouchableOpacity>
-          </View>
-        </View>
 
-        {/* Footer: mood + pinned + audio player */}
-        {(item.isPinned || item.mood || item.audioUri) && (
-          <View style={styles.entryFooter}>
-            {item.mood && (
-              <Text style={[styles.entryMood, { color: colors.textMuted }]}>{item.mood}</Text>
-            )}
-            {item.isPinned && (
-              <Text style={[styles.entryPinned, { color: colors.accent }]}>📌</Text>
-            )}
-            {item.audioUri && (
-              <AudioPlayer audioUri={item.audioUri} compact />
-            )}
-          </View>
-        )}
-      </TouchableOpacity>
+          {/* Footer: mood + audio player */}
+          {(item.mood || item.audioUri) && (
+            <View style={styles.entryFooter}>
+              {item.mood && (
+                <Text style={[styles.entryMood, { color: colors.textMuted }]}>{item.mood}</Text>
+              )}
+              {item.audioUri && (
+                <AudioPlayer audioUri={item.audioUri} compact />
+              )}
+            </View>
+          )}
+        </TouchableOpacity>
+      </Swipeable>
     );
-  }, [colors, shadows, navigation, handleDeleteEntry]);
+  }, [colors, shadows, navigation, handleDeleteEntry, renderRightActions, renderLeftActions]);
 
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.bg }]}>
+      {/* Background processing banner */}
+      {readyForTitleEntryId && (
+        <TouchableOpacity
+          style={[styles.banner, { backgroundColor: colors.primary }]}
+          onPress={() => {
+            navigation.navigate('CreateNote', { entryId: readyForTitleEntryId });
+            setReadyForTitleEntryId(null);
+          }}
+          activeOpacity={0.8}
+        >
+          <Text style={styles.bannerText}>📝 Recording ready — tap to add title</Text>
+        </TouchableOpacity>
+      )}
       {/* Header */}
       <View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
         <View style={styles.headerRow}>
@@ -483,8 +591,8 @@ const styles = StyleSheet.create({
   entryTime: {
     fontSize: 11,
   },
-  entryDeleteBtn: {
-    padding: spacing.xs,
+  entryPinnedIcon: {
+    fontSize: 12,
   },
   entryFooter: {
     flexDirection: 'row',
@@ -517,5 +625,39 @@ const styles = StyleSheet.create({
   // List
   listContent: {
     paddingBottom: 100,
+  },
+  // Banner
+  banner: {
+    paddingHorizontal: spacing.xl,
+    paddingVertical: spacing.md,
+  },
+  bannerText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '600',
+    textAlign: 'center',
+  },
+  // Swipe actions
+  swipeAction: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    width: 80,
+    marginVertical: spacing.xs,
+    borderRadius: radius.md,
+  },
+  swipeDelete: {
+    marginRight: spacing.sm,
+  },
+  swipePin: {
+    marginLeft: spacing.sm,
+  },
+  swipeActionIcon: {
+    fontSize: 20,
+    marginBottom: 2,
+  },
+  swipeActionText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#FFFFFF',
   },
 });
