@@ -4,7 +4,10 @@ import { StatusBar } from 'expo-status-bar';
 import { NavigationContainer, NavigationContainerRef } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { View, ActivityIndicator } from 'react-native';
+import { View, ActivityIndicator, Platform } from 'react-native';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import * as SystemUI from 'expo-system-ui';
 import { ThemeProvider, useTheme } from './src/theme/ThemeContext';
 import { AuthProvider, useAuth } from './src/context/AuthContext';
 import { initDatabase } from './src/db';
@@ -95,6 +98,13 @@ function AppContent() {
   const [dbReady, setDbReady] = useState(false);
   const navigationRef = useRef<NavigationContainerRef<any>>(null);
 
+  // Set Android system bars color based on theme
+  useEffect(() => {
+    if (Platform.OS === 'android') {
+      SystemUI.setBackgroundColorAsync(isDark ? '#121212' : '#F5F5F5');
+    }
+  }, [isDark]);
+
   useEffect(() => {
     initDatabase()
       .then(() => setDbReady(true))
@@ -145,7 +155,7 @@ function AppContent() {
 
   if (!dbReady || !authReady) {
     return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: isDark ? '#1a1a2e' : '#F5F5F5' }}>
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: isDark ? '#121212' : '#F5F5F5' }}>
         <ActivityIndicator size="large" color="#E91E63" />
       </View>
     );
@@ -161,10 +171,14 @@ function AppContent() {
 
 export default function App() {
   return (
-    <ThemeProvider>
-      <AuthProvider>
-        <AppContent />
-      </AuthProvider>
-    </ThemeProvider>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <SafeAreaProvider>
+        <ThemeProvider>
+          <AuthProvider>
+            <AppContent />
+          </AuthProvider>
+        </ThemeProvider>
+      </SafeAreaProvider>
+    </GestureHandlerRootView>
   );
 }

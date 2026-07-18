@@ -7,17 +7,17 @@ import {
   TextInput,
   TouchableOpacity,
   ScrollView,
-  SafeAreaView,
   KeyboardAvoidingView,
   Platform,
   ToastAndroid,
   Alert,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../theme/ThemeContext';
 import { CATEGORIES, Category, spacing, radius } from '../theme';
-import { getEntryById, saveEntry, updateEntry } from '../services/storage';
+import { getEntryById, saveEntry, updateEntry, deleteEntry } from '../services/storage';
 import { useAuth } from '../context/AuthContext';
 import AudioPlayer from '../components/AudioPlayer';
 
@@ -129,6 +129,32 @@ export const CreateNoteScreen: React.FC = () => {
     }
   };
 
+  // ── Delete ───────────────────────────────────────────────────
+  const handleDelete = () => {
+    if (!entryId) return;
+
+    Alert.alert(
+      'Delete Entry',
+      'Are you sure you want to delete this entry?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await deleteEntry(entryId);
+              navigation.goBack();
+            } catch (error) {
+              console.error('[CreateNoteScreen] Delete error:', error);
+              Alert.alert('Error', 'Failed to delete entry.');
+            }
+          },
+        },
+      ]
+    );
+  };
+
   // ── Back Navigation ──────────────────────────────────────────
   const handleBack = () => {
     if (hasUnsavedChanges) {
@@ -171,17 +197,40 @@ export const CreateNoteScreen: React.FC = () => {
   };
 
   // ── Category & Pin ───────────────────────────────────────────
-  const toggleCategory = () => {
+  const toggleCategory = async () => {
     const categories: Category[] = ['feelings', 'work', 'health', 'ideas', 'money', 'other'];
     const currentIndex = categories.indexOf(category);
     const nextIndex = (currentIndex + 1) % categories.length;
-    setCategory(categories[nextIndex]);
-    setHasUnsavedChanges(true);
+    const newCategory = categories[nextIndex];
+    setCategory(newCategory);
+    // Auto-save if editing an existing entry
+    if (entryId) {
+      try {
+        await updateEntry(entryId, { category: newCategory });
+      } catch (err) {
+        console.error('[CreateNoteScreen] Auto-save category failed:', err);
+      }
+    } else {
+      setHasUnsavedChanges(true);
+    }
   };
 
-  const togglePin = () => {
-    setIsPinned(!isPinned);
-    setHasUnsavedChanges(true);
+  const togglePin = async () => {
+    const newPinned = !isPinned;
+    setIsPinned(newPinned);
+    // Auto-save if editing an existing entry
+    if (entryId) {
+      try {
+        await updateEntry(entryId, { isPinned: newPinned });
+        if (Platform.OS === 'android') {
+          ToastAndroid.show(newPinned ? 'Pinned' : 'Unpinned', ToastAndroid.SHORT);
+        }
+      } catch (err) {
+        console.error('[CreateNoteScreen] Auto-save pin failed:', err);
+      }
+    } else {
+      setHasUnsavedChanges(true);
+    }
   };
 
   const handleTextChange = (text: string) => {
@@ -204,13 +253,23 @@ export const CreateNoteScreen: React.FC = () => {
 
         <View style={styles.headerActions}>
           {isViewOnly ? (
-            <TouchableOpacity
-              style={[styles.headerButton, { backgroundColor: colors.primary }]}
-              onPress={handleEdit}
-            >
-              <Ionicons name="create-outline" size={16} color="#FFFFFF" />
-              <Text style={[styles.headerButtonText, { color: '#FFFFFF' }]}>Edit</Text>
-            </TouchableOpacity>
+            <>
+              {entryId && (
+                <TouchableOpacity
+                  style={[styles.headerButton, { backgroundColor: colors.danger + '15' }]}
+                  onPress={handleDelete}
+                >
+                  <Ionicons name="trash-outline" size={16} color={colors.danger} />
+                </TouchableOpacity>
+              )}
+              <TouchableOpacity
+                style={[styles.headerButton, { backgroundColor: colors.primary }]}
+                onPress={handleEdit}
+              >
+                <Ionicons name="create-outline" size={16} color="#FFFFFF" />
+                <Text style={[styles.headerButtonText, { color: '#FFFFFF' }]}>Edit</Text>
+              </TouchableOpacity>
+            </>
           ) : (
             <>
               <TouchableOpacity
@@ -275,7 +334,6 @@ export const CreateNoteScreen: React.FC = () => {
             <TouchableOpacity
               style={[styles.categoryPill, { backgroundColor: CATEGORIES[category].color + '20' }]}
               onPress={toggleCategory}
-              disabled={isViewOnly}
             >
               <Text style={styles.categoryEmoji}>{CATEGORIES[category].icon}</Text>
               <Text style={[styles.categoryLabel, { color: CATEGORIES[category].color }]}>
@@ -286,7 +344,6 @@ export const CreateNoteScreen: React.FC = () => {
             <TouchableOpacity
               style={[styles.pinButton, { backgroundColor: isPinned ? colors.accent + '20' : colors.surfaceAlt }]}
               onPress={togglePin}
-              disabled={isViewOnly}
             >
               <Text style={styles.pinEmoji}>📌</Text>
               <Text style={[styles.pinLabel, { color: isPinned ? colors.accent : colors.textMuted }]}>
@@ -302,32 +359,34 @@ export const CreateNoteScreen: React.FC = () => {
             </View>
           )}
 
-          {/* Content — plain text in view mode, TextInput in edit mode */}
-          {isViewOnly ? (
-            content.trim() ? (
-              <ScrollView style={styles.viewContentContainer} nestedScrollEnabled>
-                <Text style={[styles.viewContent, { color: colors.text }]}>
-                  {content}
+          {/* Content — paper card in both view and edit mode */}
+          <View style={[styles.paperCard, { backgroundColor: colors.surfaceAlt, borderColor: colors.border }]}>
+            {isViewOnly ? (
+              content.trim() ? (
+                <ScrollView style={styles.viewContentContainer} nestedScrollEnabled>
+                  <Text style={[styles.viewContent, { color: colors.text }]}>
+                    {content}
+                  </Text>
+                </ScrollView>
+              ) : (
+                <Text style={[styles.emptyContent, { color: colors.textMuted }]}>
+                  Empty note
                 </Text>
-              </ScrollView>
+              )
             ) : (
-              <Text style={[styles.emptyContent, { color: colors.textMuted }]}>
-                Empty note
-              </Text>
-            )
-          ) : (
-            <TextInput
-              ref={contentInputRef}
-              style={[styles.contentInput, { color: colors.text }]}
-              value={content}
-              onChangeText={handleTextChange}
-              placeholder="Start writing..."
-              placeholderTextColor={colors.textMuted}
-              editable={!isViewOnly}
-              multiline
-              textAlignVertical="top"
-            />
-          )}
+              <TextInput
+                ref={contentInputRef}
+                style={[styles.contentInput, { color: colors.text }]}
+                value={content}
+                onChangeText={handleTextChange}
+                placeholder="Start writing..."
+                placeholderTextColor={colors.textMuted}
+                editable={!isViewOnly}
+                multiline
+                textAlignVertical="top"
+              />
+            )}
+          </View>
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -418,6 +477,13 @@ const styles = StyleSheet.create({
   },
   audioSection: {
     marginBottom: spacing.xl,
+  },
+  // Paper card style
+  paperCard: {
+    borderRadius: radius.md,
+    borderWidth: 1,
+    padding: spacing.lg,
+    minHeight: 200,
   },
   viewContentContainer: {
     maxHeight: 400,
