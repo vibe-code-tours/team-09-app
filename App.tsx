@@ -15,11 +15,6 @@ import { SearchScreen } from './src/screens/SearchScreen';
 import { CreateNoteScreen } from './src/screens/CreateNoteScreen';
 import { ElevatedTabBar } from './src/components/ElevatedTabBar';
 import { CreateSheet } from './src/components/CreateSheet';
-import {
-  setupNotificationChannel,
-  getInitialNotification,
-  addNotificationTapListener,
-} from './src/services/notification';
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
@@ -109,27 +104,43 @@ function AppContent() {
       });
   }, []);
 
-  // Setup notifications on app mount
+  // Setup notifications on app mount (dynamically imported to avoid Expo Go error)
   useEffect(() => {
-    // Create Android notification channel
-    setupNotificationChannel();
+    let subscription: any = null;
 
-    // Handle notification tap when app was closed
-    getInitialNotification().then((response) => {
-      if (response) {
-        // App opened by tapping notification
-        setTimeout(() => {
+    const setupNotifications = async () => {
+      try {
+        const {
+          setupNotificationChannel,
+          getInitialNotification,
+          addNotificationTapListener,
+        } = await import('./src/services/notification');
+
+        // Create Android notification channel
+        await setupNotificationChannel();
+
+        // Handle notification tap when app was closed
+        const response = await getInitialNotification();
+        if (response) {
+          setTimeout(() => {
+            navigationRef.current?.navigate('Record');
+          }, 1000);
+        }
+
+        // Handle notification tap when app is in foreground
+        subscription = addNotificationTapListener(() => {
           navigationRef.current?.navigate('Record');
-        }, 1000);
+        });
+      } catch {
+        // expo-notifications unavailable (Expo Go) — skip
       }
-    });
+    };
 
-    // Handle notification tap when app is in foreground
-    const subscription = addNotificationTapListener((response) => {
-      navigationRef.current?.navigate('Record');
-    });
+    setupNotifications();
 
-    return () => subscription.remove();
+    return () => {
+      if (subscription?.remove) subscription.remove();
+    };
   }, []);
 
   if (!dbReady || !authReady) {

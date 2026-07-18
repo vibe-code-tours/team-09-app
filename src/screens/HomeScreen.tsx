@@ -8,6 +8,7 @@ import {
   FlatList,
   ScrollView,
   SafeAreaView,
+  Alert,
 } from 'react-native';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
@@ -15,10 +16,10 @@ import { useTheme } from '../theme/ThemeContext';
 import { CATEGORIES, Category, spacing, radius, createShadows } from '../theme';
 import { formatRelativeTime, formatHeaderDate, getGreeting } from '../theme';
 import { Entry } from '../types';
-import { getEntries, getTodayEntries } from '../services/storage';
+import { getEntries, getTodayEntries, deleteEntry } from '../services/storage';
 import { useAuth } from '../context/AuthContext';
-import AudioPlayer from '../components/AudioPlayer';
 import { EmptyState } from '../components/EmptyState';
+import AudioPlayer from '../components/AudioPlayer';
 
 export const HomeScreen: React.FC = () => {
   const navigation = useNavigation<any>();
@@ -142,6 +143,41 @@ export const HomeScreen: React.FC = () => {
     );
   }, [selectedCategory, colors, shadows]);
 
+  const handleDeleteEntry = useCallback((entry: Entry) => {
+    Alert.alert(
+      'Delete Entry',
+      'Are you sure you want to delete this entry?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await deleteEntry(entry.id);
+              // Reload entries after delete
+              const [allEntries, todayEntries] = await Promise.all([
+                getEntries(userId),
+                getTodayEntries(userId),
+              ]);
+              setEntries(allEntries);
+              const now = new Date();
+              const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+              const weekEntries = allEntries.filter(e => e.createdAt >= weekAgo);
+              setStats({
+                today: todayEntries.length,
+                week: weekEntries.length,
+                total: allEntries.length,
+              });
+            } catch (err) {
+              console.error('[HomeScreen] Failed to delete entry:', err);
+            }
+          },
+        },
+      ]
+    );
+  }, [userId]);
+
   const renderEntry = useCallback(({ item }: { item: Entry }) => {
     const cat = CATEGORIES[item.category];
     return (
@@ -150,48 +186,50 @@ export const HomeScreen: React.FC = () => {
         activeOpacity={0.7}
         onPress={() => navigation.navigate('CreateNote', { entryId: item.id, startViewOnly: true })}
       >
-        {/* Header: icon + category + time + audio badge */}
-        <View style={styles.entryHeader}>
-          <View style={styles.entryCategoryRow}>
-            <Text style={styles.entryIcon}>{cat.icon}</Text>
-            <Text style={[styles.entryCategory, { color: cat.color }]}>{cat.label}</Text>
-            {item.audioUri ? (
-              <View style={[styles.audioBadge, { backgroundColor: colors.primaryLight }]}>
-                <Ionicons name="mic" size={10} color={colors.primary} />
-                <Text style={[styles.audioBadgeText, { color: colors.primary }]}>Audio</Text>
-              </View>
+        {/* Main row: icon + content + actions */}
+        <View style={styles.entryMainRow}>
+          <Text style={styles.entryIcon}>{cat.icon}</Text>
+          <View style={styles.entryContent}>
+            {item.title ? (
+              <Text style={[styles.entryTitle, { color: colors.text }]} numberOfLines={1}>
+                {item.title}
+              </Text>
             ) : null}
+            <Text style={[styles.entrySummary, { color: colors.textSecondary }]} numberOfLines={1}>
+              {item.summary}
+            </Text>
           </View>
-          <Text style={[styles.entryTime, { color: colors.textMuted }]}>
-            {formatRelativeTime(item.createdAt)}
-          </Text>
+          <View style={styles.entryActions}>
+            <Text style={[styles.entryTime, { color: colors.textMuted }]}>
+              {formatRelativeTime(item.createdAt)}
+            </Text>
+            <TouchableOpacity
+              style={styles.entryDeleteBtn}
+              onPress={() => handleDeleteEntry(item)}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <Ionicons name="trash-outline" size={16} color={colors.textMuted} />
+            </TouchableOpacity>
+          </View>
         </View>
-
-        {/* Title */}
-        {item.title ? (
-          <Text style={[styles.entryTitle, { color: colors.text }]} numberOfLines={1}>
-            {item.title}
-          </Text>
-        ) : null}
-
-        {/* Summary */}
-        <Text style={[styles.entrySummary, { color: colors.textSecondary }]} numberOfLines={2}>
-          {item.summary}
-        </Text>
 
         {/* Footer: mood + pinned + audio player */}
-        <View style={styles.entryFooter}>
-          <Text style={[styles.entryMood, { color: colors.textMuted }]}>{item.mood}</Text>
-          {item.isPinned && (
-            <Text style={[styles.entryPinned, { color: colors.accent }]}>📌 Pinned</Text>
-          )}
-          {item.audioUri ? (
-            <AudioPlayer audioUri={item.audioUri} compact />
-          ) : null}
-        </View>
+        {(item.isPinned || item.mood || item.audioUri) && (
+          <View style={styles.entryFooter}>
+            {item.mood && (
+              <Text style={[styles.entryMood, { color: colors.textMuted }]}>{item.mood}</Text>
+            )}
+            {item.isPinned && (
+              <Text style={[styles.entryPinned, { color: colors.accent }]}>📌</Text>
+            )}
+            {item.audioUri && (
+              <AudioPlayer audioUri={item.audioUri} compact />
+            )}
+          </View>
+        )}
       </TouchableOpacity>
     );
-  }, [colors, shadows, navigation]);
+  }, [colors, shadows, navigation, handleDeleteEntry]);
 
 
   return (
@@ -409,68 +447,57 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
   },
-  // Entry Cards
+  // Entry Cards - Compact
   entryCard: {
-    borderRadius: radius.lg,
-    padding: spacing.lg,
+    borderRadius: radius.md,
+    padding: spacing.md,
     marginHorizontal: spacing.xl,
-    marginBottom: spacing.md,
-    borderLeftWidth: 4,
+    marginVertical: spacing.xs,
+    borderLeftWidth: 3,
   },
-  entryHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: spacing.sm,
-  },
-  entryCategoryRow: {
+  entryMainRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
   },
   entryIcon: {
-    fontSize: 16,
+    fontSize: 20,
+    width: 28,
   },
-  entryCategory: {
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  audioBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xs,
-    borderRadius: radius.sm,
-    gap: spacing.xs,
-  },
-  audioBadgeText: {
-    fontSize: 10,
-    fontWeight: '500',
-  },
-  entryTime: {
-    fontSize: 12,
+  entryContent: {
+    flex: 1,
+    gap: 2,
   },
   entryTitle: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '600',
-    marginBottom: spacing.xs,
   },
   entrySummary: {
-    fontSize: 14,
-    lineHeight: 20,
-    marginBottom: spacing.sm,
+    fontSize: 13,
+    lineHeight: 18,
+  },
+  entryActions: {
+    alignItems: 'flex-end',
+    gap: spacing.xs,
+  },
+  entryTime: {
+    fontSize: 11,
+  },
+  entryDeleteBtn: {
+    padding: spacing.xs,
   },
   entryFooter: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.md,
+    gap: spacing.sm,
+    marginTop: spacing.xs,
+    marginLeft: spacing.lg + spacing.sm,
   },
   entryMood: {
-    fontSize: 12,
+    fontSize: 11,
   },
   entryPinned: {
-    fontSize: 12,
-    fontWeight: '500',
+    fontSize: 11,
   },
   // Day Grouping
   dayGroup: {
