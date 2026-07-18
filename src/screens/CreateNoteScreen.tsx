@@ -19,12 +19,15 @@ import { useTheme } from "../theme/ThemeContext";
 import { CATEGORIES, Category, spacing, radius } from "../theme";
 import {
   getEntryById,
+  getEntries,
   saveEntry,
   updateEntry,
   deleteEntry,
 } from "../services/storage";
 import { useAuth } from "../context/AuthContext";
 import AudioPlayer from "../components/AudioPlayer";
+import { PinLimitModal } from "../components/PinLimitModal";
+import { checkPinLimit, pinEntry, replacePin } from "../utils/pinLimit";
 
 type CreateNoteParams = {
   entryId?: string;
@@ -56,6 +59,10 @@ export const CreateNoteScreen: React.FC = () => {
   );
   const [isPinned, setIsPinned] = useState(false);
   const [isViewOnly, setIsViewOnly] = useState(startViewOnly);
+  const [allEntries, setAllEntries] = useState<any[]>([]);
+  const [pinModalVisible, setPinModalVisible] = useState(false);
+  const [pendingPinEntry, setPendingPinEntry] = useState<any | null>(null);
+  const [pinnedForReplace, setPinnedForReplace] = useState<any[]>([]);
   const [isSaving, setIsSaving] = useState(false);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [audioFile, setAudioFile] = useState<string | undefined>(
@@ -72,6 +79,11 @@ export const CreateNoteScreen: React.FC = () => {
       setContent(prefilledText);
     }
   }, [entryId, prefilledText]);
+
+  // Load all entries for pin limit check
+  useEffect(() => {
+    getEntries(userId).then(setAllEntries);
+  }, []);
 
   // Cleanup on unmount — unload any pending audio resources
   useEffect(() => {
@@ -245,17 +257,43 @@ export const CreateNoteScreen: React.FC = () => {
   };
 
   const togglePin = async () => {
-    const newPinned = !isPinned;
-    setIsPinned(newPinned);
-    // Auto-save if editing an existing entry
+    // Unpinning is always allowed
+    if (isPinned) {
+      setIsPinned(false);
+      if (entryId) {
+        try {
+          await updateEntry(entryId, { isPinned: false });
+          if (Platform.OS === "android") {
+            ToastAndroid.show("Unpinned", ToastAndroid.SHORT);
+          }
+        } catch (err) {
+          console.error("[CreateNoteScreen] Auto-save pin failed:", err);
+        }
+      } else {
+        setHasUnsavedChanges(true);
+      }
+      return;
+    }
+
+    // Pinning — check limit
+    const currentEntry = entryId ? allEntries.find(e => e.id === entryId) : null;
+    const entryToCheck = currentEntry || { id: entryId || 'new', isPinned: false } as any;
+    const needsReplace = checkPinLimit(allEntries, entryToCheck);
+
+    if (needsReplace) {
+      setPendingPinEntry(entryToCheck);
+      setPinnedForReplace(needsReplace);
+      setPinModalVisible(true);
+      return;
+    }
+
+    // Under limit, pin directly
+    setIsPinned(true);
     if (entryId) {
       try {
-        await updateEntry(entryId, { isPinned: newPinned });
+        await pinEntry(entryToCheck);
         if (Platform.OS === "android") {
-          ToastAndroid.show(
-            newPinned ? "Pinned" : "Unpinned",
-            ToastAndroid.SHORT,
-          );
+          ToastAndroid.show("Pinned", ToastAndroid.SHORT);
         }
       } catch (err) {
         console.error("[CreateNoteScreen] Auto-save pin failed:", err);
@@ -263,6 +301,31 @@ export const CreateNoteScreen: React.FC = () => {
     } else {
       setHasUnsavedChanges(true);
     }
+  };
+
+  const handleReplacePin = async (entryToUnpin: any) => {
+    if (!pendingPinEntry) return;
+    try {
+      await replacePin(entryToUnpin, pendingPinEntry);
+      setPinModalVisible(false);
+      setPendingPinEntry(null);
+      setPinnedForReplace([]);
+      setIsPinned(true);
+      if (Platform.OS === "android") {
+        ToastAndroid.show("Pinned", ToastAndroid.SHORT);
+      }
+      // Refresh all entries
+      const refreshed = await getEntries(userId);
+      setAllEntries(refreshed);
+    } catch (err) {
+      console.error("[CreateNoteScreen] Replace pin failed:", err);
+    }
+  };
+
+  const handleCancelPinLimit = () => {
+    setPinModalVisible(false);
+    setPendingPinEntry(null);
+    setPinnedForReplace([]);
   };
 
   const handleTextChange = (text: string) => {
@@ -478,6 +541,14 @@ export const CreateNoteScreen: React.FC = () => {
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
+
+      <PinLimitModal
+        visible={pinModalVisible}
+        pinnedEntries={pinnedForReplace}
+        newEntryTitle={title || content || 'new entry'}
+        onSelectReplace={handleReplacePin}
+        onCancel={handleCancelPinLimit}
+      />
     </SafeAreaView>
   );
 };

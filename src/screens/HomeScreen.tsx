@@ -24,6 +24,8 @@ import { getEntries, getTodayEntries, deleteEntry, updateEntry } from '../servic
 import { useAuth } from '../context/AuthContext';
 import { EmptyState } from '../components/EmptyState';
 import AudioPlayer from '../components/AudioPlayer';
+import { PinLimitModal } from '../components/PinLimitModal';
+import { checkPinLimit, pinEntry, replacePin } from '../utils/pinLimit';
 
 export const HomeScreen: React.FC = () => {
   const navigation = useNavigation<any>();
@@ -36,6 +38,9 @@ export const HomeScreen: React.FC = () => {
   const [stats, setStats] = useState({ today: 0, week: 0, total: 0 });
   const [selectedCategory, setSelectedCategory] = useState<Category | 'all'>('all');
   const [readyForTitleEntryId, setReadyForTitleEntryId] = useState<string | null>(null);
+  const [pinModalVisible, setPinModalVisible] = useState(false);
+  const [pendingPinEntry, setPendingPinEntry] = useState<Entry | null>(null);
+  const [pinnedForReplace, setPinnedForReplace] = useState<Entry[]>([]);
 
   // Load entries every time screen comes into focus
   useFocusEffect(
@@ -91,33 +96,8 @@ export const HomeScreen: React.FC = () => {
     : entries.filter(entry => entry.category === selectedCategory);
 
   // Split into pinned and unpinned
-  const pinnedEntries = filteredEntries.filter(e => e.isPinned);
-  const unpinnedEntries = filteredEntries.filter(e => !e.isPinned);
-
-  // Group unpinned entries by day
-  const groupEntriesByDay = (entries: Entry[]): Array<{ date: string; entries: Entry[] }> => {
-    const groups: Record<string, Entry[]> = {};
-    entries.forEach(entry => {
-      const dateKey = entry.createdAt.toDateString();
-      if (!groups[dateKey]) {
-        groups[dateKey] = [];
-      }
-      groups[dateKey].push(entry);
-    });
-
-    return Object.entries(groups)
-      .map(([dateStr, entries]) => ({
-        date: dateStr,
-        entries,
-        dateObj: new Date(dateStr),
-      }))
-      .sort((a, b) => b.dateObj.getTime() - a.dateObj.getTime())
-      .map(({ date, entries }) => ({ date, entries }));
-  };
-
-  const groupedEntries = groupEntriesByDay(unpinnedEntries);
-  const limitedGroupedEntries = groupedEntries.slice(0, 5); // Limit to 5 most recent entries
-  const hasMoreEntries = unpinnedEntries.length > 5;
+  const pinnedEntries = filteredEntries.filter(e => e.isPinned).slice(0, 3);
+  const unpinnedEntries = filteredEntries.filter(e => !e.isPinned).slice(0, 5);
 
   // Category options for the chip list
   const categoryOptions: Array<{ key: Category | 'all'; label: string; icon: string; color: string }> = [
@@ -202,30 +182,76 @@ export const HomeScreen: React.FC = () => {
     );
   }, [userId]);
 
+  const reloadEntries = useCallback(async () => {
+    const [allEntries, todayEntries] = await Promise.all([
+      getEntries(userId),
+      getTodayEntries(userId),
+    ]);
+    setEntries(allEntries);
+    const now = new Date();
+    const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+    const weekEntries = allEntries.filter(e => e.createdAt >= weekAgo);
+    setStats({
+      today: todayEntries.length,
+      week: weekEntries.length,
+      total: allEntries.length,
+    });
+  }, [userId]);
+
   const handleTogglePin = useCallback(async (entry: Entry) => {
     try {
-      await updateEntry(entry.id, { isPinned: !entry.isPinned });
-      if (Platform.OS === 'android') {
-        ToastAndroid.show(entry.isPinned ? 'Unpinned' : 'Pinned', ToastAndroid.SHORT);
+      // Unpinning is always allowed
+      if (entry.isPinned) {
+        await updateEntry(entry.id, { isPinned: false });
+        if (Platform.OS === 'android') {
+          ToastAndroid.show('Unpinned', ToastAndroid.SHORT);
+        }
+        await reloadEntries();
+        return;
       }
-      // Reload entries
-      const [allEntries, todayEntries] = await Promise.all([
-        getEntries(userId),
-        getTodayEntries(userId),
-      ]);
-      setEntries(allEntries);
-      const now = new Date();
-      const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-      const weekEntries = allEntries.filter(e => e.createdAt >= weekAgo);
-      setStats({
-        today: todayEntries.length,
-        week: weekEntries.length,
-        total: allEntries.length,
-      });
+
+      // Check pin limit for pinning
+      const pinnedForReplace = checkPinLimit(entries, entry);
+      if (pinnedForReplace) {
+        // Need to show modal
+        setPendingPinEntry(entry);
+        setPinnedForReplace(pinnedForReplace);
+        setPinModalVisible(true);
+        return;
+      }
+
+      // Under limit, pin directly
+      await pinEntry(entry);
+      if (Platform.OS === 'android') {
+        ToastAndroid.show('Pinned', ToastAndroid.SHORT);
+      }
+      await reloadEntries();
     } catch (err) {
       console.error('[HomeScreen] Toggle pin failed:', err);
     }
-  }, [userId]);
+  }, [entries, userId, reloadEntries]);
+
+  const handleReplacePin = useCallback(async (entryToUnpin: Entry) => {
+    if (!pendingPinEntry) return;
+    try {
+      await replacePin(entryToUnpin, pendingPinEntry);
+      setPinModalVisible(false);
+      setPendingPinEntry(null);
+      setPinnedForReplace([]);
+      if (Platform.OS === 'android') {
+        ToastAndroid.show('Pinned', ToastAndroid.SHORT);
+      }
+      await reloadEntries();
+    } catch (err) {
+      console.error('[HomeScreen] Replace pin failed:', err);
+    }
+  }, [pendingPinEntry, reloadEntries]);
+
+  const handleCancelPinLimit = useCallback(() => {
+    setPinModalVisible(false);
+    setPendingPinEntry(null);
+    setPinnedForReplace([]);
+  }, []);
 
   // Swipeable ref tracking — close others when one opens
   const swipeableRefs = useRef<Map<string, Swipeable>>(new Map());
@@ -394,7 +420,7 @@ export const HomeScreen: React.FC = () => {
         {pinnedEntries.length > 0 && (
           <View style={styles.sectionContainer}>
             <View style={styles.sectionHeader}>
-              <Text style={[styles.sectionTitle, { color: colors.text }]}>📌 Pinned Entries</Text>
+              <Text style={[styles.sectionTitle, { color: colors.text }]}>📌 Pinned</Text>
             </View>
             {pinnedEntries.map(item => (
               <View key={item.id}>
@@ -407,35 +433,31 @@ export const HomeScreen: React.FC = () => {
         {/* Section Header */}
         <View style={styles.sectionHeader}>
           <Text style={[styles.sectionTitle, { color: colors.text }]}>Recent Entries</Text>
-          {hasMoreEntries && (
-            <TouchableOpacity onPress={() => navigation.getParent()?.navigate('Search')}>
-              <Text style={[styles.seeAllText, { color: colors.primary }]}>See all</Text>
-            </TouchableOpacity>
-          )}
         </View>
 
-        {/* Day-grouped entries */}
-        {limitedGroupedEntries.map(group => (
-          <View key={group.date} style={styles.dayGroup}>
-            <Text style={[styles.dayHeader, { color: colors.textMuted }]}>
-              {formatHeaderDate(new Date(group.date))}
-            </Text>
-            {group.entries.map(item => (
-              <View key={item.id}>
-                {renderEntry({ item })}
-              </View>
-            ))}
+        {/* Recent entries - flat list, max 5 */}
+        {unpinnedEntries.map(item => (
+          <View key={item.id}>
+            {renderEntry({ item })}
           </View>
         ))}
 
         {/* Empty State */}
-        {unpinnedEntries.length === 0 && pinnedEntries.length === 0 && (
+        {filteredEntries.length === 0 && (
           <EmptyState
             onRecord={() => navigation.getParent()?.navigate('Record')}
             onWriteNote={() => navigation.navigate('CreateNote', {})}
           />
         )}
       </ScrollView>
+
+      <PinLimitModal
+        visible={pinModalVisible}
+        pinnedEntries={pinnedForReplace}
+        newEntryTitle={pendingPinEntry?.title || pendingPinEntry?.summary || ''}
+        onSelectReplace={handleReplacePin}
+        onCancel={handleCancelPinLimit}
+      />
     </SafeAreaView>
   );
 };
