@@ -1,5 +1,5 @@
 // HomeScreen - Redesigned per sketches 001-C, 002-A, 003-A
-import React, { useState, useCallback, useRef } from 'react';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -8,6 +8,7 @@ import {
   FlatList,
   ScrollView,
   Alert,
+  DeviceEventEmitter,
   Platform,
   ToastAndroid,
 } from 'react-native';
@@ -34,6 +35,7 @@ export const HomeScreen: React.FC = () => {
   const [entries, setEntries] = useState<Entry[]>([]);
   const [stats, setStats] = useState({ today: 0, week: 0, total: 0 });
   const [selectedCategory, setSelectedCategory] = useState<Category | 'all'>('all');
+  const [readyForTitleEntryId, setReadyForTitleEntryId] = useState<string | null>(null);
 
   // Load entries every time screen comes into focus
   useFocusEffect(
@@ -72,6 +74,16 @@ export const HomeScreen: React.FC = () => {
       };
     }, [])
   );
+
+  // Listen for background-processed notes ready for title
+  useEffect(() => {
+    const subscription = DeviceEventEmitter.addListener('note-ready-for-title', (data: { entryId: string }) => {
+      setReadyForTitleEntryId(data.entryId);
+      // Refresh entries list
+      getEntries(userId).then(setEntries);
+    });
+    return () => subscription.remove();
+  }, [userId]);
 
   // Filter entries based on selected category
   const filteredEntries = selectedCategory === 'all'
@@ -317,6 +329,19 @@ export const HomeScreen: React.FC = () => {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.bg }]}>
+      {/* Background processing banner */}
+      {readyForTitleEntryId && (
+        <TouchableOpacity
+          style={[styles.banner, { backgroundColor: colors.primary }]}
+          onPress={() => {
+            navigation.navigate('CreateNote', { entryId: readyForTitleEntryId });
+            setReadyForTitleEntryId(null);
+          }}
+          activeOpacity={0.8}
+        >
+          <Text style={styles.bannerText}>📝 Recording ready — tap to add title</Text>
+        </TouchableOpacity>
+      )}
       {/* Header */}
       <View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
         <View style={styles.headerRow}>
@@ -600,6 +625,17 @@ const styles = StyleSheet.create({
   // List
   listContent: {
     paddingBottom: 100,
+  },
+  // Banner
+  banner: {
+    paddingHorizontal: spacing.xl,
+    paddingVertical: spacing.md,
+  },
+  bannerText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '600',
+    textAlign: 'center',
   },
   // Swipe actions
   swipeAction: {

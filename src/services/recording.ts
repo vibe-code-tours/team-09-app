@@ -28,12 +28,44 @@ export const resetAudioMode = async () => {
 };
 
 /**
- * Start a new recording with high-quality preset.
+ * Recording preset optimized for speech-to-text.
+ * Mono (instead of stereo) cuts file size ~50% while
+ * keeping quality sufficient for accurate transcription.
+ */
+const SPEECH_RECORDING_OPTIONS: Audio.RecordingOptions = {
+  isMeteringEnabled: true,
+  android: {
+    extension: '.m4a',
+    outputFormat: Audio.AndroidOutputFormat.MPEG_4,
+    audioEncoder: Audio.AndroidAudioEncoder.AAC,
+    sampleRate: 44100,
+    numberOfChannels: 1,
+    bitRate: 64000,
+  },
+  ios: {
+    extension: '.m4a',
+    outputFormat: Audio.IOSOutputFormat.MPEG4AAC,
+    audioQuality: Audio.IOSAudioQuality.LOW,
+    sampleRate: 44100,
+    numberOfChannels: 1,
+    bitRate: 96000,
+    linearPCMBitDepth: 16,
+    linearPCMIsBigEndian: false,
+    linearPCMIsFloat: false,
+  },
+  web: {
+    mimeType: 'audio/webm;codecs=opus',
+    bitsPerSecond: 64000,
+  },
+};
+
+/**
+ * Start a new recording optimized for speech-to-text.
  * Returns the Audio.Recording instance.
  */
 export const createRecording = async (): Promise<Audio.Recording> => {
   const { recording } = await Audio.Recording.createAsync(
-    Audio.RecordingOptionsPresets.HIGH_QUALITY
+    SPEECH_RECORDING_OPTIONS
   );
   return recording;
 };
