@@ -162,6 +162,9 @@ export const DayDetailScreen: React.FC = () => {
     setPinModalVisible(false);
     setPendingPinEntry(null);
     setPinnedForReplace([]);
+    // Close any open swipeables
+    swipeableRefs.current.forEach(ref => ref?.close());
+    swipeableRefs.current.clear();
   }, []);
 
   const renderRightActions = useCallback((entry: Entry) => (

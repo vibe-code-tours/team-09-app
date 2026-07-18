@@ -251,6 +251,9 @@ export const HomeScreen: React.FC = () => {
     setPinModalVisible(false);
     setPendingPinEntry(null);
     setPinnedForReplace([]);
+    // Close any open swipeables
+    swipeableRefs.current.forEach(ref => ref?.close());
+    swipeableRefs.current.clear();
   }, []);
 
   // Swipeable ref tracking — close others when one opens
