@@ -16,6 +16,8 @@ import { RecordScreen } from './src/screens/RecordScreen';
 import { SettingsScreen } from './src/screens/SettingsScreen';
 import { SearchScreen } from './src/screens/SearchScreen';
 import { CreateNoteScreen } from './src/screens/CreateNoteScreen';
+import { NotesScreen } from './src/screens/NotesScreen';
+import { DayDetailScreen } from './src/screens/DayDetailScreen';
 import { ElevatedTabBar } from './src/components/ElevatedTabBar';
 import { CreateSheet } from './src/components/CreateSheet';
 
@@ -35,6 +37,15 @@ function SettingsStack() {
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
       <Stack.Screen name="SettingsMain" component={SettingsScreen} />
+    </Stack.Navigator>
+  );
+}
+
+function NotesStack() {
+  return (
+    <Stack.Navigator screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="NotesMain" component={NotesScreen} />
+      <Stack.Screen name="DayDetail" component={DayDetailScreen} />
     </Stack.Navigator>
   );
 }
@@ -79,6 +90,7 @@ function MainTabs() {
         <Tab.Screen name="Home" component={HomeStack} />
         <Tab.Screen name="Search" component={SearchScreen} />
         <Tab.Screen name="Record" component={RecordScreen} />
+        <Tab.Screen name="Notes" component={NotesStack} />
         <Tab.Screen name="Settings" component={SettingsStack} />
       </Tab.Navigator>
 
