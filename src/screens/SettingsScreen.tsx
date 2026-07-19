@@ -7,21 +7,20 @@ import {
   TouchableOpacity,
   ScrollView,
   Alert,
-  ActivityIndicator,
   Linking,
-  Platform,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "../theme/ThemeContext";
 import { ThemeMode } from "../theme/ThemeContext";
 import { spacing, radius, createShadows } from "../theme";
-import { useAuth } from "../context/AuthContext";
 import {
   requestNotificationPermission,
   scheduleDailyReminder,
   cancelDailyReminder,
 } from "../services/notification";
+import { clearAllData } from "../services/storage";
+import { TimePickerModal } from "../components/TimePickerModal";
 
 // ── Theme options ─────────────────────────────────────────
 const THEME_OPTIONS: { key: ThemeMode; icon: string; label: string }[] = [
@@ -128,10 +127,9 @@ export const SettingsScreen: React.FC = () => {
   const { theme, isDark, mode, setMode } = useTheme();
   const { colors } = theme;
   const shadows = createShadows(isDark, colors.primary);
-  const { user, isLocalUser, signIn, signOut } = useAuth();
-  const [isSigningIn, setIsSigningIn] = useState(false);
   const [reminderEnabled, setReminderEnabled] = useState(false);
   const [reminderTime, setReminderTime] = useState("12:32");
+  const [showTimePicker, setShowTimePicker] = useState(false);
 
   // Load reminder settings on mount
   useEffect(() => {
@@ -178,25 +176,7 @@ export const SettingsScreen: React.FC = () => {
   };
 
   const handleTimePress = () => {
-    if (Platform.OS === "android") {
-      Alert.prompt(
-        "Set Reminder Time",
-        "Enter time in HH:MM format (24-hour)",
-        [
-          { text: "Cancel", style: "cancel" },
-          {
-            text: "Set",
-            onPress: (value?: string) => {
-              if (value && /^\d{2}:\d{2}$/.test(value)) {
-                handleTimeChange(value);
-              }
-            },
-          },
-        ],
-        "plain-text",
-        reminderTime,
-      );
-    }
+    setShowTimePicker(true);
   };
 
   const handleTimeChange = async (time: string) => {
@@ -216,48 +196,48 @@ export const SettingsScreen: React.FC = () => {
     return `${displayHour}:${minute.toString().padStart(2, "0")} ${period}`;
   };
 
-  const handleSignIn = async () => {
-    try {
-      setIsSigningIn(true);
-      await signIn();
-    } catch (err) {
-      Alert.alert(
-        "Sign In Failed",
-        "Could not sign in with Google. Please try again.",
-      );
-    } finally {
-      setIsSigningIn(false);
-    }
-  };
-
-  const handleSignOut = async () => {
-    Alert.alert("Sign Out", "Are you sure you want to sign out?", [
-      { text: "Cancel", style: "cancel" },
-      {
-        text: "Sign Out",
-        style: "destructive",
-        onPress: async () => {
-          try {
-            await signOut();
-          } catch (err) {
-            Alert.alert("Error", "Failed to sign out.");
-          }
+  const handleClearAllData = () => {
+    // Step 1: Warn about irreversibility
+    Alert.alert(
+      "Clear All Data",
+      "This will permanently delete all entries, recordings, and settings. This cannot be undone.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Continue",
+          style: "destructive",
+          onPress: () => {
+            // Step 2: Double-confirm
+            Alert.alert(
+              "Are you sure?",
+              "All your voice recordings, notes, and preferences will be permanently deleted.",
+              [
+                { text: "Cancel", style: "cancel" },
+                {
+                  text: "Delete Everything",
+                  style: "destructive",
+                  onPress: performClearAllData,
+                },
+              ],
+            );
+          },
         },
-      },
-    ]);
+      ],
+    );
   };
 
-  // Get display initials from user name
-  const getInitials = () => {
-    if (user?.displayName) {
-      return user.displayName
-        .split(" ")
-        .map((n) => n[0])
-        .join("")
-        .toUpperCase()
-        .slice(0, 2);
+  const performClearAllData = async () => {
+    try {
+      await clearAllData();
+      // Reset local state to defaults
+      setReminderEnabled(false);
+      setReminderTime("20:00");
+      setMode("system");
+      Alert.alert("Done", "All data has been cleared.");
+    } catch (err) {
+      console.error('[SettingsScreen] Clear all data failed:', err);
+      Alert.alert("Error", "Failed to clear data. Please try again.");
     }
-    return "LU"; // Local User
   };
 
   return (
@@ -266,79 +246,6 @@ export const SettingsScreen: React.FC = () => {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {/* Profile Card / Sign In */}
-        {isLocalUser ? (
-          // Guest mode — show sign-in prompt
-          <TouchableOpacity
-            style={[
-              styles.profileCard,
-              { backgroundColor: colors.surface },
-              shadows.sm,
-            ]}
-            onPress={handleSignIn}
-            disabled={isSigningIn}
-            activeOpacity={0.7}
-          >
-            <View style={[styles.avatar, { backgroundColor: colors.border }]}>
-              <Ionicons
-                name="person-outline"
-                size={24}
-                color={colors.textMuted}
-              />
-            </View>
-            <View style={styles.profileInfo}>
-              <Text style={[styles.profileName, { color: colors.text }]}>
-                Sign In
-              </Text>
-              <Text style={[styles.profileEmail, { color: colors.textMuted }]}>
-                Connect to sync your data
-              </Text>
-            </View>
-            {isSigningIn ? (
-              <ActivityIndicator size="small" color={colors.primary} />
-            ) : (
-              <Ionicons name="logo-google" size={18} color={colors.textMuted} />
-            )}
-          </TouchableOpacity>
-        ) : (
-          // Signed in — show profile
-          <View
-            style={[
-              styles.profileCard,
-              { backgroundColor: colors.surface },
-              shadows.sm,
-            ]}
-          >
-            <View
-              style={[styles.avatar, { backgroundColor: colors.primaryLight }]}
-            >
-              <Text style={[styles.avatarText, { color: colors.primary }]}>
-                {getInitials()}
-              </Text>
-            </View>
-            <View style={styles.profileInfo}>
-              <Text style={[styles.profileName, { color: colors.text }]}>
-                {user?.displayName || "Google User"}
-              </Text>
-              <Text style={[styles.profileEmail, { color: colors.textMuted }]}>
-                {user?.email || "Signed in with Google"}
-              </Text>
-            </View>
-            <View
-              style={[
-                styles.syncBadge,
-                { backgroundColor: colors.success + "20" },
-              ]}
-            >
-              <Ionicons
-                name="cloud-done-outline"
-                size={14}
-                color={colors.success}
-              />
-            </View>
-          </View>
-        )}
-
         {/* Section: Appearance */}
         <Text style={[styles.sectionHeader, { color: colors.textMuted }]}>
           APPEARANCE
@@ -469,17 +376,11 @@ export const SettingsScreen: React.FC = () => {
             shadows.sm,
           ]}
         >
-          <TappableRow icon="📥" title="Export Data" colors={colors} />
           <TappableRow
             icon="🗑️"
             title="Clear All Data"
             danger
-            onPress={() =>
-              Alert.alert("Clear Data", "This cannot be undone.", [
-                { text: "Cancel", style: "cancel" },
-                { text: "Clear", style: "destructive" },
-              ])
-            }
+            onPress={handleClearAllData}
             colors={colors}
             last
           />
@@ -513,29 +414,18 @@ export const SettingsScreen: React.FC = () => {
           />
         </View>
 
-        {/* Sign Out (only when signed in) */}
-        {!isLocalUser && (
-          <View
-            style={[
-              styles.sectionCard,
-              { backgroundColor: colors.surface },
-              shadows.sm,
-              { marginTop: spacing.xl },
-            ]}
-          >
-            <TappableRow
-              icon="🚪"
-              title="Sign Out"
-              danger
-              onPress={handleSignOut}
-              colors={colors}
-              last
-            />
-          </View>
-        )}
-
         <View style={{ height: 100 }} />
       </ScrollView>
+
+      <TimePickerModal
+        visible={showTimePicker}
+        time={reminderTime}
+        onConfirm={(newTime) => {
+          setShowTimePicker(false);
+          handleTimeChange(newTime);
+        }}
+        onCancel={() => setShowTimePicker(false)}
+      />
     </SafeAreaView>
   );
 };
@@ -546,34 +436,6 @@ const styles = StyleSheet.create({
 
   // Scroll
   scrollContent: { paddingTop: spacing.xl },
-
-  // Profile
-  profileCard: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginHorizontal: spacing.xl,
-    borderRadius: radius.lg,
-    padding: spacing.lg,
-    marginBottom: spacing.xl,
-  },
-  avatar: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  avatarText: { fontSize: 20, fontWeight: "700" },
-  profileInfo: { flex: 1, marginLeft: spacing.lg },
-  profileName: { fontSize: 16, fontWeight: "600" },
-  profileEmail: { fontSize: 13, marginTop: 2 },
-  syncBadge: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    justifyContent: "center",
-    alignItems: "center",
-  },
 
   // Section
   sectionHeader: {
