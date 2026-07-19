@@ -19,6 +19,8 @@ import {
   requestNotificationPermission,
   scheduleDailyReminder,
   cancelDailyReminder,
+  scheduleWeeklyReminder,
+  cancelWeeklyReminder,
 } from "../services/notification";
 import {
   clearAllData,
@@ -234,6 +236,18 @@ export const SettingsScreen: React.FC = () => {
   const handleToggleWeeklySummary = async () => {
     const newValue = !weeklyEnabled;
     setWeeklyEnabled(newValue);
+
+    if (newValue) {
+      // Enabling — schedule weekly notification for Sunday at 8 PM
+      const granted = await requestNotificationPermission();
+      if (granted) {
+        await scheduleWeeklyReminder(0, 20, 0); // 0 = Sunday, 20:00
+      }
+    } else {
+      // Disabling — cancel weekly notification
+      await cancelWeeklyReminder();
+    }
+
     if (user) {
       await saveUserSettings(user.id, { weeklySummary: newValue });
     }
