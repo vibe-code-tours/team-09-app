@@ -452,7 +452,6 @@ export const SettingsScreen: React.FC = () => {
             shadows.sm,
           ]}
         >
-          <TappableRow icon="📥" title="Export Data" colors={colors} />
           <TappableRow
             icon="🗑️"
             title="Clear All Data"
