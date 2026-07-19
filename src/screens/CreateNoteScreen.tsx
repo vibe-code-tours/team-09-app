@@ -281,8 +281,11 @@ export const CreateNoteScreen: React.FC = () => {
     }
 
     // Pinning — check limit
-    const currentEntry = entryId ? allEntries.find(e => e.id === entryId) : null;
-    const entryToCheck = currentEntry || { id: entryId || 'new', isPinned: false } as any;
+    const currentEntry = entryId
+      ? allEntries.find((e) => e.id === entryId)
+      : null;
+    const entryToCheck =
+      currentEntry || ({ id: entryId || "new", isPinned: false } as any);
     const needsReplace = checkPinLimit(allEntries, entryToCheck);
 
     if (needsReplace) {
@@ -347,7 +350,7 @@ export const CreateNoteScreen: React.FC = () => {
               setIsDeletingAudio(true);
               deleteAudioFile(audioFile || "");
               // Keep audioUri in database — AudioPlayer will show "Recording unavailable"
-              setAudioKey(prev => prev + 1); // Force AudioPlayer to re-check file
+              setAudioKey((prev) => prev + 1); // Force AudioPlayer to re-check file
               // Notify other screens (HomeScreen) that audio was deleted
               DeviceEventEmitter.emit("audio-deleted", { uri: audioFile });
             } catch (err) {
@@ -357,7 +360,7 @@ export const CreateNoteScreen: React.FC = () => {
             }
           },
         },
-      ]
+      ],
     );
   };
 
@@ -531,7 +534,9 @@ export const CreateNoteScreen: React.FC = () => {
                 {isDeletingAudio ? (
                   <View style={styles.deletingContainer}>
                     <ActivityIndicator size="small" color={colors.primary} />
-                    <Text style={[styles.deletingText, { color: colors.textMuted }]}>
+                    <Text
+                      style={[styles.deletingText, { color: colors.textMuted }]}
+                    >
                       Deleting...
                     </Text>
                   </View>
@@ -545,7 +550,11 @@ export const CreateNoteScreen: React.FC = () => {
                   onPress={handleDeleteAudio}
                   hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                 >
-                  <Ionicons name="trash-outline" size={18} color={colors.textMuted} />
+                  <Ionicons
+                    name="trash-outline"
+                    size={18}
+                    color={colors.textMuted}
+                  />
                 </TouchableOpacity>
               )}
             </View>
@@ -598,7 +607,7 @@ export const CreateNoteScreen: React.FC = () => {
       <PinLimitModal
         visible={pinModalVisible}
         pinnedEntries={pinnedForReplace}
-        newEntryTitle={title || content || 'new entry'}
+        newEntryTitle={title || content || "new entry"}
         onSelectReplace={handleReplacePin}
         onCancel={handleCancelPinLimit}
       />

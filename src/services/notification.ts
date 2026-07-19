@@ -79,10 +79,14 @@ export const scheduleDailyReminder = async (
     return;
   }
 
+  // Guard against undefined/null values
+  const safeHour = typeof hour === 'number' ? hour : 20;
+  const safeMinute = typeof minute === 'number' ? minute : 0;
+
   // Cancel any existing notifications first
   await cancelDailyReminder();
 
-  console.log(`[Notification] Scheduling daily reminder at ${hour}:${minute.toString().padStart(2, '0')}`);
+  console.log(`[Notification] Scheduling daily reminder at ${safeHour}:${safeMinute.toString().padStart(2, '0')}`);
 
   const notificationId = await Notifications.scheduleNotificationAsync({
     content: {
@@ -93,8 +97,8 @@ export const scheduleDailyReminder = async (
     },
     trigger: {
       type: Notifications.SchedulableTriggerInputTypes.DAILY,
-      hour,
-      minute,
+      hour: safeHour,
+      minute: safeMinute,
       channelId: 'daily-reminder',
     },
   });

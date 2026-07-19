@@ -14,6 +14,7 @@ import { initDatabase } from './src/db';
 import { HomeScreen } from './src/screens/HomeScreen';
 import { RecordScreen } from './src/screens/RecordScreen';
 import { SettingsScreen } from './src/screens/SettingsScreen';
+import { WeeklySummaryScreen } from './src/screens/WeeklySummaryScreen';
 import { SearchScreen } from './src/screens/SearchScreen';
 import { CreateNoteScreen } from './src/screens/CreateNoteScreen';
 import { NotesScreen } from './src/screens/NotesScreen';
@@ -37,6 +38,7 @@ function SettingsStack() {
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
       <Stack.Screen name="SettingsMain" component={SettingsScreen} />
+      <Stack.Screen name="WeeklySummary" component={WeeklySummaryScreen} />
     </Stack.Navigator>
   );
 }
