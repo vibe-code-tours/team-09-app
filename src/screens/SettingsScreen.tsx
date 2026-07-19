@@ -9,7 +9,6 @@ import {
   Alert,
   ActivityIndicator,
   Linking,
-  Platform,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -22,6 +21,7 @@ import {
   scheduleDailyReminder,
   cancelDailyReminder,
 } from "../services/notification";
+import { TimePickerModal } from "../components/TimePickerModal";
 
 // ── Theme options ─────────────────────────────────────────
 const THEME_OPTIONS: { key: ThemeMode; icon: string; label: string }[] = [
@@ -132,6 +132,7 @@ export const SettingsScreen: React.FC = () => {
   const [isSigningIn, setIsSigningIn] = useState(false);
   const [reminderEnabled, setReminderEnabled] = useState(false);
   const [reminderTime, setReminderTime] = useState("12:32");
+  const [showTimePicker, setShowTimePicker] = useState(false);
 
   // Load reminder settings on mount
   useEffect(() => {
@@ -178,25 +179,7 @@ export const SettingsScreen: React.FC = () => {
   };
 
   const handleTimePress = () => {
-    if (Platform.OS === "android") {
-      Alert.prompt(
-        "Set Reminder Time",
-        "Enter time in HH:MM format (24-hour)",
-        [
-          { text: "Cancel", style: "cancel" },
-          {
-            text: "Set",
-            onPress: (value?: string) => {
-              if (value && /^\d{2}:\d{2}$/.test(value)) {
-                handleTimeChange(value);
-              }
-            },
-          },
-        ],
-        "plain-text",
-        reminderTime,
-      );
-    }
+    setShowTimePicker(true);
   };
 
   const handleTimeChange = async (time: string) => {
@@ -536,6 +519,16 @@ export const SettingsScreen: React.FC = () => {
 
         <View style={{ height: 100 }} />
       </ScrollView>
+
+      <TimePickerModal
+        visible={showTimePicker}
+        time={reminderTime}
+        onConfirm={(newTime) => {
+          setShowTimePicker(false);
+          handleTimeChange(newTime);
+        }}
+        onCancel={() => setShowTimePicker(false)}
+      />
     </SafeAreaView>
   );
 };
