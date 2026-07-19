@@ -31,19 +31,21 @@ export const EntryCard: React.FC<EntryCardProps> = ({ entry, onPress, onDelete }
     >
       {/* Main row: icon + content + actions */}
       <View style={styles.mainRow}>
-        {/* Category icon */}
-        <Text style={styles.categoryIcon}>{categoryInfo.icon}</Text>
+        {/* Category icon with colored background */}
+        <View style={[styles.categoryIconBg, { backgroundColor: categoryInfo.color + '20' }]}>
+          <Text style={styles.categoryIconText}>{categoryInfo.icon}</Text>
+        </View>
 
-        {/* Content: title + summary */}
+        {/* Content: title + category tag */}
         <View style={styles.content}>
           {entry.title ? (
             <Text style={[styles.title, { color: colors.text }]} numberOfLines={1}>
               {entry.title}
             </Text>
           ) : null}
-          <Text style={[styles.summary, { color: colors.textSecondary }]} numberOfLines={1}>
-            {entry.summary}
-          </Text>
+          <View style={[styles.categoryTag, { backgroundColor: categoryInfo.color + '20' }]}>
+            <Text style={[styles.categoryTagText, { color: categoryInfo.color }]}>{categoryInfo.label}</Text>
+          </View>
         </View>
 
         {/* Actions: time + delete */}
@@ -91,21 +93,33 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: spacing.sm,
   },
-  categoryIcon: {
-    fontSize: 20,
-    width: 28,
+  categoryIconBg: {
+    width: 36,
+    height: 36,
+    borderRadius: radius.sm,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  categoryIconText: {
+    fontSize: 16,
   },
   content: {
     flex: 1,
-    gap: 2,
+    gap: 4,
   },
   title: {
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: '600',
   },
-  summary: {
-    fontSize: 13,
-    lineHeight: 18,
+  categoryTag: {
+    alignSelf: 'flex-start',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  categoryTagText: {
+    fontSize: 10,
+    fontWeight: '600',
   },
   actions: {
     alignItems: 'flex-end',

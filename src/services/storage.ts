@@ -149,23 +149,41 @@ export const deleteEntry = async (id: string): Promise<void> => {
 };
 
 /**
- * Search entries using FTS5 full-text search.
+ * Search entries by transcript, title, and summary using LIKE (reliable for Burmese text).
+ * FTS5 tokenizer doesn't handle Burmese well (no word boundaries), so LIKE is used instead.
  */
 export const searchEntries = async (
   userId: string,
-  query: string
+  query: string,
+  filters?: {
+    category?: Category;
+    dateRange?: { start: Date; end: Date };
+  }
 ): Promise<AppEntry[]> => {
   const db = getDb();
+
+  const baseConditions = [
+    eq(entries.userId, userId),
+    eq(entries.isDeleted, false),
+  ];
+
+  if (filters?.category) {
+    baseConditions.push(eq(entries.entryType, filters.category));
+  }
+  if (filters?.dateRange) {
+    baseConditions.push(gte(entries.occurredAt, filters.dateRange.start));
+    baseConditions.push(lte(entries.occurredAt, filters.dateRange.end));
+  }
+
+  const likePattern = `%${query}%`;
+
   const rows = await db
     .select()
     .from(entries)
     .where(
       and(
-        eq(entries.userId, userId),
-        eq(entries.isDeleted, false),
-        sql`entries.id IN (
-          SELECT uuid FROM entries_fts WHERE entries_fts MATCH ${query}
-        )`
+        ...baseConditions,
+        sql`(${entries.transcript} LIKE ${likePattern} OR ${entries.title} LIKE ${likePattern} OR ${entries.summary} LIKE ${likePattern})`
       )
     )
     .orderBy(desc(entries.createdAt));
