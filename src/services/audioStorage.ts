@@ -142,6 +142,30 @@ export const deleteAudioFile = (uri: string): boolean => {
 };
 
 /**
+ * Delete all recordings from local storage.
+ * Returns the number of files deleted.
+ */
+export const clearAllRecordings = (): number => {
+  ensureDir();
+  const items = RECORDINGS_DIR.list();
+  let deleted = 0;
+
+  for (const item of items) {
+    if (item instanceof File && item.name.endsWith('.m4a')) {
+      try {
+        item.delete();
+        deleted++;
+      } catch (err) {
+        console.error('[AudioStorage] Failed to delete:', item.name, err);
+      }
+    }
+  }
+
+  console.log(`[AudioStorage] Cleared ${deleted} recordings`);
+  return deleted;
+};
+
+/**
  * Check if an audio file exists.
  */
 export const audioFileExists = (uri: string): boolean => {

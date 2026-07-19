@@ -19,6 +19,7 @@ import {
   scheduleDailyReminder,
   cancelDailyReminder,
 } from "../services/notification";
+import { clearAllData } from "../services/storage";
 import { TimePickerModal } from "../components/TimePickerModal";
 
 // ── Theme options ─────────────────────────────────────────
@@ -195,6 +196,50 @@ export const SettingsScreen: React.FC = () => {
     return `${displayHour}:${minute.toString().padStart(2, "0")} ${period}`;
   };
 
+  const handleClearAllData = () => {
+    // Step 1: Warn about irreversibility
+    Alert.alert(
+      "Clear All Data",
+      "This will permanently delete all entries, recordings, and settings. This cannot be undone.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Continue",
+          style: "destructive",
+          onPress: () => {
+            // Step 2: Double-confirm
+            Alert.alert(
+              "Are you sure?",
+              "All your voice recordings, notes, and preferences will be permanently deleted.",
+              [
+                { text: "Cancel", style: "cancel" },
+                {
+                  text: "Delete Everything",
+                  style: "destructive",
+                  onPress: performClearAllData,
+                },
+              ],
+            );
+          },
+        },
+      ],
+    );
+  };
+
+  const performClearAllData = async () => {
+    try {
+      await clearAllData();
+      // Reset local state to defaults
+      setReminderEnabled(false);
+      setReminderTime("20:00");
+      setMode("system");
+      Alert.alert("Done", "All data has been cleared.");
+    } catch (err) {
+      console.error('[SettingsScreen] Clear all data failed:', err);
+      Alert.alert("Error", "Failed to clear data. Please try again.");
+    }
+  };
+
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.bg }]}>
       <ScrollView
@@ -335,12 +380,7 @@ export const SettingsScreen: React.FC = () => {
             icon="🗑️"
             title="Clear All Data"
             danger
-            onPress={() =>
-              Alert.alert("Clear Data", "This cannot be undone.", [
-                { text: "Cancel", style: "cancel" },
-                { text: "Clear", style: "destructive" },
-              ])
-            }
+            onPress={handleClearAllData}
             colors={colors}
             last
           />

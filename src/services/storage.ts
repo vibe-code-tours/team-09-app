@@ -2,8 +2,10 @@
 import { eq, and, gte, desc, sql } from 'drizzle-orm';
 import * as Crypto from 'expo-crypto';
 import { getDb } from '../db';
-import { entries, type NewEntry, type Entry } from '../db/schema';
+import { entries, userSettings, type NewEntry, type Entry } from '../db/schema';
 import { Entry as AppEntry, Category } from '../types';
+import { clearAllRecordings } from './audioStorage';
+import { cancelDailyReminder } from './notification';
 
 // =============================================================================
 // Helpers — map between Drizzle schema types and app types
@@ -169,4 +171,40 @@ export const searchEntries = async (
     .orderBy(desc(entries.createdAt));
 
   return rows.map(toAppEntry);
+};
+
+// =============================================================================
+// Clear all data
+// =============================================================================
+
+/**
+ * Delete all entries, user settings, audio files, and cancel notifications.
+ * This is a destructive operation — cannot be undone.
+ */
+export const clearAllData = async (): Promise<{
+  entriesDeleted: number;
+  settingsDeleted: number;
+  recordingsDeleted: number;
+}> => {
+  const db = getDb();
+
+  // Delete all entries
+  const entryResult = await db.delete(entries);
+  const entriesDeleted = entryResult.changes ?? 0;
+
+  // Delete all user settings
+  const settingsResult = await db.delete(userSettings);
+  const settingsDeleted = settingsResult.changes ?? 0;
+
+  // Delete all audio files
+  const recordingsDeleted = clearAllRecordings();
+
+  // Cancel any scheduled notifications
+  await cancelDailyReminder();
+
+  console.log(
+    `[Storage] ClearAllData: ${entriesDeleted} entries, ${settingsDeleted} settings, ${recordingsDeleted} recordings`
+  );
+
+  return { entriesDeleted, settingsDeleted, recordingsDeleted };
 };
