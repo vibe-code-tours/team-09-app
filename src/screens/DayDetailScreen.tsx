@@ -209,9 +209,9 @@ export const DayDetailScreen: React.FC = () => {
         <TouchableOpacity
           style={[styles.entryCard, { backgroundColor: colors.surface, borderLeftColor: cat.color }, shadows.sm]}
           activeOpacity={0.7}
-          onPress={() => navigation.getParent()?.navigate('Home', {
-            screen: 'CreateNote',
-            params: { entryId: entry.id, startViewOnly: true },
+          onPress={() => navigation.navigate('CreateNote', {
+            entryId: entry.id,
+            startViewOnly: true,
           })}
         >
           <View style={styles.entryMainRow}>

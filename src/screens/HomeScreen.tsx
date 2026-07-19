@@ -41,6 +41,7 @@ export const HomeScreen: React.FC = () => {
   const [pinModalVisible, setPinModalVisible] = useState(false);
   const [pendingPinEntry, setPendingPinEntry] = useState<Entry | null>(null);
   const [pinnedForReplace, setPinnedForReplace] = useState<Entry[]>([]);
+  const [audioKeys, setAudioKeys] = useState<Record<string, number>>({});
 
   // Load entries every time screen comes into focus
   useFocusEffect(
@@ -90,6 +91,18 @@ export const HomeScreen: React.FC = () => {
     return () => subscription.remove();
   }, [userId]);
 
+  // Listen for audio-deleted events to update AudioPlayer state
+  useEffect(() => {
+    const subscription = DeviceEventEmitter.addListener('audio-deleted', (data: { uri: string }) => {
+      // Force AudioPlayer to re-check file existence
+      setAudioKeys(prev => ({
+        ...prev,
+        [data.uri]: (prev[data.uri] || 0) + 1,
+      }));
+    });
+    return () => subscription.remove();
+  }, []);
+
   // Filter entries based on selected category
   const filteredEntries = selectedCategory === 'all'
     ? entries
@@ -110,6 +123,8 @@ export const HomeScreen: React.FC = () => {
     })),
   ];
 
+  const lastCategoryPress = useRef(0);
+
   const renderCategoryChip = useCallback(({ item }: { item: typeof categoryOptions[0] }) => {
     const isSelected = selectedCategory === item.key;
     return (
@@ -122,7 +137,15 @@ export const HomeScreen: React.FC = () => {
           },
           shadows.sm,
         ]}
-        onPress={() => setSelectedCategory(item.key)}
+        onPress={() => {
+          const now = Date.now();
+          if (now - lastCategoryPress.current < 300) {
+            setSelectedCategory('all'); // Double tap → All
+          } else {
+            setSelectedCategory(item.key);
+          }
+          lastCategoryPress.current = now;
+        }}
         activeOpacity={0.7}
       >
         <Text style={styles.chipIcon}>{item.icon}</Text>
@@ -346,14 +369,14 @@ export const HomeScreen: React.FC = () => {
                 <Text style={[styles.entryMood, { color: colors.textMuted }]}>{item.mood}</Text>
               )}
               {item.audioUri && (
-                <AudioPlayer audioUri={item.audioUri} compact />
+                <AudioPlayer key={audioKeys[item.audioUri] || 0} audioUri={item.audioUri} compact />
               )}
             </View>
           )}
         </TouchableOpacity>
       </Swipeable>
     );
-  }, [colors, shadows, navigation, handleDeleteEntry, renderRightActions, renderLeftActions]);
+  }, [colors, shadows, navigation, handleDeleteEntry, renderRightActions, renderLeftActions, audioKeys]);
 
 
   return (

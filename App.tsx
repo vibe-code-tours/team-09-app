@@ -46,6 +46,7 @@ function NotesStack() {
     <Stack.Navigator screenOptions={{ headerShown: false }}>
       <Stack.Screen name="NotesMain" component={NotesScreen} />
       <Stack.Screen name="DayDetail" component={DayDetailScreen} />
+      <Stack.Screen name="CreateNote" component={CreateNoteScreen} />
     </Stack.Navigator>
   );
 }

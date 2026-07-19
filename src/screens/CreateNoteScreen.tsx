@@ -11,6 +11,8 @@ import {
   Platform,
   ToastAndroid,
   Alert,
+  ActivityIndicator,
+  DeviceEventEmitter,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useNavigation, useRoute, RouteProp } from "@react-navigation/native";
@@ -24,6 +26,7 @@ import {
   updateEntry,
   deleteEntry,
 } from "../services/storage";
+import { deleteAudioFile, audioFileExists } from "../services/audioStorage";
 import { useAuth } from "../context/AuthContext";
 import AudioPlayer from "../components/AudioPlayer";
 import { PinLimitModal } from "../components/PinLimitModal";
@@ -68,6 +71,8 @@ export const CreateNoteScreen: React.FC = () => {
   const [audioFile, setAudioFile] = useState<string | undefined>(
     initialAudioFile,
   );
+  const [isDeletingAudio, setIsDeletingAudio] = useState(false);
+  const [audioKey, setAudioKey] = useState(0);
 
   const contentInputRef = useRef<TextInput>(null);
 
@@ -328,6 +333,34 @@ export const CreateNoteScreen: React.FC = () => {
     setPinnedForReplace([]);
   };
 
+  const handleDeleteAudio = () => {
+    Alert.alert(
+      "Delete Recording?",
+      "This will remove the audio from this note.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              setIsDeletingAudio(true);
+              deleteAudioFile(audioFile || "");
+              // Keep audioUri in database — AudioPlayer will show "Recording unavailable"
+              setAudioKey(prev => prev + 1); // Force AudioPlayer to re-check file
+              // Notify other screens (HomeScreen) that audio was deleted
+              DeviceEventEmitter.emit("audio-deleted", { uri: audioFile });
+            } catch (err) {
+              console.error("[CreateNoteScreen] Delete audio failed:", err);
+            } finally {
+              setIsDeletingAudio(false);
+            }
+          },
+        },
+      ]
+    );
+  };
+
   const handleTextChange = (text: string) => {
     setContent(text);
     setHasUnsavedChanges(true);
@@ -494,7 +527,27 @@ export const CreateNoteScreen: React.FC = () => {
           {/* Audio Player */}
           {audioFile && (
             <View style={styles.audioSection}>
-              <AudioPlayer audioUri={audioFile} />
+              <View style={styles.audioPlayerWrapper}>
+                {isDeletingAudio ? (
+                  <View style={styles.deletingContainer}>
+                    <ActivityIndicator size="small" color={colors.primary} />
+                    <Text style={[styles.deletingText, { color: colors.textMuted }]}>
+                      Deleting...
+                    </Text>
+                  </View>
+                ) : (
+                  <AudioPlayer key={audioKey} audioUri={audioFile} />
+                )}
+              </View>
+              {audioFileExists(audioFile) && !isDeletingAudio && (
+                <TouchableOpacity
+                  style={styles.deleteAudioBtn}
+                  onPress={handleDeleteAudio}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                >
+                  <Ionicons name="trash-outline" size={18} color={colors.textMuted} />
+                </TouchableOpacity>
+              )}
             </View>
           )}
 
@@ -636,7 +689,27 @@ const styles = StyleSheet.create({
     fontWeight: "500",
   },
   audioSection: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
     marginBottom: spacing.xl,
+  },
+  audioPlayerWrapper: {
+    flex: 1,
+  },
+  deleteAudioBtn: {
+    padding: spacing.sm,
+  },
+  deletingContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
+    padding: spacing.md,
+    backgroundColor: "rgba(0,0,0,0.05)",
+    borderRadius: radius.md,
+  },
+  deletingText: {
+    fontSize: 14,
   },
   // Paper card style
   paperCard: {

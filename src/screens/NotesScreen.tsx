@@ -1,5 +1,5 @@
 // NotesScreen - All entries grouped by date
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -92,6 +92,8 @@ export const NotesScreen: React.FC = () => {
     })),
   ];
 
+  const lastCategoryPress = useRef(0);
+
   const renderCategoryChip = useCallback(({ item }: { item: typeof categoryOptions[0] }) => {
     const isSelected = selectedCategory === item.key;
     return (
@@ -104,7 +106,15 @@ export const NotesScreen: React.FC = () => {
           },
           shadows.sm,
         ]}
-        onPress={() => setSelectedCategory(item.key)}
+        onPress={() => {
+          const now = Date.now();
+          if (now - lastCategoryPress.current < 300) {
+            setSelectedCategory('all'); // Double tap → All
+          } else {
+            setSelectedCategory(item.key);
+          }
+          lastCategoryPress.current = now;
+        }}
         activeOpacity={0.7}
       >
         <Text style={styles.chipIcon}>{item.icon}</Text>

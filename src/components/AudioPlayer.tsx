@@ -5,6 +5,7 @@ import { Audio, AVPlaybackStatus } from 'expo-av';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../theme/ThemeContext';
 import { spacing, radius } from '../theme';
+import { audioFileExists } from '../services/audioStorage';
 
 interface AudioPlayerProps {
   audioUri: string;
@@ -25,6 +26,7 @@ export default function AudioPlayer({
   const [position, setPosition] = useState(0);
   const [duration, setDuration] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
+  const [fileMissing, setFileMissing] = useState(false);
 
   const onPlaybackStatusUpdateInternal = useCallback((status: AVPlaybackStatus) => {
     if (status.isLoaded) {
@@ -39,6 +41,13 @@ export default function AudioPlayer({
     let cancelled = false;
 
     const loadAudio = async () => {
+      // Guard: check if file exists before attempting to load
+      if (!audioUri || !audioFileExists(audioUri)) {
+        console.warn('[AudioPlayer] Audio file not found:', audioUri);
+        if (!cancelled) setFileMissing(true);
+        return;
+      }
+
       try {
         setIsLoading(true);
         await Audio.setAudioModeAsync({
@@ -58,7 +67,7 @@ export default function AudioPlayer({
           await sound.unloadAsync();
         }
       } catch (error) {
-        console.error('Error loading audio:', error);
+        console.error('[AudioPlayer] Error loading audio:', error);
       } finally {
         if (!cancelled) setIsLoading(false);
       }
@@ -109,6 +118,23 @@ export default function AudioPlayer({
   };
 
   const progress = duration > 0 ? position / duration : 0;
+
+  // File missing state — show unavailable message
+  if (fileMissing) {
+    return (
+      <View
+        style={[
+          compact ? styles.compactContainer : styles.container,
+          { backgroundColor: theme.colors.surfaceAlt, borderColor: theme.colors.border, opacity: 0.5 },
+        ]}
+      >
+        <Ionicons name="alert-circle-outline" size={compact ? 14 : 18} color={theme.colors.textMuted} />
+        <Text style={[compact ? styles.compactTime : styles.timeText, { color: theme.colors.textMuted, marginLeft: spacing.xs }]}>
+          Recording unavailable
+        </Text>
+      </View>
+    );
+  }
 
   // Compact mode for HomeScreen entry cards
   if (compact) {

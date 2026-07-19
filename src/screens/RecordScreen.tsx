@@ -22,7 +22,7 @@ import { useRecording } from '../hooks/useRecording';
 import { useTheme } from '../theme/ThemeContext';
 import { useAuth } from '../context/AuthContext';
 import { createShadows } from '../theme';
-import { saveAudioLocally, deleteAudioFile } from '../services/audioStorage';
+import { saveAudioLocally, deleteAudioFile, canSaveRecording } from '../services/audioStorage';
 import { transcribeAudio } from '../services/transcription';
 import { categorizeEntry } from '../services/categorization';
 import { saveEntry, updateEntry } from '../services/storage';
@@ -102,6 +102,14 @@ export const RecordScreen: React.FC = () => {
         try {
           const permanentUri = await saveAudioLocally(currentUri);
           if (discardedRef.current) return;
+
+          // Handle storage limit reached
+          if (!permanentUri) {
+            setTranscribeError('Storage full. Please delete some recordings first.');
+            setIsTranscribing(false);
+            return;
+          }
+
           permanentUriRef.current = permanentUri;
           const text = await transcribeAudio(permanentUri);
           if (discardedRef.current) return;
@@ -232,6 +240,10 @@ export const RecordScreen: React.FC = () => {
   const processInBackground = async (audioUri: string) => {
     try {
       const permanentUri = await saveAudioLocally(audioUri);
+      if (!permanentUri) {
+        console.warn('[RecordScreen] Background save failed: storage full');
+        return;
+      }
 
       // Save note immediately with empty title so it appears on HomeScreen
       const entryId = await saveEntry(userId, {
@@ -451,7 +463,12 @@ export const RecordScreen: React.FC = () => {
                   setIsTranscribing(true);
                   setTranscribeError(null);
                   saveAudioLocally(uri)
-                    .then(permanentUri => transcribeAudio(permanentUri))
+                    .then(permanentUri => {
+                      if (!permanentUri) {
+                        throw new Error('Storage full. Delete some recordings first.');
+                      }
+                      return transcribeAudio(permanentUri);
+                    })
                     .then(text => {
                       setTranscript(text);
                       return categorizeEntry(text);
