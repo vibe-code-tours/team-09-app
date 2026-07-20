@@ -44,6 +44,15 @@ function SettingsStack() {
   );
 }
 
+function SearchStack() {
+  return (
+    <Stack.Navigator screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="SearchMain" component={SearchScreen} />
+      <Stack.Screen name="CreateNote" component={CreateNoteScreen} />
+    </Stack.Navigator>
+  );
+}
+
 function NotesStack() {
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
@@ -92,7 +101,7 @@ function MainTabs() {
         }}
       >
         <Tab.Screen name="Home" component={HomeStack} />
-        <Tab.Screen name="Search" component={SearchScreen} />
+        <Tab.Screen name="Search" component={SearchStack} />
         <Tab.Screen name="Record" component={RecordScreen} />
         <Tab.Screen name="Notes" component={NotesStack} />
         <Tab.Screen name="Settings" component={SettingsStack} />

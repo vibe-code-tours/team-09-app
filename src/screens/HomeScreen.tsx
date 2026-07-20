@@ -342,16 +342,18 @@ export const HomeScreen: React.FC = () => {
         >
           {/* Main row: icon + content + actions */}
           <View style={styles.entryMainRow}>
-            <Text style={styles.entryIcon}>{cat.icon}</Text>
+            <View style={[styles.entryIconBg, { backgroundColor: cat.color + '20' }]}>
+              <Text style={styles.entryIconText}>{cat.icon}</Text>
+            </View>
             <View style={styles.entryContent}>
               {item.title ? (
                 <Text style={[styles.entryTitle, { color: colors.text }]} numberOfLines={1}>
                   {item.title}
                 </Text>
               ) : null}
-              <Text style={[styles.entrySummary, { color: colors.textSecondary }]} numberOfLines={1}>
-                {item.summary}
-              </Text>
+              <View style={[styles.categoryTag, { backgroundColor: cat.color + '20' }]}>
+                <Text style={[styles.categoryTagText, { color: cat.color }]}>{cat.label}</Text>
+              </View>
             </View>
             <View style={styles.entryActions}>
               <Text style={[styles.entryTime, { color: colors.textMuted }]}>
@@ -618,21 +620,33 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: spacing.sm,
   },
-  entryIcon: {
-    fontSize: 20,
-    width: 28,
+  entryIconBg: {
+    width: 36,
+    height: 36,
+    borderRadius: radius.sm,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  entryIconText: {
+    fontSize: 16,
   },
   entryContent: {
     flex: 1,
-    gap: 2,
+    gap: 4,
   },
   entryTitle: {
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: '600',
   },
-  entrySummary: {
-    fontSize: 13,
-    lineHeight: 18,
+  categoryTag: {
+    alignSelf: 'flex-start',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  categoryTagText: {
+    fontSize: 10,
+    fontWeight: '600',
   },
   entryActions: {
     alignItems: 'flex-end',
