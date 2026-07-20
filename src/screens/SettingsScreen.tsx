@@ -1,5 +1,5 @@
 // SettingsScreen — Sketch 006 Variant A: iOS Grouped Cards
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   View,
   Text,
@@ -13,13 +13,21 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "../theme/ThemeContext";
 import { ThemeMode } from "../theme/ThemeContext";
+import { useNavigation } from "@react-navigation/native";
 import { spacing, radius, createShadows } from "../theme";
 import {
   requestNotificationPermission,
   scheduleDailyReminder,
   cancelDailyReminder,
+  scheduleWeeklyReminder,
+  cancelWeeklyReminder,
 } from "../services/notification";
-import { clearAllData } from "../services/storage";
+import {
+  clearAllData,
+  getUserSettings,
+  saveUserSettings,
+} from "../services/storage";
+import { useAuth } from "../context/AuthContext";
 import { TimePickerModal } from "../components/TimePickerModal";
 
 // ── Theme options ─────────────────────────────────────────
@@ -127,51 +135,69 @@ export const SettingsScreen: React.FC = () => {
   const { theme, isDark, mode, setMode } = useTheme();
   const { colors } = theme;
   const shadows = createShadows(isDark, colors.primary);
+  const navigation = useNavigation<any>();
+  const { user } = useAuth();
   const [reminderEnabled, setReminderEnabled] = useState(false);
-  const [reminderTime, setReminderTime] = useState("12:32");
+  const [reminderTime, setReminderTime] = useState("20:00");
   const [showTimePicker, setShowTimePicker] = useState(false);
+  const [weeklyEnabled, setWeeklyEnabled] = useState(false);
+  const [weeklyLanguage, setWeeklyLanguage] = useState<'my' | 'en'>('my');
 
-  // Load reminder settings on mount
+  // Load settings on mount
   useEffect(() => {
-    loadReminderSettings();
+    loadSettings();
   }, []);
 
-  const loadReminderSettings = async () => {
-    // TODO: Load from user_settings in DB when service is ready
-    // For now, use defaults and schedule notification
-    const enabled = true;
-    const time = "12:32";
-    setReminderEnabled(enabled);
-    setReminderTime(time);
-
-    // Schedule notification if enabled
-    if (enabled) {
-      const [h, m] = time.split(":").map(Number);
-      await scheduleDailyReminder(h, m);
+  const loadSettings = async () => {
+    if (!user) return;
+    try {
+      const settings = await getUserSettings(user.id);
+      if (settings) {
+        setReminderEnabled(settings.notifications);
+        setReminderTime(settings.reminderTime || '20:00');
+        setWeeklyEnabled(settings.weeklySummary);
+        setWeeklyLanguage((settings.weeklySummaryLanguage as 'my' | 'en') || 'my');
+      }
+    } catch (err) {
+      console.warn('[SettingsScreen] Failed to load settings:', err);
     }
   };
 
   const handleToggleReminder = async () => {
-    if (!reminderEnabled) {
-      // Enabling
-      const granted = await requestNotificationPermission();
-      if (granted) {
-        const [h, m] = reminderTime.split(":").map(Number);
-        await scheduleDailyReminder(h, m);
-        setReminderEnabled(true);
-        // TODO: Save to DB
+    try {
+      if (!reminderEnabled) {
+        // Enabling
+        const granted = await requestNotificationPermission();
+        if (granted) {
+          const timeStr = reminderTime || '20:00';
+          const parts = timeStr.split(":");
+          const h = parseInt(parts[0], 10);
+          const m = parseInt(parts[1], 10);
+          if (!isNaN(h) && !isNaN(m)) {
+            await scheduleDailyReminder(h, m);
+          }
+          setReminderEnabled(true);
+          if (user) {
+            await saveUserSettings(user.id, { notifications: true });
+          }
+        } else {
+          Alert.alert(
+            "Notifications Blocked",
+            "Please enable notifications in your device Settings to receive reminders.",
+            [{ text: "OK" }],
+          );
+        }
       } else {
-        Alert.alert(
-          "Notifications Blocked",
-          "Please enable notifications in your device Settings to receive reminders.",
-          [{ text: "OK" }],
-        );
+        // Disabling
+        await cancelDailyReminder();
+        setReminderEnabled(false);
+        if (user) {
+          await saveUserSettings(user.id, { notifications: false });
+        }
       }
-    } else {
-      // Disabling
-      await cancelDailyReminder();
-      setReminderEnabled(false);
-      // TODO: Save to DB
+    } catch (err) {
+      console.error('[SettingsScreen] Failed to toggle reminder:', err);
+      Alert.alert("Error", "Failed to update reminder settings. Please try again.");
     }
   };
 
@@ -180,20 +206,58 @@ export const SettingsScreen: React.FC = () => {
   };
 
   const handleTimeChange = async (time: string) => {
-    setReminderTime(time);
-    if (reminderEnabled) {
-      const [h, m] = time.split(":").map(Number);
-      await cancelDailyReminder();
-      await scheduleDailyReminder(h, m);
-      // TODO: Save to DB
+    try {
+      setReminderTime(time);
+      if (reminderEnabled) {
+        const parts = (time || '20:00').split(":");
+        const h = parseInt(parts[0], 10);
+        const m = parseInt(parts[1], 10);
+        await cancelDailyReminder();
+        if (!isNaN(h) && !isNaN(m)) {
+          await scheduleDailyReminder(h, m);
+        }
+      }
+      if (user) {
+        await saveUserSettings(user.id, { reminderTime: time });
+      }
+    } catch (err) {
+      console.error('[SettingsScreen] Failed to update reminder time:', err);
     }
   };
 
-  const formatTime = (time: string): string => {
+  const formatTime = (time: string | undefined): string => {
+    if (!time) return '8:00 PM';
     const [hour, minute] = time.split(":").map(Number);
     const period = hour >= 12 ? "PM" : "AM";
     const displayHour = hour % 12 || 12;
-    return `${displayHour}:${minute.toString().padStart(2, "0")} ${period}`;
+    return `${displayHour}:${(minute || 0).toString().padStart(2, "0")} ${period}`;
+  };
+
+  const handleToggleWeeklySummary = async () => {
+    const newValue = !weeklyEnabled;
+    setWeeklyEnabled(newValue);
+
+    if (newValue) {
+      // Enabling — schedule weekly notification for Sunday at 8 PM
+      const granted = await requestNotificationPermission();
+      if (granted) {
+        await scheduleWeeklyReminder(0, 20, 0); // 0 = Sunday, 20:00
+      }
+    } else {
+      // Disabling — cancel weekly notification
+      await cancelWeeklyReminder();
+    }
+
+    if (user) {
+      await saveUserSettings(user.id, { weeklySummary: newValue });
+    }
+  };
+
+  const handleWeeklyLanguageChange = async (lang: 'my' | 'en') => {
+    setWeeklyLanguage(lang);
+    if (user) {
+      await saveUserSettings(user.id, { weeklySummaryLanguage: lang });
+    }
   };
 
   const handleClearAllData = () => {
@@ -356,13 +420,84 @@ export const SettingsScreen: React.FC = () => {
           <ToggleRow
             icon="📊"
             title="Weekly Summary"
-            subtitle="Weekly activity digest every Sunday"
-            value={false}
-            onToggle={() => {}}
+            subtitle="AI-powered weekly activity digest"
+            value={weeklyEnabled}
+            onToggle={handleToggleWeeklySummary}
             colors={colors}
             shadows={shadows}
-            last
           />
+          {weeklyEnabled && (
+            <>
+              <View
+                style={[
+                  styles.row,
+                  { borderBottomColor: colors.border, borderBottomWidth: 1 },
+                ]}
+              >
+                <View style={styles.rowLeft}>
+                  <Text style={styles.rowIcon}>🌐</Text>
+                  <View>
+                    <Text style={[styles.rowTitle, { color: colors.text }]}>
+                      Summary Language
+                    </Text>
+                    <Text
+                      style={[styles.rowSubtitle, { color: colors.textMuted }]}
+                    >
+                      {weeklyLanguage === 'my' ? 'Myanmar (မြန်မာ)' : 'English'}
+                    </Text>
+                  </View>
+                </View>
+                <View style={styles.langToggle}>
+                  <TouchableOpacity
+                    style={[
+                      styles.langBtn,
+                      weeklyLanguage === 'my' && {
+                        backgroundColor: colors.primary,
+                      },
+                    ]}
+                    onPress={() => handleWeeklyLanguageChange('my')}
+                    activeOpacity={0.7}
+                  >
+                    <Text
+                      style={[
+                        styles.langBtnText,
+                        { color: weeklyLanguage === 'my' ? '#FFF' : colors.textMuted },
+                      ]}
+                    >
+                      မြန်မာ
+                    </Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[
+                      styles.langBtn,
+                      weeklyLanguage === 'en' && {
+                        backgroundColor: colors.primary,
+                      },
+                    ]}
+                    onPress={() => handleWeeklyLanguageChange('en')}
+                    activeOpacity={0.7}
+                  >
+                    <Text
+                      style={[
+                        styles.langBtnText,
+                        { color: weeklyLanguage === 'en' ? '#FFF' : colors.textMuted },
+                      ]}
+                    >
+                      English
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+              <TappableRow
+                icon="📄"
+                title="View Weekly Summary"
+                subtitle="See this week's AI-generated digest"
+                onPress={() => navigation.navigate('WeeklySummary')}
+                colors={colors}
+                last
+              />
+            </>
+          )}
         </View>
 
         {/* Section: Data & Storage */}
@@ -505,4 +640,19 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   themeSegText: { fontSize: 13, fontWeight: "500" },
+
+  // Language toggle
+  langToggle: {
+    flexDirection: "row",
+    gap: spacing.sm,
+  },
+  langBtn: {
+    minWidth: 64,
+    height: 34,
+    borderRadius: radius.full,
+    backgroundColor: "rgba(0,0,0,0.05)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  langBtnText: { fontSize: 13, fontWeight: "500", includeFontPadding: false },
 });

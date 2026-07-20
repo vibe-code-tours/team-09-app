@@ -33,18 +33,20 @@ export const TimePickerModal: React.FC<Props> = ({
   const { colors } = theme;
   const shadows = createShadows(isDark, colors.primary);
 
-  const [h, m] = time.split(':').map(Number);
-  const [selectedHour, setSelectedHour] = useState(h);
-  const [selectedMinute, setSelectedMinute] = useState(m);
+  const safeTime = time || '20:00';
+  const [h, m] = safeTime.split(':').map(Number);
+  const [selectedHour, setSelectedHour] = useState(h ?? 20);
+  const [selectedMinute, setSelectedMinute] = useState(m ?? 0);
 
   const hourScrollRef = useRef<ScrollView>(null);
   const minuteScrollRef = useRef<ScrollView>(null);
 
   // Sync selection when time prop changes
   useEffect(() => {
-    const [newH, newM] = time.split(':').map(Number);
-    setSelectedHour(newH);
-    setSelectedMinute(newM);
+    const safe = time || '20:00';
+    const [newH, newM] = safe.split(':').map(Number);
+    setSelectedHour(newH ?? 20);
+    setSelectedMinute(newM ?? 0);
   }, [time]);
 
   // Scroll to selected values when modal opens
@@ -61,8 +63,8 @@ export const TimePickerModal: React.FC<Props> = ({
   }, [visible, selectedHour, selectedMinute]);
 
   const handleConfirm = () => {
-    const hh = selectedHour.toString().padStart(2, '0');
-    const mm = selectedMinute.toString().padStart(2, '0');
+    const hh = (selectedHour ?? 0).toString().padStart(2, '0');
+    const mm = (selectedMinute ?? 0).toString().padStart(2, '0');
     onConfirm(`${hh}:${mm}`);
   };
 

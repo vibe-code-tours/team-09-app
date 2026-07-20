@@ -14,6 +14,7 @@ import { initDatabase } from './src/db';
 import { HomeScreen } from './src/screens/HomeScreen';
 import { RecordScreen } from './src/screens/RecordScreen';
 import { SettingsScreen } from './src/screens/SettingsScreen';
+import { WeeklySummaryScreen } from './src/screens/WeeklySummaryScreen';
 import { SearchScreen } from './src/screens/SearchScreen';
 import { CreateNoteScreen } from './src/screens/CreateNoteScreen';
 import { NotesScreen } from './src/screens/NotesScreen';
@@ -29,6 +30,7 @@ function HomeStack() {
     <Stack.Navigator screenOptions={{ headerShown: false }}>
       <Stack.Screen name="HomeMain" component={HomeScreen} />
       <Stack.Screen name="CreateNote" component={CreateNoteScreen} />
+      <Stack.Screen name="WeeklySummary" component={WeeklySummaryScreen} />
     </Stack.Navigator>
   );
 }
@@ -37,6 +39,7 @@ function SettingsStack() {
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
       <Stack.Screen name="SettingsMain" component={SettingsScreen} />
+      <Stack.Screen name="WeeklySummary" component={WeeklySummaryScreen} />
     </Stack.Navigator>
   );
 }
@@ -145,14 +148,24 @@ function AppContent() {
         // Handle notification tap when app was closed
         const response = await getInitialNotification();
         if (response) {
+          const screen = response?.notification?.request?.content?.data?.screen;
           setTimeout(() => {
-            navigationRef.current?.navigate('Record');
+            if (screen === 'weekly-summary') {
+              navigationRef.current?.navigate('Settings', { screen: 'WeeklySummary' });
+            } else {
+              navigationRef.current?.navigate('Record');
+            }
           }, 1000);
         }
 
         // Handle notification tap when app is in foreground
-        subscription = addNotificationTapListener(() => {
-          navigationRef.current?.navigate('Record');
+        subscription = addNotificationTapListener((res) => {
+          const screen = res?.notification?.request?.content?.data?.screen;
+          if (screen === 'weekly-summary') {
+            navigationRef.current?.navigate('Settings', { screen: 'WeeklySummary' });
+          } else {
+            navigationRef.current?.navigate('Record');
+          }
         });
       } catch {
         // expo-notifications unavailable (Expo Go) — skip

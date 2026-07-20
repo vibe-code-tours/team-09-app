@@ -62,11 +62,14 @@ export const userSettings = sqliteTable('user_settings', {
   theme: text('theme').notNull().default('system'), // light, dark, system
   notifications: integer('notifications', { mode: 'boolean' }).notNull().default(true),
   reminderTime: text('reminder_time').notNull().default('20:00'), // HH:MM format
+  weeklySummary: integer('weekly_summary', { mode: 'boolean' }).notNull().default(false),
+  weeklySummaryLanguage: text('weekly_summary_language').notNull().default('my'), // 'my' or 'en'
   createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
   updatedAt: integer('updated_at', { mode: 'timestamp' }).notNull(),
 }, (t) => [
   check('user_settings_language_code_check', sql`${t.languageCode} IN ('my', 'en')`),
   check('user_settings_theme_check', sql`${t.theme} IN ('light', 'dark', 'system')`),
+  check('user_settings_weekly_summary_language_check', sql`${t.weeklySummaryLanguage} IN ('my', 'en')`),
 ]);
 
 // =============================================================================
@@ -108,6 +111,27 @@ export const corrections = sqliteTable('corrections', {
 ]);
 
 // =============================================================================
+// 6. weekly_summaries (cached AI-generated weekly digests)
+// =============================================================================
+
+export const weeklySummaries = sqliteTable('weekly_summaries', {
+  id: text('id').primaryKey(), // UUID v4
+  userId: text('user_id')
+    .notNull()
+    .references(() => users.id),
+  weekStart: integer('week_start', { mode: 'timestamp' }).notNull(),
+  weekEnd: integer('week_end', { mode: 'timestamp' }).notNull(),
+  summaryMy: text('summary_my'),
+  summaryEn: text('summary_en'),
+  categoryBreakdown: text('category_breakdown'), // JSON string
+  moodTrend: text('mood_trend'), // JSON string
+  entryCount: integer('entry_count').notNull().default(0),
+  totalDuration: integer('total_duration').notNull().default(0), // seconds
+  language: text('language').notNull().default('my'), // 'my' or 'en'
+  createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
+});
+
+// =============================================================================
 // TypeScript types (inferred from schema)
 // =============================================================================
 
@@ -125,6 +149,9 @@ export type NewDailyUsage = typeof dailyUsage.$inferInsert;
 
 export type Correction = typeof corrections.$inferSelect;
 export type NewCorrection = typeof corrections.$inferInsert;
+
+export type WeeklySummaryRecord = typeof weeklySummaries.$inferSelect;
+export type NewWeeklySummaryRecord = typeof weeklySummaries.$inferInsert;
 
 // =============================================================================
 // Constants (matching V1 spec)

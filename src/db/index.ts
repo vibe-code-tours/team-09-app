@@ -95,6 +95,8 @@ export async function initDatabase(): Promise<void> {
       theme TEXT NOT NULL DEFAULT 'system' CHECK(theme IN ('light', 'dark', 'system')),
       notifications INTEGER NOT NULL DEFAULT 1,
       reminder_time TEXT NOT NULL DEFAULT '20:00',
+      weekly_summary INTEGER NOT NULL DEFAULT 0,
+      weekly_summary_language TEXT NOT NULL DEFAULT 'my' CHECK(weekly_summary_language IN ('my', 'en')),
       created_at INTEGER NOT NULL DEFAULT CURRENT_TIMESTAMP,
       updated_at INTEGER NOT NULL DEFAULT CURRENT_TIMESTAMP
     );
@@ -125,11 +127,48 @@ export async function initDatabase(): Promise<void> {
     CREATE INDEX IF NOT EXISTS idx_corrections_user ON corrections(user_id);
     CREATE INDEX IF NOT EXISTS idx_corrections_entry ON corrections(entry_id);
     CREATE INDEX IF NOT EXISTS idx_corrections_field ON corrections(field);
+
+    -- 6. weekly_summaries (cached AI-generated weekly digests)
+    CREATE TABLE IF NOT EXISTS weekly_summaries (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL REFERENCES users(id),
+      week_start INTEGER NOT NULL,
+      week_end INTEGER NOT NULL,
+      summary_my TEXT,
+      summary_en TEXT,
+      category_breakdown TEXT,
+      mood_trend TEXT,
+      entry_count INTEGER NOT NULL DEFAULT 0,
+      total_duration INTEGER NOT NULL DEFAULT 0,
+      language TEXT NOT NULL DEFAULT 'my',
+      created_at INTEGER NOT NULL DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_weekly_summaries_user_week ON weekly_summaries(user_id, week_start);
   `);
 
   // Migration: add title column if missing (for existing databases)
   try {
     await sqlite.execAsync('ALTER TABLE entries ADD COLUMN title TEXT');
+  } catch {
+    // Column already exists — safe to ignore
+  }
+
+  // Migration: add reminder_time column to user_settings (for existing databases)
+  try {
+    await sqlite.execAsync("ALTER TABLE user_settings ADD COLUMN reminder_time TEXT NOT NULL DEFAULT '20:00'");
+  } catch {
+    // Column already exists — safe to ignore
+  }
+
+  // Migration: add weekly summary columns to user_settings (for existing databases)
+  try {
+    await sqlite.execAsync('ALTER TABLE user_settings ADD COLUMN weekly_summary INTEGER NOT NULL DEFAULT 0');
+  } catch {
+    // Column already exists — safe to ignore
+  }
+  try {
+    await sqlite.execAsync("ALTER TABLE user_settings ADD COLUMN weekly_summary_language TEXT NOT NULL DEFAULT 'my'");
   } catch {
     // Column already exists — safe to ignore
   }

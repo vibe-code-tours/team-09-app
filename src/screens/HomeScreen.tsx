@@ -23,6 +23,7 @@ import { Entry } from '../types';
 import { getEntries, getTodayEntries, deleteEntry, updateEntry } from '../services/storage';
 import { useAuth } from '../context/AuthContext';
 import { EmptyState } from '../components/EmptyState';
+import { WeeklySummaryCard } from '../components/WeeklySummaryCard';
 import AudioPlayer from '../components/AudioPlayer';
 import { PinLimitModal } from '../components/PinLimitModal';
 import { checkPinLimit, pinEntry, replacePin } from '../utils/pinLimit';
@@ -404,9 +405,9 @@ export const HomeScreen: React.FC = () => {
             </Text>
           </View>
           <View style={styles.headerActions}>
-            <View style={[styles.headerAvatar, { backgroundColor: colors.primaryLight }]}>
-              <Text style={[styles.avatarText, { color: colors.primary }]}>KA</Text>
-            </View>
+            <WeeklySummaryCard
+              onPress={() => navigation.navigate('WeeklySummary')}
+            />
           </View>
         </View>
       </View>
@@ -515,6 +516,7 @@ const styles = StyleSheet.create({
   headerActions: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: spacing.sm,
   },
   headerAvatar: {
     width: 40,

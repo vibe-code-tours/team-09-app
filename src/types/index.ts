@@ -53,3 +53,21 @@ export const CATEGORIES = {
   money: { icon: '💰', label: 'Money', color: '#4CAF50' },
   other: { icon: '📝', label: 'Other', color: '#607D8B' },
 } as const;
+
+/**
+ * AI-generated weekly summary with stats.
+ */
+export interface WeeklySummary {
+  id: string;
+  userId: string;
+  weekStart: Date;
+  weekEnd: Date;
+  summaryMy: string;
+  summaryEn: string;
+  categoryBreakdown: Record<Category, number>;
+  moodTrend: { date: string; mood: string }[];
+  entryCount: number;
+  totalDuration: number; // seconds
+  language: 'my' | 'en';
+  createdAt: Date;
+}

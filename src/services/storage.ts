@@ -1,9 +1,9 @@
 // SQLite Storage Service (Drizzle ORM)
-import { eq, and, gte, desc, sql } from 'drizzle-orm';
+import { eq, and, gte, lte, desc, sql } from 'drizzle-orm';
 import * as Crypto from 'expo-crypto';
 import { getDb } from '../db';
-import { entries, userSettings, type NewEntry, type Entry } from '../db/schema';
-import { Entry as AppEntry, Category } from '../types';
+import { entries, userSettings, weeklySummaries, type NewEntry, type Entry } from '../db/schema';
+import { Entry as AppEntry, Category, WeeklySummary } from '../types';
 import { clearAllRecordings } from './audioStorage';
 import { cancelDailyReminder } from './notification';
 
@@ -207,4 +207,169 @@ export const clearAllData = async (): Promise<{
   );
 
   return { entriesDeleted, settingsDeleted, recordingsDeleted };
+};
+
+// =============================================================================
+// User settings
+// =============================================================================
+
+/**
+ * Get user settings by userId.
+ */
+export const getUserSettings = async (userId: string) => {
+  const db = getDb();
+  const rows = await db
+    .select()
+    .from(userSettings)
+    .where(eq(userSettings.userId, userId))
+    .limit(1);
+  return rows.length > 0 ? rows[0] : null;
+};
+
+/**
+ * Save or update user settings.
+ */
+export const saveUserSettings = async (
+  userId: string,
+  settings: Partial<{
+    languageCode: 'my' | 'en';
+    currency: string;
+    autoTranscribe: boolean;
+    theme: 'light' | 'dark' | 'system';
+    notifications: boolean;
+    reminderTime: string;
+    weeklySummary: boolean;
+    weeklySummaryLanguage: 'my' | 'en';
+  }>
+): Promise<void> => {
+  const db = getDb();
+  const now = new Date();
+  const existing = await getUserSettings(userId);
+
+  if (existing) {
+    await db
+      .update(userSettings)
+      .set({ ...settings, updatedAt: now })
+      .where(eq(userSettings.userId, userId));
+  } else {
+    await db.insert(userSettings).values({
+      userId,
+      languageCode: settings.languageCode ?? 'my',
+      currency: settings.currency ?? 'MMK',
+      autoTranscribe: settings.autoTranscribe ?? true,
+      theme: settings.theme ?? 'system',
+      notifications: settings.notifications ?? true,
+      reminderTime: settings.reminderTime ?? '20:00',
+      weeklySummary: settings.weeklySummary ?? false,
+      weeklySummaryLanguage: settings.weeklySummaryLanguage ?? 'my',
+      createdAt: now,
+      updatedAt: now,
+    });
+  }
+};
+
+// =============================================================================
+// Weekly entries query
+// =============================================================================
+
+/**
+ * Get entries within a date range for a user, oldest first (for weekly summary).
+ */
+export const getEntriesForDateRange = async (
+  userId: string,
+  start: Date,
+  end: Date
+): Promise<AppEntry[]> => {
+  const db = getDb();
+  const rows = await db
+    .select()
+    .from(entries)
+    .where(
+      and(
+        eq(entries.userId, userId),
+        eq(entries.isDeleted, false),
+        gte(entries.occurredAt, start),
+        lte(entries.occurredAt, end)
+      )
+    )
+    .orderBy(entries.occurredAt);
+
+  return rows.map(toAppEntry);
+};
+
+// =============================================================================
+// Weekly summaries cache
+// =============================================================================
+
+/**
+ * Get cached weekly summary for a given week start date.
+ */
+export const getWeeklySummary = async (
+  userId: string,
+  weekStart: Date
+): Promise<WeeklySummary | null> => {
+  const db = getDb();
+  const rows = await db
+    .select()
+    .from(weeklySummaries)
+    .where(
+      and(
+        eq(weeklySummaries.userId, userId),
+        eq(weeklySummaries.weekStart, weekStart)
+      )
+    )
+    .limit(1);
+
+  if (rows.length === 0) return null;
+
+  const row = rows[0];
+  return {
+    id: row.id,
+    userId: row.userId,
+    weekStart: new Date(row.weekStart),
+    weekEnd: new Date(row.weekEnd),
+    summaryMy: row.summaryMy || '',
+    summaryEn: row.summaryEn || '',
+    categoryBreakdown: row.categoryBreakdown ? JSON.parse(row.categoryBreakdown) : {},
+    moodTrend: row.moodTrend ? JSON.parse(row.moodTrend) : [],
+    entryCount: row.entryCount,
+    totalDuration: row.totalDuration,
+    language: (row.language as 'my' | 'en') || 'my',
+    createdAt: new Date(row.createdAt),
+  };
+};
+
+/**
+ * Save or replace a weekly summary cache entry.
+ */
+export const saveWeeklySummaryRecord = async (
+  summary: Omit<WeeklySummary, 'id' | 'createdAt'>
+): Promise<void> => {
+  const db = getDb();
+  const now = new Date();
+
+  // Delete existing summary for this week if any
+  await db
+    .delete(weeklySummaries)
+    .where(
+      and(
+        eq(weeklySummaries.userId, summary.userId),
+        eq(weeklySummaries.weekStart, summary.weekStart)
+      )
+    );
+
+  await db.insert(weeklySummaries).values({
+    id: Crypto.randomUUID(),
+    userId: summary.userId,
+    weekStart: summary.weekStart,
+    weekEnd: summary.weekEnd,
+    summaryMy: summary.summaryMy || null,
+    summaryEn: summary.summaryEn || null,
+    categoryBreakdown: JSON.stringify(summary.categoryBreakdown),
+    moodTrend: JSON.stringify(summary.moodTrend),
+    entryCount: summary.entryCount,
+    totalDuration: summary.totalDuration,
+    language: summary.language,
+    createdAt: now,
+  });
 };

@@ -79,10 +79,14 @@ export const scheduleDailyReminder = async (
     return;
   }
 
+  // Guard against undefined/null values
+  const safeHour = typeof hour === 'number' ? hour : 20;
+  const safeMinute = typeof minute === 'number' ? minute : 0;
+
   // Cancel any existing notifications first
   await cancelDailyReminder();
 
-  console.log(`[Notification] Scheduling daily reminder at ${hour}:${minute.toString().padStart(2, '0')}`);
+  console.log(`[Notification] Scheduling daily reminder at ${safeHour}:${safeMinute.toString().padStart(2, '0')}`);
 
   const notificationId = await Notifications.scheduleNotificationAsync({
     content: {
@@ -93,8 +97,8 @@ export const scheduleDailyReminder = async (
     },
     trigger: {
       type: Notifications.SchedulableTriggerInputTypes.DAILY,
-      hour,
-      minute,
+      hour: safeHour,
+      minute: safeMinute,
       channelId: 'daily-reminder',
     },
   });
@@ -139,4 +143,70 @@ export const addNotificationTapListener = (
     return { remove: () => { } };
   }
   return Notifications.addNotificationResponseReceivedListener(handler);
+};
+
+// =============================================================================
+// Weekly Summary Notifications
+// =============================================================================
+
+/**
+ * Schedule a weekly summary notification for a specific day and time.
+ * @param dayOfWeek - 0=Sunday, 1=Monday, ..., 6=Saturday
+ * @param hour - Hour of day (0-23)
+ * @param minute - Minute of hour (0-59)
+ */
+export const scheduleWeeklyReminder = async (
+  dayOfWeek: number,
+  hour: number,
+  minute: number
+): Promise<void> => {
+  if (isExpoGo || !Notifications) {
+    console.log('[Notification] Skipping weekly schedule (Expo Go)');
+    return;
+  }
+
+  // Guard against NaN
+  const safeDay = typeof dayOfWeek === 'number' && !isNaN(dayOfWeek) ? dayOfWeek : 0;
+  const safeHour = typeof hour === 'number' && !isNaN(hour) ? hour : 20;
+  const safeMinute = typeof minute === 'number' && !isNaN(minute) ? minute : 0;
+
+  // Cancel any existing weekly notifications first
+  await cancelWeeklyReminder();
+
+  console.log(`[Notification] Scheduling weekly summary on day ${safeDay} at ${safeHour}:${safeMinute.toString().padStart(2, '0')}`);
+
+  const notificationId = await Notifications.scheduleNotificationAsync({
+    content: {
+      title: '📊 Weekly Summary',
+      body: 'Your weekly summary is ready! Tap to view.',
+      data: { screen: 'weekly-summary' },
+      sound: 'default',
+    },
+    trigger: {
+      type: Notifications.SchedulableTriggerInputTypes.WEEKLY,
+      weekday: safeDay + 1, // Expo uses 1=Sunday, 2=Monday, ..., 7=Saturday
+      hour: safeHour,
+      minute: safeMinute,
+      channelId: 'daily-reminder',
+    },
+  });
+
+  console.log(`[Notification] Weekly summary scheduled with ID: ${notificationId}`);
+};
+
+/**
+ * Cancel all scheduled weekly summary notifications.
+ */
+export const cancelWeeklyReminder = async (): Promise<void> => {
+  if (isExpoGo || !Notifications) return;
+
+  const all = await Notifications.getAllScheduledNotificationsAsync();
+  const weekly = all.filter(
+    (n) => n.content.data?.screen === 'weekly-summary'
+  );
+
+  for (const n of weekly) {
+    await Notifications.cancelScheduledNotificationAsync(n.identifier);
+  }
+  console.log(`[Notification] Cancelled ${weekly.length} weekly notifications`);
 };
