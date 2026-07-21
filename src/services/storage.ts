@@ -214,6 +214,9 @@ export const clearAllData = async (): Promise<{
   const settingsResult = await db.delete(userSettings);
   const settingsDeleted = settingsResult.changes ?? 0;
 
+  // Delete all weekly summaries
+  await db.delete(weeklySummaries);
+
   // Delete all audio files
   const recordingsDeleted = clearAllRecordings();
 
