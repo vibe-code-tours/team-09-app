@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sketch 011: Bottom Sheet Menu</title>
+<link rel="stylesheet" href="../themes/default.css">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: var(--font-sans); background: #1a1a1a; color: var(--color-text); overflow: hidden; }
+
+  #variant-nav {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 9998;
+    background: #222; border-bottom: 1px solid #333;
+    padding: 8px 16px; display: flex; gap: 8px; font-family: system-ui;
+  }
+  .variant-tab {
+    padding: 6px 14px; border-radius: var(--radius-full); border: 1px solid #444;
+    background: transparent; cursor: pointer; font-size: 13px; font-weight: 500;
+    transition: all 0.15s ease; color: #999;
+  }
+  .variant-tab:hover { background: #333; }
+  .variant-tab.active { background: var(--color-primary); color: white; border-color: var(--color-primary); }
+
+  .variant { display: none; padding-top: 56px; min-height: 100vh; }
+  .variant.active { display: block; }
+
+  .phone-frame {
+    max-width: 390px; margin: 24px auto; background: var(--color-bg);
+    border-radius: 32px; box-shadow: 0 20px 60px rgba(0,0,0,0.5); overflow: hidden;
+    border: 8px solid #1a1a1a; min-height: 844px; position: relative;
+  }
+
+  /* Home screen background */
+  .home-bg { padding: 60px 20px 100px; min-height: 844px; position: relative; }
+  .home-greeting { font-size: 14px; color: var(--color-text-muted); margin-bottom: 4px; }
+  .home-title { font-size: 28px; font-weight: 700; margin-bottom: 20px; color: var(--color-text); }
+  .home-card {
+    background: var(--color-surface); border-radius: var(--radius-lg); padding: 16px;
+    margin-bottom: 12px; box-shadow: var(--shadow-sm);
+    border-left: 4px solid var(--cat-feelings);
+  }
+  .home-card-title { font-size: 16px; font-weight: 600; margin-bottom: 4px; }
+  .home-card-meta { font-size: 13px; color: var(--color-text-muted); }
+
+  /* Overlay */
+  .overlay {
+    position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.5); z-index: 10; transition: opacity 0.3s ease;
+  }
+
+  /* ===== VARIANT A: Simple Two-Option ===== */
+  .a-sheet {
+    position: absolute; bottom: 0; left: 0; right: 0; z-index: 20;
+    background: var(--color-surface); border-radius: 20px 20px 0 0;
+    padding: 12px 0 40px; transform: translateY(0);
+    transition: transform 0.3s cubic-bezier(0.32, 0.72, 0, 1);
+  }
+  .a-handle {
+    width: 36px; height: 4px; border-radius: 2px; background: var(--color-border);
+    margin: 0 auto 16px;
+  }
+  .a-title { font-size: 18px; font-weight: 600; padding: 0 20px 16px; }
+  .a-option {
+    display: flex; align-items: center; gap: 14px; padding: 14px 20px;
+    cursor: pointer; transition: background 0.15s ease; border: none;
+    background: transparent; width: 100%; text-align: left;
+  }
+  .a-option:hover { background: var(--color-surface-alt); }
+  .a-option-icon {
+    width: 48px; height: 48px; border-radius: 12px; display: flex;
+    align-items: center; justify-content: center; font-size: 22px; flex-shrink: 0;
+  }
+  .a-option-icon.mic { background: var(--color-primary-light); }
+  .a-option-icon.note { background: var(--color-success-light); }
+  .a-option-text { flex: 1; }
+  .a-option-title { font-size: 16px; font-weight: 600; color: var(--color-text); }
+  .a-option-desc { font-size: 13px; color: var(--color-text-muted); margin-top: 2px; }
+  .a-option-arrow { color: var(--color-text-muted); font-size: 18px; }
+
+  /* ===== VARIANT B: Rich Cards ===== */
+  .b-sheet {
+    position: absolute; bottom: 0; left: 0; right: 0; z-index: 20;
+    background: var(--color-surface); border-radius: 24px 24px 0 0;
+    padding: 12px 0 40px;
+  }
+  .b-handle {
+    width: 36px; height: 4px; border-radius: 2px; background: var(--color-border);
+    margin: 0 auto 20px;
+  }
+  .b-title { font-size: 20px; font-weight: 700; padding: 0 24px 20px; }
+  .b-cards { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; padding: 0 20px; }
+  .b-card {
+    background: var(--color-surface-alt); border-radius: var(--radius-lg); padding: 20px 16px;
+    cursor: pointer; transition: all 0.2s ease; border: 2px solid transparent;
+    text-align: center;
+  }
+  .b-card:hover { border-color: var(--color-primary); transform: translateY(-2px); box-shadow: var(--shadow-md); }
+  .b-card-icon {
+    width: 56px; height: 56px; border-radius: 16px; display: flex;
+    align-items: center; justify-content: center; font-size: 26px;
+    margin: 0 auto 12px;
+  }
+  .b-card-icon.mic { background: var(--color-primary); color: white; }
+  .b-card-icon.note { background: var(--color-success); color: white; }
+  .b-card-title { font-size: 15px; font-weight: 600; margin-bottom: 4px; }
+  .b-card-desc { font-size: 12px; color: var(--color-text-muted); line-height: 1.4; }
+
+  /* ===== VARIANT C: Action List ===== */
+  .c-sheet {
+    position: absolute; bottom: 0; left: 0; right: 0; z-index: 20;
+    background: var(--color-surface); border-radius: 20px 20px 0 0;
+    padding: 12px 20px 40px;
+  }
+  .c-handle {
+    width: 36px; height: 4px; border-radius: 2px; background: var(--color-border);
+    margin: 0 auto 16px;
+  }
+  .c-title { font-size: 16px; font-weight: 600; color: var(--color-text-muted); text-transform: uppercase; letter-spacing: 0.5px; padding: 0 0 12px; }
+  .c-list { display: flex; flex-direction: column; gap: 2px; }
+  .c-item {
+    display: flex; align-items: center; gap: 14px; padding: 14px 12px;
+    border-radius: var(--radius-md); cursor: pointer; transition: all 0.15s ease;
+    border: none; background: transparent; width: 100%; text-align: left;
+  }
+  .c-item:hover { background: var(--color-surface-alt); }
+  .c-item-icon {
+    width: 40px; height: 40px; border-radius: 10px; display: flex;
+    align-items: center; justify-content: center; font-size: 18px;
+  }
+  .c-item-icon.mic { background: var(--color-primary-light); }
+  .c-item-icon.note { background: var(--color-success-light); }
+  .c-item-icon.photo { background: #E3F2FD; }
+  .c-item-icon.file { background: #F3E5F5; }
+  .c-item-text { flex: 1; }
+  .c-item-title { font-size: 15px; font-weight: 500; }
+  .c-item-desc { font-size: 12px; color: var(--color-text-muted); }
+  .c-item-shortcut {
+    font-size: 12px; color: var(--color-text-muted); background: var(--color-surface-alt);
+    padding: 2px 8px; border-radius: 4px; font-family: var(--font-mono);
+  }
+
+  /* Tab bar */
+  .tab-bar {
+    position: absolute; bottom: 0; left: 0; right: 0; z-index: 5;
+    background: var(--color-surface); border-top: 1px solid var(--color-border);
+    display: flex; align-items: center; justify-content: space-around;
+    padding: 8px 0 28px;
+  }
+  .tab-item { display: flex; flex-direction: column; align-items: center; gap: 2px; font-size: 10px; color: var(--color-text-muted); }
+  .tab-center {
+    width: 56px; height: 56px; border-radius: 50%; background: var(--color-primary);
+    display: flex; align-items: center; justify-content: center;
+    margin-top: -28px; box-shadow: var(--shadow-primary); cursor: pointer;
+    border: 4px solid var(--color-surface); color: white; font-size: 28px;
+    transition: transform 0.15s ease;
+  }
+  .tab-center:hover { transform: scale(1.05); }
+</style>
+</head>
+<body>
+
+<div id="variant-nav">
+  <button class="variant-tab active" onclick="showVariant('a')">A: Simple Two-Option ★</button>
+  <button class="variant-tab" onclick="showVariant('b')">B: Rich Cards</button>
+  <button class="variant-tab" onclick="showVariant('c')">C: Action List</button>
+</div>
+
+<!-- ===== VARIANT A: Simple Two-Option ===== -->
+<div id="variant-a" class="variant active">
+  <div class="phone-frame">
+    <div class="home-bg">
+      <div class="home-greeting">🌅 Good Morning</div>
+      <div class="home-title">Hello, User</div>
+      <div class="home-card">
+        <div class="home-card-title">Morning walk reflections</div>
+        <div class="home-card-meta">😊 Feelings · 2h ago</div>
+      </div>
+      <div class="home-card" style="border-left-color: var(--cat-money);">
+        <div class="home-card-title">Lunch expense</div>
+        <div class="home-card-meta">💰 Money · 3h ago</div>
+      </div>
+    </div>
+    <div class="overlay"></div>
+    <div class="a-sheet">
+      <div class="a-handle"></div>
+      <div class="a-title">Create New</div>
+      <button class="a-option">
+        <div class="a-option-icon mic">🎤</div>
+        <div class="a-option-text">
+          <div class="a-option-title">Record Voice</div>
+          <div class="a-option-desc">Speak to create a new entry</div>
+        </div>
+        <div class="a-option-arrow">›</div>
+      </button>
+      <button class="a-option">
+        <div class="a-option-icon note">📝</div>
+        <div class="a-option-text">
+          <div class="a-option-title">New Note</div>
+          <div class="a-option-desc">Write a note manually</div>
+        </div>
+        <div class="a-option-arrow">›</div>
+      </button>
+    </div>
+    <div class="tab-bar">
+      <div class="tab-item">🏠<br>Home</div>
+      <div class="tab-item">🔍<br>Search</div>
+      <div class="tab-center">+</div>
+      <div class="tab-item">⚙️<br>Settings</div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== VARIANT B: Rich Cards ===== -->
+<div id="variant-b" class="variant" style="display:none">
+  <div class="phone-frame">
+    <div class="home-bg">
+      <div class="home-greeting">🌅 Good Morning</div>
+      <div class="home-title">Hello, User</div>
+      <div class="home-card">
+        <div class="home-card-title">Morning walk reflections</div>
+        <div class="home-card-meta">😊 Feelings · 2h ago</div>
+      </div>
+    </div>
+    <div class="overlay"></div>
+    <div class="b-sheet">
+      <div class="b-handle"></div>
+      <div class="b-title">What would you like to create?</div>
+      <div class="b-cards">
+        <div class="b-card">
+          <div class="b-card-icon mic">🎤</div>
+          <div class="b-card-title">Record Voice</div>
+          <div class="b-card-desc">Speak in Burmese, get AI transcription</div>
+        </div>
+        <div class="b-card">
+          <div class="b-card-icon note">📝</div>
+          <div class="b-card-title">Write Note</div>
+          <div class="b-card-desc">Type a note with markdown support</div>
+        </div>
+      </div>
+    </div>
+    <div class="tab-bar">
+      <div class="tab-item">🏠<br>Home</div>
+      <div class="tab-item">🔍<br>Search</div>
+      <div class="tab-center">+</div>
+      <div class="tab-item">⚙️<br>Settings</div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== VARIANT C: Action List ===== -->
+<div id="variant-c" class="variant" style="display:none">
+  <div class="phone-frame">
+    <div class="home-bg">
+      <div class="home-greeting">🌅 Good Morning</div>
+      <div class="home-title">Hello, User</div>
+      <div class="home-card">
+        <div class="home-card-title">Morning walk reflections</div>
+        <div class="home-card-meta">😊 Feelings · 2h ago</div>
+      </div>
+    </div>
+    <div class="overlay"></div>
+    <div class="c-sheet">
+      <div class="c-handle"></div>
+      <div class="c-title">Create</div>
+      <div class="c-list">
+        <button class="c-item">
+          <div class="c-item-icon mic">🎤</div>
+          <div class="c-item-text">
+            <div class="c-item-title">Record Voice</div>
+            <div class="c-item-desc">Speak to create a new entry</div>
+          </div>
+          <div class="c-item-shortcut">Voice</div>
+        </button>
+        <button class="c-item">
+          <div class="c-item-icon note">📝</div>
+          <div class="c-item-text">
+            <div class="c-item-title">Write Note</div>
+            <div class="c-item-desc">Type with markdown support</div>
+          </div>
+          <div class="c-item-shortcut">Text</div>
+        </button>
+        <button class="c-item">
+          <div class="c-item-icon photo">📷</div>
+          <div class="c-item-text">
+            <div class="c-item-title">Take Photo</div>
+            <div class="c-item-desc">Capture a moment</div>
+          </div>
+          <div class="c-item-shortcut">Photo</div>
+        </button>
+        <button class="c-item">
+          <div class="c-item-icon file">📎</div>
+          <div class="c-item-text">
+            <div class="c-item-title">Attach File</div>
+            <div class="c-item-desc">Add a document or receipt</div>
+          </div>
+          <div class="c-item-shortcut">File</div>
+        </button>
+      </div>
+    </div>
+    <div class="tab-bar">
+      <div class="tab-item">🏠<br>Home</div>
+      <div class="tab-item">🔍<br>Search</div>
+      <div class="tab-center">+</div>
+      <div class="tab-item">⚙️<br>Settings</div>
+    </div>
+  </div>
+</div>
+
+<!-- Sketch Toolbar -->
+<div id="sketch-tools" style="position:fixed;bottom:12px;right:12px;z-index:9999;font-family:system-ui;font-size:12px;background:rgba(0,0,0,0.7);color:white;padding:8px 12px;border-radius:8px;opacity:0.4;transition:opacity 0.2s;" onmouseenter="this.style.opacity='1'" onmouseleave="this.style.opacity='0.4'">
+  <div style="margin-bottom:6px;font-weight:600;">Sketch 011</div>
+  <select onchange="document.querySelector('link[href*=themes]').href='../themes/'+this.value+'.css'" style="background:transparent;color:white;border:1px solid rgba(255,255,255,0.3);border-radius:4px;padding:2px 4px;font-size:11px;">
+    <option value="default">Default</option>
+  </select>
+</div>
+
+<script>
+function showVariant(id) {
+  document.querySelectorAll('.variant').forEach(v => { v.style.display = 'none'; v.classList.remove('active'); });
+  document.querySelectorAll('.variant-tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('variant-' + id).style.display = 'block';
+  event.target.classList.add('active');
+}
+</script>
+</body>
+</html>

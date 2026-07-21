@@ -1,0 +1,62 @@
+/* Mhat Tan — Vibrant + Professional Theme */
+:root {
+  /* Colors — Vibrant accent, calm base */
+  --color-bg: #F8F7F4;
+  --color-surface: #FFFFFF;
+  --color-surface-alt: #F3F2EE;
+  --color-border: #E8E6E1;
+  --color-text: #1A1A1A;
+  --color-text-muted: #7A7568;
+  --color-primary: #E91E63;
+  --color-primary-hover: #C2185B;
+  --color-primary-light: #FCE4EC;
+  --color-accent: #FF6F00;
+  --color-accent-light: #FFF3E0;
+  --color-danger: #EF4444;
+  --color-success: #2E7D32;
+  --color-success-light: #E8F5E9;
+
+  /* Category Colors — Vibrant but harmonious */
+  --cat-money: #4CAF50;
+  --cat-feelings: #E91E63;
+  --cat-work: #2196F3;
+  --cat-health: #FF9800;
+  --cat-ideas: #9C27B0;
+  --cat-other: #607D8B;
+
+  /* Typography */
+  --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+  --text-xs: 0.75rem;
+  --text-sm: 0.875rem;
+  --text-base: 1rem;
+  --text-lg: 1.125rem;
+  --text-xl: 1.25rem;
+  --text-2xl: 1.5rem;
+  --text-3xl: 2rem;
+
+  /* Spacing */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+
+  /* Shapes */
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-xl: 20px;
+  --radius-full: 9999px;
+
+  /* Shadows — Subtle, layered */
+  --shadow-sm: 0 1px 3px rgba(0,0,0,0.06);
+  --shadow-md: 0 4px 12px rgba(0,0,0,0.08);
+  --shadow-lg: 0 8px 24px rgba(0,0,0,0.1);
+  --shadow-xl: 0 12px 40px rgba(0,0,0,0.12);
+  --shadow-primary: 0 4px 16px rgba(233,30,99,0.25);
+}
