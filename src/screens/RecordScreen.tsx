@@ -28,6 +28,12 @@ import { categorizeEntry } from '../services/categorization';
 import { saveEntry, updateEntry } from '../services/storage';
 import { Category } from '../types';
 
+// Generate a title from the first few words of the transcript
+const generateTitle = (text: string): string => {
+  const words = text.trim().split(/\s+/).slice(0, 6).join(' ');
+  return words.length > 0 ? words : 'Voice Note';
+};
+
 export const RecordScreen: React.FC = () => {
   const navigation = useNavigation<any>();
   const { theme, isDark } = useTheme();
@@ -53,11 +59,12 @@ export const RecordScreen: React.FC = () => {
   const [category, setCategory] = useState<Category>('other');
   const [isCategorizing, setIsCategorizing] = useState(false);
   const [hasNavigatedToNote, setHasNavigatedToNote] = useState(false);
-
-  // Title modal state
   const [showTitleModal, setShowTitleModal] = useState(false);
   const [titleInput, setTitleInput] = useState('');
   const [isSavingNote, setIsSavingNote] = useState(false);
+
+  // Redirection flag
+  const [isRedirecting, setIsRedirecting] = useState(false);
 
   // Refs to avoid stale closures in effects
   const stateRef = useRef(state);
@@ -71,9 +78,101 @@ export const RecordScreen: React.FC = () => {
   const permanentUriRef = useRef<string | null>(null);
   const discardedRef = useRef(false);
 
+  // Helper to redirect to unified notepad
+  const navigateToCreateNote = (text: string, finalCategory: Category, audioPath: string) => {
+    if (hasNavigatedRef.current) return;
+    setHasNavigatedToNote(true);
+
+    navigation.navigate('Home', {
+      screen: 'CreateNote',
+      params: {
+        prefilledText: text,
+        predictedCategory: finalCategory,
+        audioFile: audioPath,
+        startViewOnly: true,
+      }
+    });
+
+    // Reset local states to avoid duplicate triggers and clean up
+    setTranscript('');
+    setTranscribeError(null);
+    setCategory('other');
+    setHasNavigatedToNote(false);
+    discardRecording();
+  };
+
+  // Helper to redirect to unified notepad with an already saved entry
+  const navigateToSavedNote = (entryId: string) => {
+    if (hasNavigatedRef.current) return;
+    setHasNavigatedToNote(true);
+
+    navigation.navigate('Home', {
+      screen: 'CreateNote',
+      params: {
+        entryId: entryId,
+        startViewOnly: true,
+      }
+    });
+
+    // Reset local states to avoid duplicate triggers and clean up
+    setTranscript('');
+    setTranscribeError(null);
+    setCategory('other');
+    setHasNavigatedToNote(false);
+    discardRecording();
+  };
+
+  const handleSaveNote = async (title: string) => {
+    if (isSavingNote) return;
+    setIsSavingNote(true);
+    try {
+      const currentTranscript = transcriptRef.current;
+      const currentCategory = categoryRef.current;
+      const audioUri = permanentUriRef.current || '';
+
+      const newEntryId = await saveEntry(userId, {
+        title: title.trim(),
+        transcript: currentTranscript.trim(),
+        category: currentCategory,
+        summary: '',
+        mood: 'neutral',
+        audioUri,
+        audioDuration: 0,
+        isPinned: false,
+      });
+
+      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      
+      setShowTitleModal(false);
+      setTitleInput('');
+      permanentUriRef.current = null;
+      
+      // Navigate to CreateNoteScreen with the saved note
+      navigateToSavedNote(newEntryId);
+    } catch (err: any) {
+      console.error('[RecordScreen] Save failed:', err);
+      setTranscribeError(err.message || 'Failed to save note');
+    } finally {
+      setIsSavingNote(false);
+    }
+  };
+
+  const handleSkipTitle = async () => {
+    const autoTitle = generateTitle(transcriptRef.current);
+    await handleSaveNote(autoTitle);
+  };
+
   // Animations
   const fadeIn = useRef(new Animated.Value(0)).current;
   const slideUp = useRef(new Animated.Value(20)).current;
+
+  // Reset navigation guard when screen is idle or starting recording
+  useEffect(() => {
+    if (state.status === 'idle' || state.status === 'recording') {
+      setHasNavigatedToNote(false);
+      discardedRef.current = false;
+    }
+  }, [state.status]);
 
   // Animate playback + action buttons in when recording finishes
   useEffect(() => {
@@ -116,31 +215,25 @@ export const RecordScreen: React.FC = () => {
           setTranscript(text);
 
           // Auto-categorize
-          if (!text.trim()) return;
-          setIsCategorizing(true);
-          try {
-            const result = await categorizeEntry(text);
-            if (discardedRef.current) return;
-            setCategory(result.category);
-            // Show title modal instead of navigating
-            if (!hasNavigatedRef.current) {
-              setHasNavigatedToNote(true);
-              setShowTitleModal(true);
-              setTitleInput('');
+          let finalCategory: Category = 'other';
+          if (text.trim()) {
+            setIsCategorizing(true);
+            try {
+              const result = await categorizeEntry(text);
+              if (discardedRef.current) return;
+              finalCategory = result.category;
+              setCategory(finalCategory); // Update category state/ref
+            } catch (catErr: any) {
+              console.error('[RecordScreen] Categorize failed:', catErr);
+            } finally {
+              if (!discardedRef.current) setIsCategorizing(false);
             }
-          } catch (catErr: any) {
-            console.error('[RecordScreen] Categorize failed:', catErr);
-            if (discardedRef.current) return;
-            setCategory('other');
-            // Still show title modal with default category
-            if (!hasNavigatedRef.current) {
-              setHasNavigatedToNote(true);
-              setShowTitleModal(true);
-              setTitleInput('');
-            }
-          } finally {
-            if (!discardedRef.current) setIsCategorizing(false);
           }
+
+          if (discardedRef.current) return;
+
+          // Open the Title Modal/Tooltip box instead of redirecting directly
+          setShowTitleModal(true);
         } catch (err: any) {
           console.error('[RecordScreen] Transcribe failed:', err);
           if (!discardedRef.current) setTranscribeError(err.message || 'Transcription failed');
@@ -179,61 +272,42 @@ export const RecordScreen: React.FC = () => {
 
   const handleDiscard = async () => {
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    
+    // If not recording and no uri, just go back
+    if (state.status === 'idle') {
+      navigation.goBack();
+      return;
+    }
+
     Alert.alert(
       'Discard Recording?',
-      'What would you like to do?',
+      'Are you sure you want to delete this recording?',
       [
         {
           text: 'Cancel',
           style: 'cancel',
         },
         {
-          text: 'Run in Background',
-          onPress: () => {
-            // Start background processing before navigating away
-            const currentUri = stateRef.current.uri;
-            if (currentUri) {
-              processInBackground(currentUri);
-            }
-            discardedRef.current = true;
-            setTranscript('');
-            setTranscribeError(null);
-            setCategory('other');
-            setHasNavigatedToNote(false);
-            setShowTitleModal(false);
-            setTitleInput('');
-            discardRecording();
-            navigation.goBack();
-          },
-        },
-        {
           text: 'Delete',
           style: 'destructive',
           onPress: async () => {
             discardedRef.current = true;
-            // Delete the saved audio file
             if (permanentUriRef.current) {
               deleteAudioFile(permanentUriRef.current);
               permanentUriRef.current = null;
             }
+            setShowTitleModal(false);
+            setTitleInput('');
             setTranscript('');
             setTranscribeError(null);
             setCategory('other');
             setHasNavigatedToNote(false);
-            setShowTitleModal(false);
-            setTitleInput('');
             discardRecording();
             navigation.goBack();
           },
         },
       ]
     );
-  };
-
-  // Generate a title from the first few words of the transcript
-  const generateTitle = (text: string): string => {
-    const words = text.trim().split(/\s+/).slice(0, 6).join(' ');
-    return words.length > 0 ? words : 'Voice Note';
   };
 
   // Process and save in background — runs after user navigates away
@@ -283,50 +357,6 @@ export const RecordScreen: React.FC = () => {
     } catch (err) {
       console.error('[RecordScreen] Background save failed:', err);
     }
-  };
-
-  // Save the note with the provided title
-  const handleSaveNote = async (title: string) => {
-    if (isSavingNote) return;
-    setIsSavingNote(true);
-    try {
-      const currentTranscript = transcriptRef.current;
-      const currentCategory = categoryRef.current;
-      const audioUri = stateRef.current.uri || '';
-
-      await saveEntry(userId, {
-        title: title.trim(),
-        transcript: currentTranscript.trim(),
-        category: currentCategory,
-        summary: '',
-        mood: 'neutral',
-        audioUri,
-        audioDuration: 0,
-        isPinned: false,
-      });
-
-      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      permanentUriRef.current = null;
-      setShowTitleModal(false);
-      setTitleInput('');
-      setTranscript('');
-      setTranscribeError(null);
-      setCategory('other');
-      setHasNavigatedToNote(false);
-      discardRecording();
-      navigation.goBack();
-    } catch (err: any) {
-      console.error('[RecordScreen] Save failed:', err);
-      setTranscribeError(err.message || 'Failed to save note');
-    } finally {
-      setIsSavingNote(false);
-    }
-  };
-
-  // Skip title — auto-save with generated title
-  const handleSkipTitle = async () => {
-    const autoTitle = generateTitle(transcriptRef.current);
-    await handleSaveNote(autoTitle);
   };
 
   const isSaving = state.status === 'saving';
@@ -462,24 +492,27 @@ export const RecordScreen: React.FC = () => {
                   if (!uri) return;
                   setIsTranscribing(true);
                   setTranscribeError(null);
+                  let finalUri = '';
                   saveAudioLocally(uri)
                     .then(permanentUri => {
                       if (!permanentUri) {
                         throw new Error('Storage full. Delete some recordings first.');
                       }
+                      finalUri = permanentUri;
                       return transcribeAudio(permanentUri);
                     })
-                    .then(text => {
+                    .then(async text => {
                       setTranscript(text);
-                      return categorizeEntry(text);
-                    })
-                    .then(result => {
-                      setCategory(result.category);
-                      if (!hasNavigatedRef.current) {
-                        setHasNavigatedToNote(true);
-                        setShowTitleModal(true);
-                        setTitleInput('');
+                      let finalCategory: Category = 'other';
+                      try {
+                        const result = await categorizeEntry(text);
+                        finalCategory = result.category;
+                        setCategory(finalCategory);
+                      } catch (catErr) {
+                        console.error('[RecordScreen] Categorize failed:', catErr);
                       }
+                      // Open Title Modal on retry success
+                      setShowTitleModal(true);
                     })
                     .catch(err => {
                       setTranscribeError(err.message || 'Transcription failed');
@@ -508,6 +541,7 @@ export const RecordScreen: React.FC = () => {
           </View>
         </Animated.View>
       )}
+
       {/* Title Modal */}
       <Modal
         visible={showTitleModal}

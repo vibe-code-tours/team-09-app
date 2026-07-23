@@ -76,14 +76,22 @@ export const CreateNoteScreen: React.FC = () => {
 
   const contentInputRef = useRef<TextInput>(null);
 
-  // Load existing entry if editing
+  // Load entry or initialize states based on route params
   useEffect(() => {
     if (entryId) {
       loadEntry(entryId);
-    } else if (prefilledText) {
-      setContent(prefilledText);
+      setIsViewOnly(startViewOnly);
+    } else {
+      // Clear/Reset all fields for new note
+      setTitle("");
+      setContent(prefilledText || "");
+      setCategory(predictedCategory || "other");
+      setIsPinned(false);
+      setIsViewOnly(startViewOnly);
+      setAudioFile(initialAudioFile);
+      setHasUnsavedChanges(false);
     }
-  }, [entryId, prefilledText]);
+  }, [entryId, prefilledText, predictedCategory, initialAudioFile, startViewOnly]);
 
   // Load all entries for pin limit check
   useEffect(() => {
@@ -107,6 +115,8 @@ export const CreateNoteScreen: React.FC = () => {
         setIsPinned(entry.isPinned);
         if (entry.audioUri) {
           setAudioFile(entry.audioUri);
+        } else {
+          setAudioFile(undefined);
         }
       }
     } catch (error) {
@@ -123,16 +133,25 @@ export const CreateNoteScreen: React.FC = () => {
 
     try {
       setIsSaving(true);
+
+      // Generate a default title if empty
+      let finalTitle = title.trim();
+      if (!finalTitle) {
+        const words = content.trim().split(/\s+/).slice(0, 6).join(' ');
+        finalTitle = words.length > 0 ? words : 'Voice Note';
+        setTitle(finalTitle); // sync state so user sees it
+      }
+
       if (entryId) {
         await updateEntry(entryId, {
-          title: title.trim(),
+          title: finalTitle,
           transcript: content.trim(),
           category,
           isPinned,
         });
       } else {
         const newEntryId = await saveEntry(userId, {
-          title: title.trim(),
+          title: finalTitle,
           transcript: content.trim(),
           category,
           summary: "",
@@ -141,7 +160,13 @@ export const CreateNoteScreen: React.FC = () => {
           audioDuration: 0,
           isPinned,
         });
-        navigation.setParams({ entryId: newEntryId } as any);
+        setHasUnsavedChanges(false);
+        if (Platform.OS === "android") {
+          ToastAndroid.show("Note saved", ToastAndroid.SHORT);
+        }
+        // Redirect back for new notes
+        navigation.goBack();
+        return;
       }
       setHasUnsavedChanges(false);
       if (Platform.OS === "android") {
@@ -179,15 +204,20 @@ export const CreateNoteScreen: React.FC = () => {
 
   // ── Back Navigation ──────────────────────────────────────────
   const handleBack = () => {
-    if (hasUnsavedChanges) {
+    if (hasUnsavedChanges || !entryId) {
       Alert.alert(
-        "Unsaved Changes",
-        "You have unsaved changes. What would you like to do?",
+        "Discard Note?",
+        "This note has not been saved yet. What would you like to do?",
         [
           {
             text: "Discard",
             style: "destructive",
-            onPress: () => navigation.goBack(),
+            onPress: () => {
+              if (audioFile && !entryId) {
+                deleteAudioFile(audioFile);
+              }
+              navigation.goBack();
+            },
           },
           { text: "Save", onPress: handleManualSave },
           { text: "Cancel", style: "cancel" },
@@ -196,6 +226,26 @@ export const CreateNoteScreen: React.FC = () => {
     } else {
       navigation.goBack();
     }
+  };
+
+  const handleSkip = () => {
+    Alert.alert(
+      "Discard Note?",
+      "Are you sure you want to discard this note?",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Discard",
+          style: "destructive",
+          onPress: () => {
+            if (audioFile && !entryId) {
+              deleteAudioFile(audioFile);
+            }
+            navigation.goBack();
+          },
+        },
+      ]
+    );
   };
 
   // ── View / Edit Toggle ───────────────────────────────────────
@@ -390,6 +440,30 @@ export const CreateNoteScreen: React.FC = () => {
         <View style={styles.headerActions}>
           {isViewOnly ? (
             <>
+              <TouchableOpacity
+                style={[
+                  styles.headerButton,
+                  { backgroundColor: colors.surfaceAlt },
+                ]}
+                onPress={handleEdit}
+              >
+                <Ionicons name="create-outline" size={16} color={colors.text} />
+                <Text style={[styles.headerButtonText, { color: colors.text }]}>
+                  Edit
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[
+                  styles.headerButton,
+                  { backgroundColor: colors.primary },
+                ]}
+                onPress={handleManualSave}
+              >
+                <Ionicons name="save-outline" size={16} color="#FFFFFF" />
+                <Text style={[styles.headerButtonText, { color: "#FFFFFF" }]}>
+                  Save
+                </Text>
+              </TouchableOpacity>
               {entryId && (
                 <TouchableOpacity
                   style={[
@@ -405,18 +479,6 @@ export const CreateNoteScreen: React.FC = () => {
                   />
                 </TouchableOpacity>
               )}
-              <TouchableOpacity
-                style={[
-                  styles.headerButton,
-                  { backgroundColor: colors.primary },
-                ]}
-                onPress={handleEdit}
-              >
-                <Ionicons name="create-outline" size={16} color="#FFFFFF" />
-                <Text style={[styles.headerButtonText, { color: "#FFFFFF" }]}>
-                  Edit
-                </Text>
-              </TouchableOpacity>
             </>
           ) : (
             <>
@@ -435,25 +497,13 @@ export const CreateNoteScreen: React.FC = () => {
               <TouchableOpacity
                 style={[
                   styles.headerButton,
-                  hasUnsavedChanges
-                    ? { backgroundColor: colors.primary }
-                    : { backgroundColor: colors.primaryLight },
+                  { backgroundColor: colors.primary },
                 ]}
                 onPress={handleManualSave}
-                disabled={isSaving || !hasUnsavedChanges}
               >
-                <Ionicons
-                  name="checkmark"
-                  size={16}
-                  color={hasUnsavedChanges ? "#FFFFFF" : colors.textMuted}
-                />
-                <Text
-                  style={[
-                    styles.headerButtonText,
-                    { color: hasUnsavedChanges ? "#FFFFFF" : colors.textMuted },
-                  ]}
-                >
-                  {isSaving ? "Saving..." : "Save"}
+                <Ionicons name="save-outline" size={16} color="#FFFFFF" />
+                <Text style={[styles.headerButtonText, { color: "#FFFFFF" }]}>
+                  Save
                 </Text>
               </TouchableOpacity>
             </>
@@ -604,6 +654,101 @@ export const CreateNoteScreen: React.FC = () => {
         </ScrollView>
       </KeyboardAvoidingView>
 
+      {/* Bottom Actions Bar */}
+      {isViewOnly ? (
+        // View Only Mode
+        <View
+          style={[
+            styles.bottomActions,
+            {
+              backgroundColor: colors.surface,
+              borderTopColor: colors.border,
+            },
+          ]}
+        >
+          {entryId ? (
+            <TouchableOpacity
+              style={[
+                styles.bottomButton,
+                styles.bottomButtonSecondary,
+                { borderColor: colors.border },
+              ]}
+              onPress={handleEdit}
+            >
+              <Ionicons
+                name="create-outline"
+                size={18}
+                color={colors.textSecondary}
+              />
+              <Text
+                style={[
+                  styles.bottomButtonText,
+                  { color: colors.textSecondary },
+                ]}
+              >
+                Edit Note
+              </Text>
+            </TouchableOpacity>
+          ) : (
+            <>
+              <TouchableOpacity
+                style={[
+                  styles.bottomButton,
+                  styles.bottomButtonSecondary,
+                  { borderColor: colors.border },
+                ]}
+                onPress={handleSkip}
+              >
+                <Ionicons
+                  name="close-circle-outline"
+                  size={18}
+                  color={colors.textSecondary}
+                />
+                <Text
+                  style={[
+                    styles.bottomButtonText,
+                    { color: colors.textSecondary },
+                  ]}
+                >
+                  Skip
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.bottomButton, { backgroundColor: colors.primary }]}
+                onPress={handleManualSave}
+              >
+                <Ionicons name="checkmark-circle-outline" size={18} color="#FFFFFF" />
+                <Text style={[styles.bottomButtonText, { color: "#FFFFFF" }]}>
+                  Save Note
+                </Text>
+              </TouchableOpacity>
+            </>
+          )}
+        </View>
+      ) : (
+        // Edit Mode
+        <View
+          style={[
+            styles.bottomActions,
+            {
+              backgroundColor: colors.surface,
+              borderTopColor: colors.border,
+            },
+          ]}
+        >
+          <TouchableOpacity
+            style={[styles.bottomButton, { backgroundColor: colors.primary }]}
+            onPress={handleManualSave}
+          >
+            <Ionicons name="save-outline" size={18} color="#FFFFFF" />
+            <Text style={[styles.bottomButtonText, { color: "#FFFFFF" }]}>
+              Save Note
+            </Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
       <PinLimitModal
         visible={pinModalVisible}
         pinnedEntries={pinnedForReplace}
@@ -744,5 +889,29 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontStyle: "italic",
     minHeight: 300,
+  },
+  bottomActions: {
+    paddingHorizontal: spacing.xl,
+    paddingVertical: spacing.md,
+    borderTopWidth: 1,
+    flexDirection: "row",
+    gap: spacing.md,
+  },
+  bottomButton: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 14,
+    borderRadius: radius.md,
+    gap: spacing.sm,
+  },
+  bottomButtonSecondary: {
+    borderWidth: 1,
+    backgroundColor: "transparent",
+  },
+  bottomButtonText: {
+    fontSize: 16,
+    fontWeight: "600",
   },
 });
