@@ -21,6 +21,7 @@ import { NotesScreen } from './src/screens/NotesScreen';
 import { DayDetailScreen } from './src/screens/DayDetailScreen';
 import { ElevatedTabBar } from './src/components/ElevatedTabBar';
 import { CreateSheet } from './src/components/CreateSheet';
+import { BackgroundTitleModal } from './src/components/BackgroundTitleModal';
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
@@ -200,6 +201,7 @@ function AppContent() {
     <NavigationContainer ref={navigationRef}>
       <StatusBar style={isDark ? 'light' : 'dark'} />
       <MainTabs />
+      <BackgroundTitleModal navigationRef={navigationRef} />
     </NavigationContainer>
   );
 }

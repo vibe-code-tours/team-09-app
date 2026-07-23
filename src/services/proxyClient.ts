@@ -88,3 +88,40 @@ export const proxyCategorizeEntry = async (transcript: string): Promise<{
     date: string;
   };
 };
+
+/**
+ * Call the /weekly-summary endpoint on the Cloudflare Worker.
+ * Sends entries data, worker proxies to the AI API.
+ */
+export const proxyWeeklySummary = async (entries: Array<{
+  date: string;
+  category: string;
+  mood: string;
+  summary: string;
+}>): Promise<{
+  summaryMy: string;
+  summaryEn: string;
+  categoryBreakdown: Record<string, number>;
+  moodTrend: Array<{ date: string; mood: string }>;
+}> => {
+  const baseUrl = getWorkerUrl();
+
+  const response = await fetch(`${baseUrl}/weekly-summary`, {
+    method: 'POST',
+    headers: getHeaders(),
+    body: JSON.stringify({ entries }),
+  });
+
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({ error: 'Unknown error' }));
+    throw new Error(err.error || `Weekly summary failed (${response.status})`);
+  }
+
+  const result = await response.json();
+  return result as {
+    summaryMy: string;
+    summaryEn: string;
+    categoryBreakdown: Record<string, number>;
+    moodTrend: Array<{ date: string; mood: string }>;
+  };
+};

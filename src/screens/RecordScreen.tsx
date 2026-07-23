@@ -12,6 +12,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   Alert,
+  DeviceEventEmitter,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
@@ -25,7 +26,7 @@ import { createShadows } from '../theme';
 import { saveAudioLocally, deleteAudioFile, canSaveRecording } from '../services/audioStorage';
 import { transcribeAudio } from '../services/transcription';
 import { categorizeEntry } from '../services/categorization';
-import { saveEntry, updateEntry } from '../services/storage';
+import { saveEntry } from '../services/storage';
 import { Category } from '../types';
 
 // Generate a title from the first few words of the transcript
@@ -77,6 +78,8 @@ export const RecordScreen: React.FC = () => {
   categoryRef.current = category;
   const permanentUriRef = useRef<string | null>(null);
   const discardedRef = useRef(false);
+  const backgroundModeRef = useRef(false);
+  const processingCancelledRef = useRef(false);
 
   // Helper to redirect to unified notepad
   const navigateToCreateNote = (text: string, finalCategory: Category, audioPath: string) => {
@@ -171,6 +174,7 @@ export const RecordScreen: React.FC = () => {
     if (state.status === 'idle' || state.status === 'recording') {
       setHasNavigatedToNote(false);
       discardedRef.current = false;
+      backgroundModeRef.current = false;
     }
   }, [state.status]);
 
@@ -200,7 +204,7 @@ export const RecordScreen: React.FC = () => {
         setTranscribeError(null);
         try {
           const permanentUri = await saveAudioLocally(currentUri);
-          if (discardedRef.current) return;
+          if (processingCancelledRef.current || (discardedRef.current && !backgroundModeRef.current)) return;
 
           // Handle storage limit reached
           if (!permanentUri) {
@@ -211,7 +215,7 @@ export const RecordScreen: React.FC = () => {
 
           permanentUriRef.current = permanentUri;
           const text = await transcribeAudio(permanentUri);
-          if (discardedRef.current) return;
+          if (processingCancelledRef.current || (discardedRef.current && !backgroundModeRef.current)) return;
           setTranscript(text);
 
           // Auto-categorize
@@ -220,25 +224,56 @@ export const RecordScreen: React.FC = () => {
             setIsCategorizing(true);
             try {
               const result = await categorizeEntry(text);
-              if (discardedRef.current) return;
+              if (processingCancelledRef.current || (discardedRef.current && !backgroundModeRef.current)) return;
               finalCategory = result.category;
               setCategory(finalCategory); // Update category state/ref
             } catch (catErr: any) {
               console.error('[RecordScreen] Categorize failed:', catErr);
             } finally {
-              if (!discardedRef.current) setIsCategorizing(false);
+              if (!processingCancelledRef.current && !discardedRef.current && !backgroundModeRef.current) setIsCategorizing(false);
             }
           }
 
-          if (discardedRef.current) return;
+          if (processingCancelledRef.current || (discardedRef.current && !backgroundModeRef.current)) return;
 
-          // Open the Title Modal/Tooltip box instead of redirecting directly
-          setShowTitleModal(true);
+          if (backgroundModeRef.current) {
+            // Background mode: save entry and emit global event
+            const entryId = await saveEntry(userId, {
+              title: generateTitle(text),
+              transcript: text.trim(),
+              category: finalCategory,
+              summary: '',
+              mood: 'neutral',
+              audioUri: permanentUriRef.current || '',
+              audioDuration: 0,
+              isPinned: false,
+            });
+
+            await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+            backgroundModeRef.current = false;
+            discardedRef.current = true;
+
+            // Notify the global title modal
+            DeviceEventEmitter.emit('note-ready-for-title', { entryId });
+
+            // Clean up local state
+            permanentUriRef.current = null;
+            setTranscript('');
+            setTranscribeError(null);
+            setCategory('other');
+            setHasNavigatedToNote(false);
+            setIsTranscribing(false);
+            setIsCategorizing(false);
+            discardRecording();
+          } else {
+            // Normal mode: show title modal locally
+            setShowTitleModal(true);
+          }
         } catch (err: any) {
           console.error('[RecordScreen] Transcribe failed:', err);
-          if (!discardedRef.current) setTranscribeError(err.message || 'Transcription failed');
+          if (!processingCancelledRef.current && !discardedRef.current) setTranscribeError(err.message || 'Transcription failed');
         } finally {
-          if (!discardedRef.current) setIsTranscribing(false);
+          if (!discardedRef.current || processingCancelledRef.current) setIsTranscribing(false);
         }
       };
 
@@ -253,6 +288,7 @@ export const RecordScreen: React.FC = () => {
         await stopRecording();
       } else {
         discardedRef.current = false;
+        processingCancelledRef.current = false;
         await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
         await startRecording();
       }
@@ -272,10 +308,51 @@ export const RecordScreen: React.FC = () => {
 
   const handleDiscard = async () => {
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    
+
     // If not recording and no uri, just go back
     if (state.status === 'idle') {
       navigation.goBack();
+      return;
+    }
+
+    // During transcription/categorization, offer Run in Background option
+    if (isTranscribing || isCategorizing) {
+      Alert.alert(
+        'Recording in Progress',
+        'Transcription is in progress. What would you like to do?',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Run in Background',
+            onPress: async () => {
+              backgroundModeRef.current = true;
+              navigation.navigate('Home');
+            },
+          },
+          {
+            text: 'Delete',
+            style: 'destructive',
+            onPress: async () => {
+              discardedRef.current = true;
+              processingCancelledRef.current = true;
+              if (permanentUriRef.current) {
+                deleteAudioFile(permanentUriRef.current);
+                permanentUriRef.current = null;
+              }
+              setShowTitleModal(false);
+              setTitleInput('');
+              setTranscript('');
+              setTranscribeError(null);
+              setCategory('other');
+              setHasNavigatedToNote(false);
+              setIsTranscribing(false);
+              setIsCategorizing(false);
+              discardRecording();
+              navigation.goBack();
+            },
+          },
+        ]
+      );
       return;
     }
 
@@ -308,55 +385,6 @@ export const RecordScreen: React.FC = () => {
         },
       ]
     );
-  };
-
-  // Process and save in background — runs after user navigates away
-  const processInBackground = async (audioUri: string) => {
-    try {
-      const permanentUri = await saveAudioLocally(audioUri);
-      if (!permanentUri) {
-        console.warn('[RecordScreen] Background save failed: storage full');
-        return;
-      }
-
-      // Save note immediately with empty title so it appears on HomeScreen
-      const entryId = await saveEntry(userId, {
-        title: '',
-        transcript: '',
-        category: 'other',
-        summary: '',
-        mood: 'neutral',
-        audioUri: permanentUri,
-        audioDuration: 0,
-        isPinned: false,
-      });
-
-      // Transcribe
-      const text = await transcribeAudio(permanentUri);
-      if (!text.trim()) return;
-
-      // Categorize
-      let finalCategory: Category = 'other';
-      try {
-        const result = await categorizeEntry(text);
-        finalCategory = result.category;
-      } catch {
-        // Use default category
-      }
-
-      // Update the note with transcript and category
-      await updateEntry(entryId, {
-        transcript: text.trim(),
-        category: finalCategory,
-      });
-
-      // Notify HomeScreen that a note is ready for title
-      const { DeviceEventEmitter } = require('react-native');
-      DeviceEventEmitter.emit('note-ready-for-title', { entryId });
-      console.log('[RecordScreen] Background processing completed:', entryId);
-    } catch (err) {
-      console.error('[RecordScreen] Background save failed:', err);
-    }
   };
 
   const isSaving = state.status === 'saving';
@@ -403,7 +431,7 @@ export const RecordScreen: React.FC = () => {
 
       {/* Record / Pause / Stop Buttons */}
       <View style={styles.buttonContainer}>
-        {isSaving ? (
+        {isSaving || isTranscribing || isCategorizing ? (
           <ActivityIndicator size="large" color={colors.primary} />
         ) : isRecording ? (
           // Recording active: show pause + stop side by side

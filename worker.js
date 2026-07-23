@@ -107,6 +107,9 @@ export default {
       if (path === '/categorize') {
         return await handleCategorize(body, env, corsHeaders);
       }
+      if (path === '/weekly-summary') {
+        return await handleWeeklySummary(body, env, corsHeaders);
+      }
 
       return new Response(JSON.stringify({ error: 'Not found' }), {
         status: 404,
@@ -255,6 +258,116 @@ Entry: "${transcript}"`;
       items: parsed.items || [],
       mood: parsed.mood || 'neutral',
       date: parsed.date || 'today',
+    }),
+    { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+  );
+}
+
+// ── Weekly Summary ────────────────────────────────────────────────
+async function handleWeeklySummary(body, env, corsHeaders) {
+  const { entries, weekStart, weekEnd } = body;
+
+  if (!entries || !Array.isArray(entries) || entries.length === 0) {
+    return new Response(
+      JSON.stringify({
+        summaryMy: 'ဒီအပတ်အတွက် အကျဉ်းချုပ် ရရှိမှာ မဟုတ်ပါ။',
+        summaryEn: 'No summary available for this week.',
+        categoryBreakdown: { feelings: 0, work: 0, health: 0, ideas: 0, money: 0, other: 0 },
+        moodTrend: [],
+      }),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+    );
+  }
+
+  const apiKey = env.VIBE_CODE_API_KEY;
+  if (!apiKey) {
+    return new Response(JSON.stringify({ error: 'VIBE_CODE_API_KEY not configured' }), {
+      status: 500,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
+  }
+
+  const baseUrl = env.VIBE_CODE_BASE_URL || 'https://proxy.vibecode.tours/v1';
+  const model = env.VIBE_CODE_MODEL || 'mimo-v2.5-pro';
+
+  const entrySummaries = entries.map((e, i) => {
+    const date = e.date || 'Unknown date';
+    return `${i + 1}. [${date}] Category: ${e.category} | Mood: ${e.mood || 'neutral'} | Summary: ${e.summary || ''}`;
+  }).join('\n');
+
+  const prompt = `You are a weekly journal summarizer for a Burmese speaker using a voice diary app.
+
+Here are this week's voice entries:
+${entrySummaries}
+
+Generate a weekly summary. Return JSON with:
+{
+  "summaryMy": "Weekly summary in Burmese (မြန်မာ). Write naturally as if talking to the user about their week. 2-3 paragraphs.",
+  "summaryEn": "Weekly summary in English. Write naturally as if talking to the user about their week. 2-3 paragraphs.",
+  "categoryBreakdown": { "feelings": 0, "work": 0, "health": 0, "ideas": 0, "money": 0, "other": 0 },
+  "moodTrend": [{ "date": "Mon", "mood": "happy" }]
+}
+
+Requirements:
+- summaryMy MUST be in Burmese (မြန်မာဘာသာ)
+- summaryEn MUST be in English
+- Both summaries should highlight themes, patterns, and notable moments
+- categoryBreakdown: count entries per category
+- moodTrend: one entry per day that has entries, using day name (Mon, Tue, etc.)`;
+
+  const response = await fetch(`${baseUrl}/chat/completions`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${apiKey}`,
+    },
+    body: JSON.stringify({
+      model: model,
+      messages: [{ role: 'user', content: prompt }],
+      response_format: { type: 'json_object' },
+    }),
+  });
+
+  if (!response.ok) {
+    const errBody = await response.text();
+    return new Response(
+      JSON.stringify({ error: `Weekly summary failed (${response.status}): ${errBody}` }),
+      { status: response.status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+    );
+  }
+
+  const result = await response.json();
+  const text = result?.choices?.[0]?.message?.content;
+
+  if (!text) {
+    return new Response(
+      JSON.stringify({
+        summaryMy: 'ဒီအပတ်အတွက် အကျဉ်းချုပ် ရရှိမှာ မဟုတ်ပါ။',
+        summaryEn: 'No summary available for this week.',
+        categoryBreakdown: { feelings: 0, work: 0, health: 0, ideas: 0, money: 0, other: 0 },
+        moodTrend: [],
+      }),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+    );
+  }
+
+  const cleaned = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+  const parsed = JSON.parse(cleaned);
+
+  const validCategories = ['feelings', 'work', 'health', 'ideas', 'money', 'other'];
+  const categoryBreakdown = { feelings: 0, work: 0, health: 0, ideas: 0, money: 0, other: 0 };
+  if (parsed.categoryBreakdown && typeof parsed.categoryBreakdown === 'object') {
+    for (const key of validCategories) {
+      categoryBreakdown[key] = parsed.categoryBreakdown[key] || 0;
+    }
+  }
+
+  return new Response(
+    JSON.stringify({
+      summaryMy: parsed.summaryMy || '',
+      summaryEn: parsed.summaryEn || '',
+      categoryBreakdown,
+      moodTrend: Array.isArray(parsed.moodTrend) ? parsed.moodTrend : [],
     }),
     { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
   );
