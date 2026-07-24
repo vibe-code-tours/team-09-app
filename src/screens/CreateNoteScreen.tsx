@@ -452,18 +452,6 @@ export const CreateNoteScreen: React.FC = () => {
                   Edit
                 </Text>
               </TouchableOpacity>
-              <TouchableOpacity
-                style={[
-                  styles.headerButton,
-                  { backgroundColor: colors.primary },
-                ]}
-                onPress={handleManualSave}
-              >
-                <Ionicons name="save-outline" size={16} color="#FFFFFF" />
-                <Text style={[styles.headerButtonText, { color: "#FFFFFF" }]}>
-                  Save
-                </Text>
-              </TouchableOpacity>
               {entryId && (
                 <TouchableOpacity
                   style={[
