@@ -31,6 +31,8 @@ Voice-first daily record app for Burmese speakers — speak your day, AI organiz
 - Full-text search across all entries using FTS5 (Burmese-compatible)
 - Timeline view with date grouping and category filters
 - Audio playback for recorded entries
+- Manual note creation with markdown support
+- Weekly AI-generated summary
 - Light and dark theme support
 - Local-first storage with SQLite — works offline
 
@@ -39,7 +41,8 @@ Voice-first daily record app for Burmese speakers — speak your day, AI organiz
 ```bash
 git clone https://github.com/vibe-code-tours/team-09-app.git && cd team-09-app
 cp .env.example .env        # fill in real values LOCALLY — never commit .env
-npm install && npm start
+npm install
+npm start
 ```
 
 Keep this Quickstart working — it's how a new teammate onboards in 2 minutes.
@@ -76,12 +79,6 @@ Create a `.env` file in the project root with the following variables:
 | `EXPO_PUBLIC_VIBE_CODE_API_KEY` | AI categorization API key |
 | `EXPO_PUBLIC_VIBE_CODE_BASE_URL` | Open AI API compatible URL |
 | `EXPO_PUBLIC_VIBE_CODE_MODEL` | AI Model |
-<!-- | `EXPO_PUBLIC_FIREBASE_API_KEY` | Firebase project API key |
-| `EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN` | Firebase auth domain |
-| `EXPO_PUBLIC_FIREBASE_PROJECT_ID` | Firebase project ID |
-| `EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET` | Firebase storage bucket |
-| `EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID` | Firebase messaging sender ID |
-| `EXPO_PUBLIC_FIREBASE_APP_ID` | Firebase app ID | -->
 
 Never commit `.env` to version control.
 
