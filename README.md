@@ -2,6 +2,8 @@
 
 Voice-first daily record app for Burmese speakers — speak your day, AI organizes it.
 
+[**Download / Install App**](https://expo.dev/accounts/thet-naing/projects/mhat-tan/builds/6932f97e-ac8b-4fb2-98ef-0a07fbccef21)
+
 ![ci](../../actions/workflows/ci.yml/badge.svg) ![security](../../actions/workflows/security.yml/badge.svg)
 
 ## Screenshots
