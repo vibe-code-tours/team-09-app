@@ -142,7 +142,7 @@ export function CreateSheet({
 
           {/* Options */}
           <TouchableOpacity
-            style={[styles.option, { borderBottomColor: colors.border }]}
+            style={[styles.option, { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border }]}
             onPress={onRecordVoice}
             activeOpacity={0.7}
           >
@@ -214,7 +214,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 20,
     paddingVertical: 16,
-    borderBottomWidth: 1,
   },
   optionIcon: {
     width: 48,

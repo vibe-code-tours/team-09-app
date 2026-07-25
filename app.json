@@ -34,8 +34,9 @@
     ],
     "extra": {
       "eas": {
-        "projectId": "767f4382-6b7b-401d-8519-e95fe13cf001"
+        "projectId": "367e7bae-b3df-4f44-9409-82a4a7453e5d"
       }
-    }
+    },
+    "owner": "thet-naing"
   }
 }

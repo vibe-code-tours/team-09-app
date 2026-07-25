@@ -43,3 +43,4 @@ yarn-error.*
 
 # personal
 mydocs
+.env.backup
