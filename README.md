@@ -70,19 +70,20 @@ Never commit `.env` to version control.
 
 ```text
 team-09-app/
-├── mhat-tan/                  # Expo app root
-│   ├── App.tsx                # Root component, navigation setup
-│   ├── index.ts               # Entry point
-│   └── src/
-│       ├── components/        # UI components (EntryCard, RecordButton, etc.)
-│       ├── screens/           # Screen components (Home, Record, Search, Settings)
-│       ├── hooks/             # Custom hooks (useRecording)
-│       ├── services/          # Business logic (transcription, categorization, storage)
-│       ├── db/                # SQLite schema and connection (Drizzle ORM)
-│       ├── types/             # TypeScript interfaces and constants
-│       ├── theme/             # Design tokens and ThemeContext
-│       ├── context/           # AuthContext
-│       └── config/            # Firebase configuration
+├── App.tsx                    # Root component, navigation setup
+├── index.ts                   # Entry point
+├── src/
+│   ├── components/            # UI components (EntryCard, RecordButton, etc.)
+│   ├── screens/               # Screen components (Home, Record, Search, Settings)
+│   ├── hooks/                 # Custom hooks (useRecording)
+│   ├── services/              # Business logic (transcription, categorization, storage)
+│   ├── db/                    # SQLite schema and connection (Drizzle ORM)
+│   ├── types/                 # TypeScript interfaces and constants
+│   ├── theme/                 # Design tokens and ThemeContext
+│   ├── context/               # AuthContext
+│   ├── config/                # Firebase configuration
+│   └── utils/                 # Shared utility functions
+├── assets/                    # App icons and splash images
 ├── docs/                      # Architecture docs and database schema
 ├── .github/                   # CI workflows and issue templates
 ├── PROJECT-PLAN.md            # Sprint plan
