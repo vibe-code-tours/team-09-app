@@ -2,7 +2,26 @@
 
 Voice-first daily record app for Burmese speakers — speak your day, AI organizes it.
 
+[**Download / Install App**](https://expo.dev/accounts/thet-naing/projects/mhat-tan/builds/6932f97e-ac8b-4fb2-98ef-0a07fbccef21)
+
 ![ci](../../actions/workflows/ci.yml/badge.svg) ![security](../../actions/workflows/security.yml/badge.svg)
+
+## Screenshots
+
+<table align="center">
+  <tr>
+    <td align="center"><b>Home Page</b><br><br><img src="screenshots/home-page.jpg" width="200" style="border: 1px solid #ccc; border-radius: 8px;" /></td>
+    <td align="center"><b>Recording Page</b><br><br><img src="screenshots/recording-page.jpg" width="200" style="border: 1px solid #ccc; border-radius: 8px;" /></td>
+    <td align="center"><b>Notes Page</b><br><br><img src="screenshots/notes-page.jpg" width="200" style="border: 1px solid #ccc; border-radius: 8px;" /></td>
+    <td align="center"><b>Search Page</b><br><br><img src="screenshots/search-page.jpg" width="200" style="border: 1px solid #ccc; border-radius: 8px;" /></td>
+  </tr>
+  <tr>
+    <td align="center"><b>Edit Page</b><br><br><img src="screenshots/edit-page.jpg" width="200" style="border: 1px solid #ccc; border-radius: 8px;" /></td>
+    <td align="center"><b>Summary Page</b><br><br><img src="screenshots/summary-page.jpg" width="200" style="border: 1px solid #ccc; border-radius: 8px;" /></td>
+    <td align="center"><b>Setting Page</b><br><br><img src="screenshots/setting-page.jpg" width="200" style="border: 1px solid #ccc; border-radius: 8px;" /></td>
+    <td align="center"><b>Record / New Note</b><br><br><img src="screenshots/record-or-newNote-box.jpg" width="200" style="border: 1px solid #ccc; border-radius: 8px;" /></td>
+  </tr>
+</table>
 
 ## Features
 
@@ -12,6 +31,8 @@ Voice-first daily record app for Burmese speakers — speak your day, AI organiz
 - Full-text search across all entries using FTS5 (Burmese-compatible)
 - Timeline view with date grouping and category filters
 - Audio playback for recorded entries
+- Manual note creation with markdown support
+- Weekly AI-generated summary
 - Light and dark theme support
 - Local-first storage with SQLite — works offline
 
@@ -20,7 +41,8 @@ Voice-first daily record app for Burmese speakers — speak your day, AI organiz
 ```bash
 git clone https://github.com/vibe-code-tours/team-09-app.git && cd team-09-app
 cp .env.example .env        # fill in real values LOCALLY — never commit .env
-npm install && npm start
+npm install
+npm start
 ```
 
 Keep this Quickstart working — it's how a new teammate onboards in 2 minutes.
@@ -57,12 +79,6 @@ Create a `.env` file in the project root with the following variables:
 | `EXPO_PUBLIC_VIBE_CODE_API_KEY` | AI categorization API key |
 | `EXPO_PUBLIC_VIBE_CODE_BASE_URL` | Open AI API compatible URL |
 | `EXPO_PUBLIC_VIBE_CODE_MODEL` | AI Model |
-<!-- | `EXPO_PUBLIC_FIREBASE_API_KEY` | Firebase project API key |
-| `EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN` | Firebase auth domain |
-| `EXPO_PUBLIC_FIREBASE_PROJECT_ID` | Firebase project ID |
-| `EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET` | Firebase storage bucket |
-| `EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID` | Firebase messaging sender ID |
-| `EXPO_PUBLIC_FIREBASE_APP_ID` | Firebase app ID | -->
 
 Never commit `.env` to version control.
 
@@ -70,19 +86,20 @@ Never commit `.env` to version control.
 
 ```text
 team-09-app/
-├── mhat-tan/                  # Expo app root
-│   ├── App.tsx                # Root component, navigation setup
-│   ├── index.ts               # Entry point
-│   └── src/
-│       ├── components/        # UI components (EntryCard, RecordButton, etc.)
-│       ├── screens/           # Screen components (Home, Record, Search, Settings)
-│       ├── hooks/             # Custom hooks (useRecording)
-│       ├── services/          # Business logic (transcription, categorization, storage)
-│       ├── db/                # SQLite schema and connection (Drizzle ORM)
-│       ├── types/             # TypeScript interfaces and constants
-│       ├── theme/             # Design tokens and ThemeContext
-│       ├── context/           # AuthContext
-│       └── config/            # Firebase configuration
+├── App.tsx                    # Root component, navigation setup
+├── index.ts                   # Entry point
+├── src/
+│   ├── components/            # UI components (EntryCard, RecordButton, etc.)
+│   ├── screens/               # Screen components (Home, Record, Search, Settings)
+│   ├── hooks/                 # Custom hooks (useRecording)
+│   ├── services/              # Business logic (transcription, categorization, storage)
+│   ├── db/                    # SQLite schema and connection (Drizzle ORM)
+│   ├── types/                 # TypeScript interfaces and constants
+│   ├── theme/                 # Design tokens and ThemeContext
+│   ├── context/               # AuthContext
+│   ├── config/                # Firebase configuration
+│   └── utils/                 # Shared utility functions
+├── assets/                    # App icons and splash images
 ├── docs/                      # Architecture docs and database schema
 ├── .github/                   # CI workflows and issue templates
 ├── PROJECT-PLAN.md            # Sprint plan
