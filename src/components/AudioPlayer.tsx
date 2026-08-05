@@ -2,6 +2,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Audio, AVPlaybackStatus } from 'expo-av';
+import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../theme/ThemeContext';
 import { spacing, radius } from '../theme';
@@ -37,6 +38,7 @@ export default function AudioPlayer({
     onPlaybackStatusUpdate?.(status);
   }, [onPlaybackStatusUpdate]);
 
+  // ── Load audio on mount / URI change ──────────────────────
   useEffect(() => {
     let cancelled = false;
 
@@ -83,6 +85,21 @@ export default function AudioPlayer({
       }
     };
   }, [audioUri, autoPlay, onPlaybackStatusUpdateInternal]);
+
+  // ── Pause playback when screen loses focus ────────────────
+  // Fixes issue #107: navigating to Record tab (or anywhere else)
+  // while audio is playing should pause playback
+  useFocusEffect(
+    useCallback(() => {
+      return () => {
+        // Screen lost focus — pause playback
+        if (soundRef.current) {
+          soundRef.current.pauseAsync().catch(() => {});
+          setIsPlaying(false);
+        }
+      };
+    }, [])
+  );
 
   const togglePlayback = async () => {
     const sound = soundRef.current;
