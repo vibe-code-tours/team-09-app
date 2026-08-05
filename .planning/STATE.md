@@ -23,7 +23,7 @@ See: .planning/PROJECT.md (updated 2026-07-17)
 Phase: Complete (all 3 phases done)
 Plan: 7/7 complete
 Status: Roadmap complete
-Last activity: 2026-07-18 -- Phase 3 completed (Empty States and First Entry Flow)
+Last activity: 2026-08-05 - Completed quick task 260805-i03: Fix RecordScreen discard button visibility on small screens
 
 Progress: [██████████] 100%
 
@@ -63,6 +63,12 @@ None yet.
 ### Blockers/Concerns
 
 None yet.
+
+### Quick Tasks Completed
+
+| # | Description | Date | Commit | Directory |
+|---|-------------|------|--------|-----------|
+| 260805-i03 | Fix RecordScreen: discard button not visible while transcribing on small screen (Mi 6) because bottom section content overflows and isn't scrollable | 2026-08-05 | 2377539 | [260805-i03-fix-recordscreen-discard-button-not-visi](./quick/260805-i03-fix-recordscreen-discard-button-not-visi/) |
 
 ## Deferred Items
 
