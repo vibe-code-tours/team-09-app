@@ -2,7 +2,7 @@
 import { eq, and, gte, lte, desc, sql } from 'drizzle-orm';
 import * as Crypto from 'expo-crypto';
 import { getDb } from '../db';
-import { entries, userSettings, weeklySummaries, type NewEntry, type Entry } from '../db/schema';
+import { entries, users, userSettings, weeklySummaries, type NewEntry, type Entry } from '../db/schema';
 import { Entry as AppEntry, Category, WeeklySummary } from '../types';
 import { clearAllRecordings } from './audioStorage';
 import { cancelDailyReminder } from './notification';
@@ -43,6 +43,16 @@ export const saveEntry = async (
   const db = getDb();
   const id = Crypto.randomUUID();
   const now = new Date();
+
+  // Ensure the user row exists (idempotent — safe to call every save).
+  // Prevents FOREIGN KEY constraint failure if the user row was created
+  // after the auth gate opened (e.g. cold-start race, Firebase migration).
+  await db.insert(users).values({
+    id: userId,
+    displayName: null,
+    createdAt: now,
+    updatedAt: now,
+  }).onConflictDoNothing();
 
   const newEntry: NewEntry = {
     id,
@@ -273,6 +283,14 @@ export const saveUserSettings = async (
       .set({ ...settings, updatedAt: now })
       .where(eq(userSettings.userId, userId));
   } else {
+    // Ensure the user row exists before inserting settings (FK to users.id).
+    await db.insert(users).values({
+      id: userId,
+      displayName: null,
+      createdAt: now,
+      updatedAt: now,
+    }).onConflictDoNothing();
+
     await db.insert(userSettings).values({
       userId,
       languageCode: settings.languageCode ?? 'my',
