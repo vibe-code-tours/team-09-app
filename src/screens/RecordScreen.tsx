@@ -404,76 +404,81 @@ export const RecordScreen: React.FC = () => {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.bg }]}>
-      {/* Header */}
-      <View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
-        <TouchableOpacity
-          onPress={handleDiscard}
-          hitSlop={styles.hitSlop}
-          disabled={isSaving}
-        >
-          <Ionicons name="close" size={28} color={colors.text} />
-        </TouchableOpacity>
-        <Text style={[styles.headerTitle, { color: colors.text }]}>Record Entry</Text>
-        <View style={styles.headerSpacer} />
-      </View>
+      <ScrollView
+        style={styles.screenScroll}
+        contentContainerStyle={styles.screenScrollContent}
+        showsVerticalScrollIndicator={false}
+        bounces={false}
+      >
+        {/* Header */}
+        <View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
+          <TouchableOpacity
+            onPress={handleDiscard}
+            hitSlop={styles.hitSlop}
+            disabled={isSaving}
+          >
+            <Ionicons name="close" size={28} color={colors.text} />
+          </TouchableOpacity>
+          <Text style={[styles.headerTitle, { color: colors.text }]}>Record Entry</Text>
+          <View style={styles.headerSpacer} />
+        </View>
 
-      {/* Timer */}
-      <View style={styles.timerContainer}>
-        <Text style={[
-          styles.timer,
-          { color: isSaving || (isRecording && isPaused) ? colors.textMuted : colors.text },
-        ]}>
-          {formatDuration(state.duration)}
-        </Text>
-        <Text style={[styles.timerLabel, { color: colors.textMuted }]}>
-          {statusLabel}
-        </Text>
-      </View>
+        {/* Timer */}
+        <View style={styles.timerContainer}>
+          <Text style={[
+            styles.timer,
+            { color: isSaving || (isRecording && isPaused) ? colors.textMuted : colors.text },
+          ]}>
+            {formatDuration(state.duration)}
+          </Text>
+          <Text style={[styles.timerLabel, { color: colors.textMuted }]}>
+            {statusLabel}
+          </Text>
+        </View>
 
-      {/* Record / Pause / Stop Buttons */}
-      <View style={styles.buttonContainer}>
-        {isSaving || isTranscribing || isCategorizing ? (
-          <ActivityIndicator size="large" color={colors.primary} />
-        ) : isRecording ? (
-          // Recording active: show pause + stop side by side
-          <View style={styles.recordingControls}>
-            {/* Pause / Resume */}
-            <TouchableOpacity
-              style={[styles.controlBtn, { backgroundColor: colors.surface }, shadows.sm]}
-              onPress={handlePausePress}
-              activeOpacity={0.7}
-            >
-              <Ionicons
-                name={isPaused ? 'play' : 'pause'}
-                size={28}
-                color={colors.primary}
-              />
-            </TouchableOpacity>
+        {/* Record / Pause / Stop Buttons */}
+        <View style={[styles.buttonContainer, (isTranscribing || isCategorizing) && styles.buttonContainerCompact]}>
+          {isSaving || isTranscribing || isCategorizing ? (
+            <ActivityIndicator size="large" color={colors.primary} />
+          ) : isRecording ? (
+            // Recording active: show pause + stop side by side
+            <View style={styles.recordingControls}>
+              {/* Pause / Resume */}
+              <TouchableOpacity
+                style={[styles.controlBtn, { backgroundColor: colors.surface }, shadows.sm]}
+                onPress={handlePausePress}
+                activeOpacity={0.7}
+              >
+                <Ionicons
+                  name={isPaused ? 'play' : 'pause'}
+                  size={28}
+                  color={colors.primary}
+                />
+              </TouchableOpacity>
 
-            {/* Stop */}
-            <TouchableOpacity
-              style={[styles.controlBtn, styles.stopBtn, { backgroundColor: colors.danger }]}
-              onPress={handleRecordPress}
-              activeOpacity={0.7}
-            >
-              <Ionicons name="stop" size={28} color="#FFFFFF" />
-            </TouchableOpacity>
-          </View>
-        ) : (
-          // Idle: show record button
-          <RecordButton isRecording={false} onPress={handleRecordPress} />
-        )}
-      </View>
+              {/* Stop */}
+              <TouchableOpacity
+                style={[styles.controlBtn, styles.stopBtn, { backgroundColor: colors.danger }]}
+                onPress={handleRecordPress}
+                activeOpacity={0.7}
+              >
+                <Ionicons name="stop" size={28} color="#FFFFFF" />
+              </TouchableOpacity>
+            </View>
+          ) : (
+            // Idle: show record button
+            <RecordButton isRecording={false} onPress={handleRecordPress} />
+          )}
+        </View>
 
-      {/* Playback + Status (animated in after recording) */}
-      {hasRecording && (
-        <Animated.View
-          style={[
-            styles.bottomSection,
-            { opacity: fadeIn, transform: [{ translateY: slideUp }] },
-          ]}
-        >
-          <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false} bounces={false}>
+        {/* Playback + Status (animated in after recording) */}
+        {hasRecording && (
+          <Animated.View
+            style={[
+              styles.bottomSection,
+              { opacity: fadeIn, transform: [{ translateY: slideUp }] },
+            ]}
+          >
             {/* Play / Pause */}
             <View style={styles.playbackContainer}>
               <TouchableOpacity
@@ -569,9 +574,9 @@ export const RecordScreen: React.FC = () => {
                 </Text>
               </TouchableOpacity>
             </View>
-          </ScrollView>
-        </Animated.View>
-      )}
+          </Animated.View>
+        )}
+      </ScrollView>
 
       {/* Title Modal */}
       <Modal
@@ -661,6 +666,13 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
+  screenScroll: {
+    flex: 1,
+  },
+  screenScrollContent: {
+    flexGrow: 1,
+    paddingBottom: 24,
+  },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -685,7 +697,7 @@ const styles = StyleSheet.create({
   },
   timerContainer: {
     alignItems: 'center',
-    paddingVertical: 40,
+    paddingVertical: 24,
   },
   timer: {
     fontSize: 48,
@@ -697,9 +709,13 @@ const styles = StyleSheet.create({
   },
   buttonContainer: {
     alignItems: 'center',
-    paddingVertical: 20,
-    height: 160,
+    paddingVertical: 16,
+    minHeight: 140,
     justifyContent: 'center',
+  },
+  buttonContainerCompact: {
+    minHeight: 64,
+    paddingVertical: 12,
   },
   recordingControls: {
     flexDirection: 'row',
@@ -719,17 +735,12 @@ const styles = StyleSheet.create({
     borderRadius: 36,
   },
   bottomSection: {
-    flex: 1,
     alignItems: 'center',
-  },
-  scrollContent: {
-    alignItems: 'center',
-    paddingTop: 20,
-    paddingBottom: 20,
+    paddingTop: 16,
   },
   playbackContainer: {
     alignItems: 'center',
-    paddingVertical: 20,
+    paddingVertical: 16,
   },
   playButton: {
     width: 60,
@@ -741,7 +752,7 @@ const styles = StyleSheet.create({
   },
   statusContainer: {
     alignItems: 'center',
-    paddingVertical: 20,
+    paddingVertical: 16,
     paddingHorizontal: 40,
   },
   statusLoading: {
@@ -769,7 +780,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'center',
     paddingHorizontal: 40,
-    marginTop: 30,
+    paddingTop: 16,
+    paddingBottom: 8,
   },
   discardButton: {
     paddingHorizontal: 32,
