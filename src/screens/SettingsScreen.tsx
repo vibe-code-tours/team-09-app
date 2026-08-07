@@ -9,6 +9,7 @@ import {
   Alert,
   Linking,
   ActivityIndicator,
+  Modal,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -584,16 +585,7 @@ export const SettingsScreen: React.FC = () => {
             subtitle="Save a backup of your entries and recordings"
             onPress={handleExportData}
             colors={colors}
-            rightLabel={isExporting ? undefined : undefined}
           />
-          {isExporting && (
-            <View style={styles.loadingRow}>
-              <ActivityIndicator size="small" color={colors.primary} />
-              <Text style={[styles.loadingText, { color: colors.textMuted }]}>
-                Exporting…
-              </Text>
-            </View>
-          )}
           <TappableRow
             icon="📥"
             title="Import Data"
@@ -601,14 +593,6 @@ export const SettingsScreen: React.FC = () => {
             onPress={handleImportData}
             colors={colors}
           />
-          {isImporting && (
-            <View style={styles.loadingRow}>
-              <ActivityIndicator size="small" color={colors.primary} />
-              <Text style={[styles.loadingText, { color: colors.textMuted }]}>
-                Importing…
-              </Text>
-            </View>
-          )}
           <TappableRow
             icon="🗑️"
             title="Clear All Data"
@@ -659,6 +643,24 @@ export const SettingsScreen: React.FC = () => {
         }}
         onCancel={() => setShowTimePicker(false)}
       />
+
+      {/* Full-screen loading overlay for export/import */}
+      <Modal
+        visible={isExporting || isImporting}
+        transparent
+        animationType="fade"
+        statusBarTranslucent
+        onRequestClose={() => {}}
+      >
+        <View style={styles.overlay}>
+          <View style={[styles.overlayCard, { backgroundColor: colors.surface }]}>
+            <ActivityIndicator size="large" color={colors.primary} />
+            <Text style={[styles.overlayText, { color: colors.text }]}>
+              {isExporting ? "Exporting…" : "Importing…"}
+            </Text>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 };
@@ -754,15 +756,20 @@ const styles = StyleSheet.create({
   },
   langBtnText: { fontSize: 13, fontWeight: "500", includeFontPadding: false },
 
-  // Loading indicator
-  loadingRow: {
-    flexDirection: "row",
+  // Full-screen loading overlay
+  overlay: {
+    flex: 1,
     alignItems: "center",
-    gap: spacing.sm,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.sm,
-    borderBottomColor: "rgba(0,0,0,0.05)",
-    borderBottomWidth: 1,
+    justifyContent: "center",
+    backgroundColor: "rgba(0,0,0,0.4)",
   },
-  loadingText: { fontSize: 12 },
+  overlayCard: {
+    alignItems: "center",
+    justifyContent: "center",
+    gap: spacing.lg,
+    paddingHorizontal: spacing.xxxl,
+    paddingVertical: spacing.xxl,
+    borderRadius: radius.lg,
+  },
+  overlayText: { fontSize: 15, fontWeight: "500" },
 });

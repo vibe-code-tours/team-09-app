@@ -23,7 +23,7 @@ See: .planning/PROJECT.md (updated 2026-07-17)
 Phase: Complete (all 3 phases done)
 Plan: 7/7 complete
 Status: Roadmap complete
-Last activity: 2026-08-07 - Completed quick task 260807-ohx: Fix audio file import count bug (3 reported when ZIP contained 2)
+Last activity: 2026-08-07 - Completed quick task 260807-orz: Make export/import loading a full-screen overlay
 
 Progress: [██████████] 100%
 
@@ -74,6 +74,7 @@ None yet.
 | 260807-e7s | Finish GitHub issue #70 token-mapping: convert remaining literals in BackgroundTitleModal, CreateSheet, ElevatedTabBar + screen leftovers (DayDetail, Home, Record, WeeklySummary, Search) | 2026-08-07 | (uncommitted — user commits) | [260807-e7s-finish-github-issue-70-token-mapping-con](./quick/260807-e7s-finish-github-issue-70-token-mapping-con/) |
 | 260807-f6m | Fix GitHub issue #99: deleteEntry() orphaned audio files — clean up the entry's audio file before soft-deleting the DB record | 2026-08-07 | (uncommitted — user commits) | [260807-f6m-fix-github-issue-99-deleteentry-orphaned](./quick/260807-f6m-fix-github-issue-99-deleteentry-orphaned/) |
 | 260807-ohx | Fix audio file import count bug: import reported 3 audio files when ZIP contained 2 (root-level mhat-tan-export.json counted as audio due to folder() clone sharing files map) | 2026-08-07 | (uncommitted — user commits) | [260807-ohx-fix-audio-file-import-count-bug-in-src-s](./quick/260807-ohx-fix-audio-file-import-count-bug-in-src-s/) |
+| 260807-orz | Make export/import loading show as a full-screen modal overlay in SettingsScreen instead of an inline row; drop no-op rightLabel leftover | 2026-08-07 | (uncommitted — user commits) | [260807-orz-make-export-import-loading-show-as-a-ful](./quick/260807-orz-make-export-import-loading-show-as-a-ful/) |
 
 ## Deferred Items
 
