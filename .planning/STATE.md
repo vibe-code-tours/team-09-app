@@ -23,7 +23,7 @@ See: .planning/PROJECT.md (updated 2026-07-17)
 Phase: Complete (all 3 phases done)
 Plan: 7/7 complete
 Status: Roadmap complete
-Last activity: 2026-08-05 - Completed quick task 260805-i03: Fix RecordScreen discard button visibility on small screens
+Last activity: 2026-08-07 - Completed quick task 260807-e7s: Finish GitHub issue #70 token-mapping (modals + screen leftovers)
 
 Progress: [██████████] 100%
 
@@ -69,6 +69,9 @@ None yet.
 | # | Description | Date | Commit | Directory |
 |---|-------------|------|--------|-----------|
 | 260805-i03 | Fix RecordScreen: discard button not visible while transcribing on small screen (Mi 6) because bottom section content overflows and isn't scrollable | 2026-08-05 | 2377539 | [260805-i03-fix-recordscreen-discard-button-not-visi](./quick/260805-i03-fix-recordscreen-discard-button-not-visi/) |
+| 260805-krn | Fix GitHub issue #70 UI/UX audit findings: (1) non-responsive hardcoded CSS → design tokens, (2) skeleton loading states in data-fetching screens | 2026-08-05 | (uncommitted — user commits) | [260805-krn-fix-github-issue-70-ui-ux-audit-findings](./quick/260805-krn-fix-github-issue-70-ui-ux-audit-findings/) |
+| 260806-gg3 | Finish GitHub issue #70: add skeleton to CreateNoteScreen + SearchScreen; responsive layout pass (EmptyState window-scaling, swipe token sums, safe-area scroll clearance) | 2026-08-06 | (uncommitted — user commits) | [260806-gg3-finish-github-issue-70-ui-ux-audit-findi](./quick/260806-gg3-finish-github-issue-70-ui-ux-audit-findi/) |
+| 260807-e7s | Finish GitHub issue #70 token-mapping: convert remaining literals in BackgroundTitleModal, CreateSheet, ElevatedTabBar + screen leftovers (DayDetail, Home, Record, WeeklySummary, Search) | 2026-08-07 | (uncommitted — user commits) | [260807-e7s-finish-github-issue-70-token-mapping-con](./quick/260807-e7s-finish-github-issue-70-token-mapping-con/) |
 
 ## Deferred Items
 

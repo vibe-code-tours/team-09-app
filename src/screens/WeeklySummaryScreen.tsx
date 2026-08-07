@@ -362,7 +362,7 @@ const styles = StyleSheet.create({
     borderRadius: radius.lg,
     padding: spacing.md,
     alignItems: 'center',
-    gap: 4,
+    gap: spacing.xs,
   },
   statIcon: { fontSize: 20 },
   statValue: { fontSize: 16, fontWeight: '700' },
@@ -373,7 +373,7 @@ const styles = StyleSheet.create({
   categoryChip: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: spacing.xs,
     backgroundColor: 'rgba(0,0,0,0.04)',
     paddingHorizontal: spacing.md,
     paddingVertical: 6,
@@ -385,7 +385,7 @@ const styles = StyleSheet.create({
 
   // Mood
   moodRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.lg },
-  moodItem: { alignItems: 'center', gap: 4 },
+  moodItem: { alignItems: 'center', gap: spacing.xs },
   moodEmoji: { fontSize: 24 },
   moodDay: { fontSize: 11 },
 

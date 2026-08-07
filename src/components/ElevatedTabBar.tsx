@@ -118,7 +118,7 @@ const styles = StyleSheet.create({
   },
   tabLabel: {
     fontSize: 11,
-    marginTop: 4,
+    marginTop: spacing.xs,
     fontWeight: '500',
   },
   centerButtonWrapper: {
@@ -137,7 +137,7 @@ const styles = StyleSheet.create({
   },
   centerLabel: {
     fontSize: 11,
-    marginTop: 4,
+    marginTop: spacing.xs,
     fontWeight: '500',
   },
 });

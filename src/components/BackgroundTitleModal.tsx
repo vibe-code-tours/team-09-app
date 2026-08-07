@@ -18,7 +18,7 @@ import { NavigationContainerRef } from '@react-navigation/native';
 import * as Haptics from 'expo-haptics';
 import { useTheme } from '../theme/ThemeContext';
 import { updateEntry, getEntryById } from '../services/storage';
-import { createShadows } from '../theme';
+import { spacing, radius, createShadows } from '../theme';
 
 // Generate a title from the first few words of text
 const generateTitle = (text: string): string => {
@@ -223,41 +223,41 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.5)',
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: 32,
+    paddingHorizontal: spacing.xxxl,
   },
   modalContent: {
     width: '100%',
-    borderRadius: 20,
+    borderRadius: radius.xl,
     padding: 28,
     alignItems: 'center',
   },
   modalTitle: {
     fontSize: 20,
     fontWeight: '700',
-    marginBottom: 4,
+    marginBottom: spacing.xs,
   },
   modalSubtitle: {
     fontSize: 14,
-    marginBottom: 20,
+    marginBottom: spacing.xl,
   },
   modalInput: {
     width: '100%',
     borderWidth: 1,
-    borderRadius: 12,
-    paddingHorizontal: 16,
+    borderRadius: radius.md,
+    paddingHorizontal: spacing.lg,
     paddingVertical: 14,
     fontSize: 16,
-    marginBottom: 20,
+    marginBottom: spacing.xl,
   },
   modalButtons: {
     flexDirection: 'row',
-    gap: 12,
+    gap: spacing.md,
     width: '100%',
   },
   modalSkipBtn: {
     flex: 1,
     paddingVertical: 14,
-    borderRadius: 12,
+    borderRadius: radius.md,
     borderWidth: 1,
     alignItems: 'center',
   },
@@ -268,7 +268,7 @@ const styles = StyleSheet.create({
   modalSaveBtn: {
     flex: 1,
     paddingVertical: 14,
-    borderRadius: 12,
+    borderRadius: radius.md,
     alignItems: 'center',
   },
   modalSaveText: {

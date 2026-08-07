@@ -105,7 +105,7 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
-    gap: 4,
+    gap: spacing.xs,
   },
   title: {
     fontSize: 14,
