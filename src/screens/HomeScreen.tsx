@@ -17,7 +17,7 @@ import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { Swipeable } from 'react-native-gesture-handler';
 import { useTheme } from '../theme/ThemeContext';
-import { CATEGORIES, Category, spacing, radius, createShadows } from '../theme';
+import { CATEGORIES, Category, spacing, radius, createShadows, MOOD_EMOJI } from '../theme';
 import { formatRelativeTime, formatHeaderDate, getGreeting } from '../theme';
 import { Entry } from '../types';
 import { getEntries, getTodayEntries, deleteEntry, updateEntry } from '../services/storage';
@@ -422,7 +422,9 @@ export const HomeScreen: React.FC = () => {
           {(item.mood || item.audioUri) && (
             <View style={styles.entryFooter}>
               {item.mood && (
-                <Text style={[styles.entryMood, { color: colors.textMuted }]}>{item.mood}</Text>
+                <Text style={[styles.entryMood, { color: colors.textMuted }]}>
+                  {MOOD_EMOJI[item.mood] || '😐'} {item.mood}
+                </Text>
               )}
               {item.audioUri && (
                 <AudioPlayer key={audioKeys[item.audioUri] || 0} audioUri={item.audioUri} compact />

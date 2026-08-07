@@ -3,7 +3,7 @@ import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../theme/ThemeContext';
-import { CATEGORIES, spacing, radius, createShadows } from '../theme';
+import { CATEGORIES, spacing, radius, createShadows, MOOD_EMOJI } from '../theme';
 import { formatRelativeTime } from '../theme';
 import { Entry } from '../types';
 
@@ -69,7 +69,9 @@ export const EntryCard: React.FC<EntryCardProps> = ({ entry, onPress, onDelete }
       {(entry.isPinned || entry.mood) && (
         <View style={styles.footer}>
           {entry.mood && (
-            <Text style={[styles.mood, { color: colors.textMuted }]}>{entry.mood}</Text>
+            <Text style={[styles.mood, { color: colors.textMuted }]}>
+              {MOOD_EMOJI[entry.mood] || '😐'} {entry.mood}
+            </Text>
           )}
           {entry.isPinned && (
             <Text style={[styles.pinned, { color: colors.accent }]}>📌</Text>

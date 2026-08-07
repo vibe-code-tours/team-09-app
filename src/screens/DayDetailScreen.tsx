@@ -15,7 +15,7 @@ import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/nativ
 import { Ionicons } from '@expo/vector-icons';
 import { Swipeable } from 'react-native-gesture-handler';
 import { useTheme } from '../theme/ThemeContext';
-import { CATEGORIES, spacing, radius, createShadows } from '../theme';
+import { CATEGORIES, spacing, radius, createShadows, MOOD_EMOJI } from '../theme';
 import { formatRelativeTime, formatHeaderDate } from '../theme';
 import { Entry } from '../types';
 import { getEntries, getEntryById, deleteEntry, updateEntry } from '../services/storage';
@@ -248,7 +248,9 @@ export const DayDetailScreen: React.FC = () => {
           {(entry.mood || entry.audioUri) && (
             <View style={styles.entryFooter}>
               {entry.mood && (
-                <Text style={[styles.entryMood, { color: colors.textMuted }]}>{entry.mood}</Text>
+                <Text style={[styles.entryMood, { color: colors.textMuted }]}>
+                  {MOOD_EMOJI[entry.mood] || '😐'} {entry.mood}
+                </Text>
               )}
               {entry.audioUri && (
                 <AudioPlayer audioUri={entry.audioUri} compact />

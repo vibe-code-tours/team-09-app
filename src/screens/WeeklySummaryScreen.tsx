@@ -1,5 +1,5 @@
 // WeeklySummaryScreen — AI-generated weekly digest
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -12,8 +12,9 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
+import * as Haptics from 'expo-haptics';
 import { useTheme } from '../theme/ThemeContext';
-import { spacing, radius, createShadows, CATEGORIES } from '../theme';
+import { spacing, radius, createShadows, CATEGORIES, MOOD_EMOJI } from '../theme';
 import { Category, WeeklySummary, CATEGORIES as CATEGORIES_MAP } from '../types';
 import { useAuth } from '../context/AuthContext';
 import {
@@ -22,17 +23,7 @@ import {
   getWeeklySummary,
   saveWeeklySummaryRecord,
 } from '../services/storage';
-import { generateWeeklySummary, getCurrentWeek, formatWeekRange } from '../services/weeklySummary';
-
-// ── Mood emoji map ────────────────────────────────────────
-const MOOD_EMOJI: Record<string, string> = {
-  happy: '😊',
-  sad: '😢',
-  neutral: '😐',
-  excited: '🤩',
-  stressed: '😰',
-  grateful: '🙏',
-};
+import { generateWeeklySummary, getWeekForDate, formatWeekRange } from '../services/weeklySummary';
 
 // ── Component ─────────────────────────────────────────────
 export const WeeklySummaryScreen: React.FC = () => {
@@ -44,33 +35,51 @@ export const WeeklySummaryScreen: React.FC = () => {
 
   const [summary, setSummary] = useState<WeeklySummary | null>(null);
   const [loading, setLoading] = useState(false);
-  const [loaded, setLoaded] = useState(false);
   const [weeklyLanguage, setWeeklyLanguage] = useState<'my' | 'en'>('my');
 
-  const week = getCurrentWeek();
-  const weekRange = formatWeekRange(week.start, week.end);
+  // 0 = current week, -1 = previous week, -2 = two weeks ago, ...
+  const [weekOffset, setWeekOffset] = useState(0);
+
+  // Guards against out-of-order async races when tapping prev/next quickly.
+  const loadReqIdRef = useRef(0);
+
+  // Derive the displayed week from the offset. Deps intentionally `[weekOffset]`
+  // only — `new Date()` is called inside so weekStart/weekEnd get new identities
+  // only when the offset changes, keeping loadSummary's dep array stable.
+  const { weekStart, weekEnd, weekRange, isCurrentWeek } = useMemo(() => {
+    const ref = new Date();
+    ref.setDate(ref.getDate() + weekOffset * 7);
+    const week = getWeekForDate(ref);
+    return {
+      weekStart: week.start,
+      weekEnd: week.end,
+      weekRange: formatWeekRange(week.start, week.end),
+      isCurrentWeek: weekOffset === 0,
+    };
+  }, [weekOffset]);
 
   // Load or generate summary
   const loadSummary = useCallback(async (forceRegenerate = false) => {
     if (!user) return;
+    const myId = ++loadReqIdRef.current;
     setLoading(true);
     try {
       // 1. Check cache first (skip if forcing regeneration)
       if (!forceRegenerate) {
-        const cached = await getWeeklySummary(user.id, week.start);
+        const cached = await getWeeklySummary(user.id, weekStart);
         if (cached) {
+          if (myId !== loadReqIdRef.current) return;
           setSummary(cached);
-          setLoaded(true);
           setLoading(false);
           return;
         }
       }
 
       // 2. Fetch entries for this week
-      const entries = await getEntriesForDateRange(user.id, week.start, week.end);
+      const entries = await getEntriesForDateRange(user.id, weekStart, weekEnd);
       if (entries.length === 0) {
+        if (myId !== loadReqIdRef.current) return;
         setSummary(null);
-        setLoaded(true);
         setLoading(false);
         return;
       }
@@ -97,8 +106,8 @@ export const WeeklySummaryScreen: React.FC = () => {
       const newSummary: WeeklySummary = {
         id: '',
         userId: user.id,
-        weekStart: week.start,
-        weekEnd: week.end,
+        weekStart,
+        weekEnd,
         summaryMy: result.summaryMy,
         summaryEn: result.summaryEn,
         categoryBreakdown: result.categoryBreakdown,
@@ -110,30 +119,49 @@ export const WeeklySummaryScreen: React.FC = () => {
       };
 
       await saveWeeklySummaryRecord(newSummary);
+      if (myId !== loadReqIdRef.current) return;
       setSummary({ ...newSummary, id: 'generated' });
-      setLoaded(true);
     } catch (err) {
       console.error('[WeeklySummary] Failed to generate:', err);
+      if (myId !== loadReqIdRef.current) return;
       Alert.alert('Error', 'Failed to generate weekly summary. Please try again.');
     } finally {
-      setLoading(false);
+      if (myId === loadReqIdRef.current) {
+        setLoading(false);
+      }
     }
-  }, [user, week.start, week.end]);
+  }, [user, weekStart, weekEnd]);
 
-  // Auto-load on first render
-  React.useEffect(() => {
-    const init = async () => {
+  // One-time settings fetch (language preference)
+  useEffect(() => {
+    let active = true;
+    const loadSettings = async () => {
       if (!user) return;
       const settings = await getUserSettings(user.id);
-      if (settings?.weeklySummaryLanguage) {
+      if (active && settings?.weeklySummaryLanguage) {
         setWeeklyLanguage(settings.weeklySummaryLanguage as 'my' | 'en');
       }
-      if (!loaded && !loading) {
-        loadSummary();
-      }
     };
-    init();
-  }, []);
+    loadSettings();
+    return () => { active = false; };
+  }, [user]);
+
+  // Load summary whenever the displayed week changes (and on mount)
+  useEffect(() => {
+    if (!user) return;
+    loadSummary();
+  }, [loadSummary, user]);
+
+  // Prev/next week navigation
+  const handleWeekNav = useCallback((direction: 'prev' | 'next') => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    if (direction === 'next' && isCurrentWeek) return;
+    // Reset display state so the stale summary doesn't flash and the spinner
+    // shows immediately during the gap before the load effect fires.
+    setSummary(null);
+    setLoading(true);
+    setWeekOffset((prev) => (direction === 'prev' ? prev - 1 : prev + 1));
+  }, [isCurrentWeek]);
 
   const formatDuration = (seconds: number): string => {
     if (seconds < 60) return `${seconds}s`;
@@ -153,11 +181,36 @@ export const WeeklySummaryScreen: React.FC = () => {
           style={styles.backBtn}
           activeOpacity={0.7}
         >
-          <Ionicons name="chevron-back" size={24} color={colors.text} />
+          <Ionicons name="close" size={24} color={colors.text} />
         </TouchableOpacity>
-        <Text style={[styles.headerTitle, { color: colors.text }]}>
-          Weekly Summary
-        </Text>
+        {/* Centered week navigation: prev / range / next */}
+        <View style={styles.weekNav}>
+          <TouchableOpacity
+            onPress={() => handleWeekNav('prev')}
+            style={styles.backBtn}
+            activeOpacity={0.7}
+          >
+            <Ionicons name="chevron-back" size={22} color={colors.text} />
+          </TouchableOpacity>
+          <Text
+            style={[styles.weekNavTitle, { color: colors.text }]}
+            numberOfLines={1}
+          >
+            {weekRange}
+          </Text>
+          <TouchableOpacity
+            onPress={() => handleWeekNav('next')}
+            style={styles.backBtn}
+            activeOpacity={0.7}
+            disabled={isCurrentWeek}
+          >
+            <Ionicons
+              name="chevron-forward"
+              size={22}
+              color={isCurrentWeek ? colors.textMuted : colors.text}
+            />
+          </TouchableOpacity>
+        </View>
         <View style={styles.backBtn} />
       </View>
 
@@ -165,11 +218,6 @@ export const WeeklySummaryScreen: React.FC = () => {
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
       >
-        {/* Week range */}
-        <Text style={[styles.weekRange, { color: colors.textMuted }]}>
-          📅 {weekRange}
-        </Text>
-
         {loading ? (
           // Loading state
           <View style={styles.loadingContainer}>
@@ -183,10 +231,10 @@ export const WeeklySummaryScreen: React.FC = () => {
           <View style={[styles.emptyCard, { backgroundColor: colors.surface }, shadows.sm]}>
             <Text style={styles.emptyIcon}>📭</Text>
             <Text style={[styles.emptyTitle, { color: colors.text }]}>
-              No entries this week
+              No entries for this week
             </Text>
             <Text style={[styles.emptySubtitle, { color: colors.textMuted }]}>
-              Start recording voice entries to see your weekly summary here.
+              No voice entries were recorded during this week.
             </Text>
           </View>
         ) : (
@@ -321,11 +369,23 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
   },
   backBtn: { width: 40, alignItems: 'center' },
-  headerTitle: { fontSize: 17, fontWeight: '600' },
+  weekNav: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginHorizontal: spacing.xs,
+  },
+  weekNavTitle: {
+    fontSize: 15,
+    fontWeight: '600',
+    textAlign: 'center',
+    flexShrink: 1,
+    paddingHorizontal: spacing.xs,
+  },
 
   // Content
   content: { padding: spacing.xl },
-  weekRange: { fontSize: 14, textAlign: 'center', marginBottom: spacing.xl },
 
   // Loading
   loadingContainer: { alignItems: 'center', marginTop: spacing.xxxl * 2, gap: spacing.md },

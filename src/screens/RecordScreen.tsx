@@ -36,6 +36,11 @@ const generateTitle = (text: string): string => {
   return words.length > 0 ? words : 'Voice Note';
 };
 
+// Moods allowed by the entries_mood_check DB constraint.
+const VALID_MOODS = ['happy', 'sad', 'neutral', 'excited', 'stressed', 'grateful'] as const;
+const normalizeMood = (mood: string | undefined | null): string =>
+  mood && (VALID_MOODS as readonly string[]).includes(mood) ? mood : 'neutral';
+
 export const RecordScreen: React.FC = () => {
   const navigation = useNavigation<any>();
   const { theme, isDark } = useTheme();
@@ -59,6 +64,7 @@ export const RecordScreen: React.FC = () => {
   const [isTranscribing, setIsTranscribing] = useState(false);
   const [transcribeError, setTranscribeError] = useState<string | null>(null);
   const [category, setCategory] = useState<Category>('other');
+  const [mood, setMood] = useState<string>('neutral');
   const [isCategorizing, setIsCategorizing] = useState(false);
   const [hasNavigatedToNote, setHasNavigatedToNote] = useState(false);
   const [showTitleModal, setShowTitleModal] = useState(false);
@@ -77,6 +83,8 @@ export const RecordScreen: React.FC = () => {
   transcriptRef.current = transcript;
   const categoryRef = useRef(category);
   categoryRef.current = category;
+  const moodRef = useRef(mood);
+  moodRef.current = mood;
   const permanentUriRef = useRef<string | null>(null);
   const discardedRef = useRef(false);
   const backgroundModeRef = useRef(false);
@@ -101,6 +109,7 @@ export const RecordScreen: React.FC = () => {
     setTranscript('');
     setTranscribeError(null);
     setCategory('other');
+    setMood('neutral');
     setHasNavigatedToNote(false);
     discardRecording();
   };
@@ -122,6 +131,7 @@ export const RecordScreen: React.FC = () => {
     setTranscript('');
     setTranscribeError(null);
     setCategory('other');
+    setMood('neutral');
     setHasNavigatedToNote(false);
     discardRecording();
   };
@@ -139,9 +149,9 @@ export const RecordScreen: React.FC = () => {
         transcript: currentTranscript.trim(),
         category: currentCategory,
         summary: '',
-        mood: 'neutral',
+        mood: moodRef.current,
         audioUri,
-        audioDuration: 0,
+        audioDuration: stateRef.current.duration,
         isPinned: false,
       });
 
@@ -221,13 +231,16 @@ export const RecordScreen: React.FC = () => {
 
           // Auto-categorize
           let finalCategory: Category = 'other';
+          let finalMood: string = 'neutral';
           if (text.trim()) {
             setIsCategorizing(true);
             try {
               const result = await categorizeEntry(text);
               if (processingCancelledRef.current || (discardedRef.current && !backgroundModeRef.current)) return;
               finalCategory = result.category;
+              finalMood = normalizeMood(result.mood);
               setCategory(finalCategory); // Update category state/ref
+              setMood(finalMood); // Update mood state/ref
             } catch (catErr: any) {
               console.error('[RecordScreen] Categorize failed:', catErr);
             } finally {
@@ -244,9 +257,9 @@ export const RecordScreen: React.FC = () => {
               transcript: text.trim(),
               category: finalCategory,
               summary: '',
-              mood: 'neutral',
+              mood: finalMood,
               audioUri: permanentUriRef.current || '',
-              audioDuration: 0,
+              audioDuration: stateRef.current.duration,
               isPinned: false,
             });
 
@@ -262,6 +275,7 @@ export const RecordScreen: React.FC = () => {
             setTranscript('');
             setTranscribeError(null);
             setCategory('other');
+            setMood('neutral');
             setHasNavigatedToNote(false);
             setIsTranscribing(false);
             setIsCategorizing(false);
@@ -379,6 +393,7 @@ export const RecordScreen: React.FC = () => {
             setTranscript('');
             setTranscribeError(null);
             setCategory('other');
+            setMood('neutral');
             setHasNavigatedToNote(false);
             discardRecording();
             navigation.goBack();
@@ -543,6 +558,7 @@ export const RecordScreen: React.FC = () => {
                           const result = await categorizeEntry(text);
                           finalCategory = result.category;
                           setCategory(finalCategory);
+                          setMood(normalizeMood(result.mood));
                         } catch (catErr) {
                           console.error('[RecordScreen] Categorize failed:', catErr);
                         }

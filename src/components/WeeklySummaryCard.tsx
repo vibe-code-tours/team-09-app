@@ -9,7 +9,7 @@ import {
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../theme/ThemeContext';
-import { spacing, radius, createShadows } from '../theme';
+import { spacing, radius, createShadows, MOOD_EMOJI } from '../theme';
 import { useAuth } from '../context/AuthContext';
 import { getUserSettings, getWeeklySummary } from '../services/storage';
 import { getCurrentWeek } from '../services/weeklySummary';
@@ -17,15 +17,6 @@ import { getCurrentWeek } from '../services/weeklySummary';
 interface Props {
   onPress: () => void;
 }
-
-const MOOD_EMOJI: Record<string, string> = {
-  happy: '😊',
-  sad: '😢',
-  neutral: '😐',
-  excited: '🤩',
-  stressed: '😰',
-  grateful: '🙏',
-};
 
 export const WeeklySummaryCard: React.FC<Props> = ({ onPress }) => {
   const { theme, isDark } = useTheme();

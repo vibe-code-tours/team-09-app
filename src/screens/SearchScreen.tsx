@@ -15,7 +15,7 @@ import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../theme/ThemeContext';
-import { spacing, radius, CATEGORIES, Category, createShadows, formatRelativeTime } from '../theme';
+import { spacing, radius, CATEGORIES, Category, createShadows, formatRelativeTime, MOOD_EMOJI } from '../theme';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Entry } from '../types';
 import { getEntries, searchEntries } from '../services/storage';
@@ -501,7 +501,9 @@ export function SearchScreen() {
                     {(entry.mood || entry.audioUri) && (
                       <View style={styles.entryFooter}>
                         {entry.mood && (
-                          <Text style={[styles.entryMood, { color: colors.textMuted }]}>{entry.mood}</Text>
+                          <Text style={[styles.entryMood, { color: colors.textMuted }]}>
+                            {MOOD_EMOJI[entry.mood] || '😐'} {entry.mood}
+                          </Text>
                         )}
                         {entry.audioUri && (
                           <AudioPlayer key={audioKeys[entry.audioUri] || 0} audioUri={entry.audioUri} compact />

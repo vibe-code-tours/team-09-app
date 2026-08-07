@@ -6,13 +6,12 @@ import { proxyWeeklySummary } from './proxyClient';
 import { Category } from '../types';
 
 /**
- * Compute the current week's Monday 00:00 and Sunday 23:59.
+ * Compute the Monday 00:00 → Sunday 23:59 week containing a reference date.
  */
-export function getCurrentWeek(): { start: Date; end: Date } {
-  const now = new Date();
-  const day = now.getDay(); // 0=Sun, 1=Mon...
-  const monday = new Date(now);
-  monday.setDate(now.getDate() - ((day + 6) % 7));
+export function getWeekForDate(referenceDate: Date): { start: Date; end: Date } {
+  const day = referenceDate.getDay(); // 0=Sun, 1=Mon...
+  const monday = new Date(referenceDate);
+  monday.setDate(referenceDate.getDate() - ((day + 6) % 7));
   monday.setHours(0, 0, 0, 0);
   const sunday = new Date(monday);
   sunday.setDate(monday.getDate() + 6);
@@ -21,13 +20,27 @@ export function getCurrentWeek(): { start: Date; end: Date } {
 }
 
 /**
+ * Compute the current week's Monday 00:00 and Sunday 23:59.
+ */
+export function getCurrentWeek(): { start: Date; end: Date } {
+  return getWeekForDate(new Date());
+}
+
+/**
  * Format a date range as a human-readable string.
+ * Appends the year when the week starts in a year other than the current one,
+ * so past-year ranges (e.g. "Dec 29 – Jan 4, 2025") stay unambiguous.
  */
 export function formatWeekRange(start: Date, end: Date): string {
   const opts: Intl.DateTimeFormatOptions = { month: 'short', day: 'numeric' };
   const s = start.toLocaleDateString('en-US', opts);
   const e = end.toLocaleDateString('en-US', opts);
-  return `${s} – ${e}`;
+  const range = `${s} – ${e}`;
+  const startYear = start.getFullYear();
+  if (startYear !== new Date().getFullYear()) {
+    return `${range}, ${startYear}`;
+  }
+  return range;
 }
 
 interface WeeklySummaryInput {

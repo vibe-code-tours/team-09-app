@@ -46,7 +46,7 @@ export interface RecordingState {
 }
 
 export const CATEGORIES = {
-  feelings: { icon: '😊', label: 'Feelings', color: '#E91E63' },
+  feelings: { icon: '❤️', label: 'Feelings', color: '#E91E63' },
   work: { icon: '💼', label: 'Work', color: '#2196F3' },
   health: { icon: '🏥', label: 'Health', color: '#FF9800' },
   ideas: { icon: '💡', label: 'Ideas', color: '#9C27B0' },
