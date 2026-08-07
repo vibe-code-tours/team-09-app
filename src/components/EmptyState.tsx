@@ -1,6 +1,6 @@
 // EmptyState - Animated empty state with dual CTAs for first-time users
 import React, { useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Animated } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Animated, useWindowDimensions } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../theme/ThemeContext';
 import { spacing, radius } from '../theme';
@@ -16,6 +16,8 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
 }) => {
   const { theme } = useTheme();
   const { colors } = theme;
+  const { width: screenWidth } = useWindowDimensions();
+  const illustrationSize = Math.min(120, screenWidth * 0.3);
 
   // Pulse animation for the microphone icon
   const pulseAnim = useRef(new Animated.Value(1)).current;
@@ -57,20 +59,33 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
   return (
     <View style={styles.container}>
       {/* Animated microphone illustration */}
-      <View style={styles.illustrationContainer}>
+      <View style={[styles.illustrationContainer, { width: illustrationSize, height: illustrationSize }]}>
         {/* Pulse ring behind the icon */}
         <Animated.View
           style={[
             styles.pulseRing,
             {
               backgroundColor: colors.primary,
+              width: illustrationSize,
+              height: illustrationSize,
+              borderRadius: illustrationSize / 2,
               transform: [{ scale: pulseAnim }],
               opacity: opacityAnim,
             },
           ]}
         />
         {/* Mic icon */}
-        <View style={[styles.iconCircle, { backgroundColor: colors.primaryLight }]}>
+        <View
+          style={[
+            styles.iconCircle,
+            {
+              backgroundColor: colors.primaryLight,
+              width: illustrationSize * 0.8,
+              height: illustrationSize * 0.8,
+              borderRadius: illustrationSize * 0.4,
+            },
+          ]}
+        >
           <Ionicons name="mic" size={48} color={colors.primary} />
         </View>
       </View>
@@ -113,25 +128,17 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: spacing.xxxl,
-    paddingVertical: 60,
+    paddingVertical: spacing.xxxl * 2,
   },
   illustrationContainer: {
-    width: 120,
-    height: 120,
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: spacing.xxl,
   },
   pulseRing: {
     position: 'absolute',
-    width: 120,
-    height: 120,
-    borderRadius: 60,
   },
   iconCircle: {
-    width: 96,
-    height: 96,
-    borderRadius: 48,
     justifyContent: 'center',
     alignItems: 'center',
   },

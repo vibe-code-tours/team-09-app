@@ -21,6 +21,7 @@ import { Entry } from '../types';
 import { getEntries, searchEntries } from '../services/storage';
 import { useAuth } from '../context/AuthContext';
 import AudioPlayer from '../components/AudioPlayer';
+import { Skeleton } from '../components/Skeleton';
 
 // ── Constants ──────────────────────────────────────────────
 const RECENT_SEARCHES_KEY = '@mhat_tan_recent_searches';
@@ -115,6 +116,7 @@ export function SearchScreen() {
   const [allEntries, setAllEntries] = useState<Entry[]>([]);
   const [searchResults, setSearchResults] = useState<Entry[] | null>(null);
   const [isSearching, setIsSearching] = useState(false);
+  const [isLoadingAll, setIsLoadingAll] = useState(true);
 
   // Recent searches
   const [recentSearches, setRecentSearches] = useState<string[]>([]);
@@ -142,6 +144,8 @@ export function SearchScreen() {
       let cancelled = false;
 
       const loadData = async () => {
+        if (cancelled) return;
+        setIsLoadingAll(true);
         try {
           const [entries, recent] = await Promise.all([
             getEntries(userId),
@@ -153,6 +157,8 @@ export function SearchScreen() {
           }
         } catch (err) {
           console.error('[SearchScreen] Failed to load data:', err);
+        } finally {
+          if (!cancelled) setIsLoadingAll(false);
         }
       };
 
@@ -255,6 +261,30 @@ export function SearchScreen() {
   const isFiltered = activeCategory !== 'all' || activeDateRange !== 'all';
   const isBrowsing = searchResults === null;
   const showRecentSearches = isSearchFocused && !query.trim() && recentSearches.length > 0;
+
+  // Skeleton result cards while searching or on first focus load
+  const renderSearchSkeleton = (cardCount: number) => (
+    <View style={styles.resultsContent}>
+      {Array.from({ length: cardCount }).map((_, index) => (
+        <View
+          key={index}
+          style={[
+            styles.entryCard,
+            { backgroundColor: colors.surface, borderLeftColor: 'transparent' },
+            shadows.sm,
+          ]}
+        >
+          <View style={styles.entryMainRow}>
+            <Skeleton width={36} height={36} borderRadius={radius.sm} />
+            <View style={styles.entryContent}>
+              <Skeleton width="70%" height={14} />
+              <Skeleton width={56} height={18} borderRadius={radius.sm} />
+            </View>
+          </View>
+        </View>
+      ))}
+    </View>
+  );
 
   return (
     <View style={[styles.container, { backgroundColor: colors.bg }]}>
@@ -416,12 +446,7 @@ export function SearchScreen() {
         keyboardShouldPersistTaps="handled"
         onScrollBeginDrag={() => Keyboard.dismiss()}
       >
-        {isSearching ? (
-          <View style={styles.emptyState}>
-            <Ionicons name="search" size={48} color={colors.border} />
-            <Text style={[styles.emptyTitle, { color: colors.textMuted }]}>Searching...</Text>
-          </View>
-        ) : groupKeys.length === 0 ? (
+        {isLoadingAll ? renderSearchSkeleton(4) : isSearching ? renderSearchSkeleton(4) : groupKeys.length === 0 ? (
           <View style={styles.emptyState}>
             <Ionicons name="search-outline" size={48} color={colors.border} />
             <Text style={[styles.emptyTitle, { color: colors.text }]}>No results found</Text>
@@ -655,7 +680,7 @@ const styles = StyleSheet.create({
   },
   entryContent: {
     flex: 1,
-    gap: 4,
+    gap: spacing.xs,
   },
   entryTitle: {
     fontSize: 14,

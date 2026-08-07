@@ -29,6 +29,7 @@ import {
 import { deleteAudioFile, audioFileExists } from "../services/audioStorage";
 import { useAuth } from "../context/AuthContext";
 import AudioPlayer from "../components/AudioPlayer";
+import { Skeleton } from "../components/Skeleton";
 import { PinLimitModal } from "../components/PinLimitModal";
 import { checkPinLimit, pinEntry, replacePin } from "../utils/pinLimit";
 
@@ -73,6 +74,7 @@ export const CreateNoteScreen: React.FC = () => {
   );
   const [isDeletingAudio, setIsDeletingAudio] = useState(false);
   const [audioKey, setAudioKey] = useState(0);
+  const [isLoading, setIsLoading] = useState(false);
 
   const contentInputRef = useRef<TextInput>(null);
 
@@ -106,6 +108,7 @@ export const CreateNoteScreen: React.FC = () => {
   }, []);
 
   const loadEntry = async (id: string) => {
+    setIsLoading(true);
     try {
       const entry = await getEntryById(id);
       if (entry) {
@@ -121,6 +124,8 @@ export const CreateNoteScreen: React.FC = () => {
       }
     } catch (error) {
       console.error("[CreateNoteScreen] Error loading entry:", error);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -424,6 +429,43 @@ export const CreateNoteScreen: React.FC = () => {
     setHasUnsavedChanges(true);
   };
 
+  const renderEditorSkeleton = () => (
+    <View style={styles.scrollContent}>
+      {/* Title placeholder */}
+      <View style={{ marginBottom: spacing.lg }}>
+        <Skeleton width="55%" height={34} borderRadius={radius.sm} />
+      </View>
+
+      {/* Tools strip */}
+      <View style={[styles.toolsStrip, { marginBottom: spacing.xl }]}>
+        <Skeleton width={88} height={32} borderRadius={radius.full} />
+        <Skeleton width={88} height={32} borderRadius={radius.full} />
+      </View>
+
+      {/* Audio placeholder — only when the note has audio */}
+      {initialAudioFile && (
+        <View style={styles.audioSection}>
+          <Skeleton height={44} borderRadius={radius.md} style={{ flex: 1 }} />
+          <Skeleton width={32} height={32} borderRadius={radius.sm} />
+        </View>
+      )}
+
+      {/* Paper card */}
+      <View
+        style={[
+          styles.paperCard,
+          { backgroundColor: colors.surfaceAlt, borderColor: colors.border },
+        ]}
+      >
+        <View style={styles.skeletonCardGap}>
+          <Skeleton width="92%" height={16} />
+          <Skeleton width="85%" height={16} />
+          <Skeleton width="60%" height={16} />
+        </View>
+      </View>
+    </View>
+  );
+
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.bg }]}>
       {/* Header */}
@@ -503,6 +545,7 @@ export const CreateNoteScreen: React.FC = () => {
         style={styles.keyboardAvoid}
         behavior={Platform.OS === "ios" ? "padding" : "height"}
       >
+        {isLoading ? renderEditorSkeleton() : (
         <ScrollView
           style={styles.scrollView}
           contentContainerStyle={styles.scrollContent}
@@ -640,6 +683,7 @@ export const CreateNoteScreen: React.FC = () => {
             )}
           </View>
         </ScrollView>
+        )}
       </KeyboardAvoidingView>
 
       {/* Bottom Actions Bar */}
@@ -872,6 +916,9 @@ const styles = StyleSheet.create({
     lineHeight: 30,
     minHeight: 300,
     padding: 0,
+  },
+  skeletonCardGap: {
+    gap: spacing.md,
   },
   emptyContent: {
     fontSize: 16,

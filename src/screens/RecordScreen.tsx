@@ -23,7 +23,7 @@ import { RecordButton } from '../components/RecordButton';
 import { useRecording } from '../hooks/useRecording';
 import { useTheme } from '../theme/ThemeContext';
 import { useAuth } from '../context/AuthContext';
-import { createShadows } from '../theme';
+import { createShadows, spacing, radius } from '../theme';
 import { saveAudioLocally, deleteAudioFile, canSaveRecording } from '../services/audioStorage';
 import { transcribeAudio } from '../services/transcription';
 import { categorizeEntry } from '../services/categorization';
@@ -671,15 +671,15 @@ const styles = StyleSheet.create({
   },
   screenScrollContent: {
     flexGrow: 1,
-    paddingBottom: 24,
+    paddingBottom: spacing.xxl,
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingTop: 12,
-    paddingBottom: 16,
+    paddingHorizontal: spacing.xl,
+    paddingTop: spacing.md,
+    paddingBottom: spacing.lg,
     borderBottomWidth: StyleSheet.hairlineWidth,
   },
   headerTitle: {
@@ -697,7 +697,7 @@ const styles = StyleSheet.create({
   },
   timerContainer: {
     alignItems: 'center',
-    paddingVertical: 24,
+    paddingVertical: spacing.xxl,
   },
   timer: {
     fontSize: 48,
@@ -705,22 +705,22 @@ const styles = StyleSheet.create({
   },
   timerLabel: {
     fontSize: 14,
-    marginTop: 8,
+    marginTop: spacing.sm,
   },
   buttonContainer: {
     alignItems: 'center',
-    paddingVertical: 16,
+    paddingVertical: spacing.lg,
     minHeight: 140,
     justifyContent: 'center',
   },
   buttonContainerCompact: {
     minHeight: 64,
-    paddingVertical: 12,
+    paddingVertical: spacing.md,
   },
   recordingControls: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 24,
+    gap: spacing.xxl,
   },
   controlBtn: {
     width: 64,
@@ -736,11 +736,11 @@ const styles = StyleSheet.create({
   },
   bottomSection: {
     alignItems: 'center',
-    paddingTop: 16,
+    paddingTop: spacing.lg,
   },
   playbackContainer: {
     alignItems: 'center',
-    paddingVertical: 16,
+    paddingVertical: spacing.lg,
   },
   playButton: {
     width: 60,
@@ -752,22 +752,22 @@ const styles = StyleSheet.create({
   },
   statusContainer: {
     alignItems: 'center',
-    paddingVertical: 16,
-    paddingHorizontal: 40,
+    paddingVertical: spacing.lg,
+    paddingHorizontal: spacing.xxxl + spacing.sm,
   },
   statusLoading: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: spacing.sm,
   },
   statusSuccess: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: spacing.sm,
   },
   statusError: {
     alignItems: 'center',
-    gap: 8,
+    gap: spacing.sm,
   },
   statusText: {
     fontSize: 14,
@@ -779,13 +779,13 @@ const styles = StyleSheet.create({
   actionContainer: {
     flexDirection: 'row',
     justifyContent: 'center',
-    paddingHorizontal: 40,
-    paddingTop: 16,
-    paddingBottom: 8,
+    paddingHorizontal: spacing.xxxl + spacing.sm,
+    paddingTop: spacing.lg,
+    paddingBottom: spacing.sm,
   },
   discardButton: {
-    paddingHorizontal: 32,
-    paddingVertical: 16,
+    paddingHorizontal: spacing.xxxl,
+    paddingVertical: spacing.lg,
     borderRadius: 25,
     borderWidth: 1,
   },
@@ -798,41 +798,41 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.5)',
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: 32,
+    paddingHorizontal: spacing.xxxl,
   },
   modalContent: {
     width: '100%',
-    borderRadius: 20,
+    borderRadius: radius.xl,
     padding: 28,
     alignItems: 'center',
   },
   modalTitle: {
     fontSize: 20,
     fontWeight: '700',
-    marginBottom: 4,
+    marginBottom: spacing.xs,
   },
   modalSubtitle: {
     fontSize: 14,
-    marginBottom: 20,
+    marginBottom: spacing.xl,
   },
   modalInput: {
     width: '100%',
     borderWidth: 1,
-    borderRadius: 12,
-    paddingHorizontal: 16,
+    borderRadius: radius.md,
+    paddingHorizontal: spacing.lg,
     paddingVertical: 14,
     fontSize: 16,
-    marginBottom: 20,
+    marginBottom: spacing.xl,
   },
   modalButtons: {
     flexDirection: 'row',
-    gap: 12,
+    gap: spacing.md,
     width: '100%',
   },
   modalSkipBtn: {
     flex: 1,
     paddingVertical: 14,
-    borderRadius: 12,
+    borderRadius: radius.md,
     borderWidth: 1,
     alignItems: 'center',
   },
@@ -843,7 +843,7 @@ const styles = StyleSheet.create({
   modalSaveBtn: {
     flex: 1,
     paddingVertical: 14,
-    borderRadius: 12,
+    borderRadius: radius.md,
     alignItems: 'center',
   },
   modalSaveText: {
