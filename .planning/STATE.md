@@ -23,7 +23,7 @@ See: .planning/PROJECT.md (updated 2026-07-17)
 Phase: Complete (all 3 phases done)
 Plan: 7/7 complete
 Status: Roadmap complete
-Last activity: 2026-08-07 - Completed quick task 260807-e7s: Finish GitHub issue #70 token-mapping (modals + screen leftovers)
+Last activity: 2026-08-07 - Completed quick task 260807-f6m: Fix GitHub issue #99 deleteEntry() orphaned audio files
 
 Progress: [██████████] 100%
 
@@ -72,6 +72,7 @@ None yet.
 | 260805-krn | Fix GitHub issue #70 UI/UX audit findings: (1) non-responsive hardcoded CSS → design tokens, (2) skeleton loading states in data-fetching screens | 2026-08-05 | (uncommitted — user commits) | [260805-krn-fix-github-issue-70-ui-ux-audit-findings](./quick/260805-krn-fix-github-issue-70-ui-ux-audit-findings/) |
 | 260806-gg3 | Finish GitHub issue #70: add skeleton to CreateNoteScreen + SearchScreen; responsive layout pass (EmptyState window-scaling, swipe token sums, safe-area scroll clearance) | 2026-08-06 | (uncommitted — user commits) | [260806-gg3-finish-github-issue-70-ui-ux-audit-findi](./quick/260806-gg3-finish-github-issue-70-ui-ux-audit-findi/) |
 | 260807-e7s | Finish GitHub issue #70 token-mapping: convert remaining literals in BackgroundTitleModal, CreateSheet, ElevatedTabBar + screen leftovers (DayDetail, Home, Record, WeeklySummary, Search) | 2026-08-07 | (uncommitted — user commits) | [260807-e7s-finish-github-issue-70-token-mapping-con](./quick/260807-e7s-finish-github-issue-70-token-mapping-con/) |
+| 260807-f6m | Fix GitHub issue #99: deleteEntry() orphaned audio files — clean up the entry's audio file before soft-deleting the DB record | 2026-08-07 | (uncommitted — user commits) | [260807-f6m-fix-github-issue-99-deleteentry-orphaned](./quick/260807-f6m-fix-github-issue-99-deleteentry-orphaned/) |
 
 ## Deferred Items
 
