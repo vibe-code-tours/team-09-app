@@ -13,12 +13,17 @@ import {
   Alert,
   ActivityIndicator,
   DeviceEventEmitter,
+  Modal,
+  Pressable,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useNavigation, useRoute, RouteProp } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "../theme/ThemeContext";
-import { CATEGORIES, Category, spacing, radius } from "../theme";
+import { CATEGORIES, Category, spacing, radius, MOOD_EMOJI } from "../theme";
+import { MOODS } from "../db/schema";
+
+type Mood = (typeof MOODS)[number];
 import {
   getEntryById,
   getEntries,
@@ -61,10 +66,13 @@ export const CreateNoteScreen: React.FC = () => {
   const [category, setCategory] = useState<Category>(
     predictedCategory || "other",
   );
+  const [mood, setMood] = useState<Mood>("neutral");
+  const [moodModalVisible, setMoodModalVisible] = useState(false);
   const [isPinned, setIsPinned] = useState(false);
   const [isViewOnly, setIsViewOnly] = useState(startViewOnly);
   const [allEntries, setAllEntries] = useState<any[]>([]);
   const [pinModalVisible, setPinModalVisible] = useState(false);
+  const [categoryModalVisible, setCategoryModalVisible] = useState(false);
   const [pendingPinEntry, setPendingPinEntry] = useState<any | null>(null);
   const [pinnedForReplace, setPinnedForReplace] = useState<any[]>([]);
   const [isSaving, setIsSaving] = useState(false);
@@ -88,6 +96,7 @@ export const CreateNoteScreen: React.FC = () => {
       setTitle("");
       setContent(prefilledText || "");
       setCategory(predictedCategory || "other");
+      setMood("neutral");
       setIsPinned(false);
       setIsViewOnly(startViewOnly);
       setAudioFile(initialAudioFile);
@@ -115,6 +124,11 @@ export const CreateNoteScreen: React.FC = () => {
         setTitle(entry.title);
         setContent(entry.transcript);
         setCategory(entry.category);
+        if (entry.mood && (MOODS as readonly string[]).includes(entry.mood)) {
+          setMood(entry.mood as Mood);
+        } else {
+          setMood("neutral");
+        }
         setIsPinned(entry.isPinned);
         if (entry.audioUri) {
           setAudioFile(entry.audioUri);
@@ -152,6 +166,7 @@ export const CreateNoteScreen: React.FC = () => {
           title: finalTitle,
           transcript: content.trim(),
           category,
+          mood,
           isPinned,
         });
       } else {
@@ -160,7 +175,7 @@ export const CreateNoteScreen: React.FC = () => {
           transcript: content.trim(),
           category,
           summary: "",
-          mood: "neutral",
+          mood,
           audioUri: audioFile || "",
           audioDuration: 0,
           isPinned,
@@ -291,18 +306,7 @@ export const CreateNoteScreen: React.FC = () => {
   };
 
   // ── Category & Pin ───────────────────────────────────────────
-  const toggleCategory = async () => {
-    const categories: Category[] = [
-      "feelings",
-      "work",
-      "health",
-      "ideas",
-      "money",
-      "other",
-    ];
-    const currentIndex = categories.indexOf(category);
-    const nextIndex = (currentIndex + 1) % categories.length;
-    const newCategory = categories[nextIndex];
+  const applyCategory = async (newCategory: Category) => {
     setCategory(newCategory);
     // Auto-save if editing an existing entry
     if (entryId) {
@@ -314,6 +318,50 @@ export const CreateNoteScreen: React.FC = () => {
     } else {
       setHasUnsavedChanges(true);
     }
+  };
+
+  const toggleCategory = async () => {
+    const categories: Category[] = [
+      "feelings",
+      "work",
+      "health",
+      "ideas",
+      "money",
+      "other",
+    ];
+    const currentIndex = categories.indexOf(category);
+    const nextIndex = (currentIndex + 1) % categories.length;
+    await applyCategory(categories[nextIndex]);
+  };
+
+  const handleCategoryPick = (newCategory: Category) => {
+    setCategoryModalVisible(false);
+    applyCategory(newCategory);
+  };
+
+  const moodActive = mood !== "neutral";
+  const applyMood = async (newMood: Mood) => {
+    setMood(newMood);
+    if (entryId) {
+      try {
+        await updateEntry(entryId, { mood: newMood });
+      } catch (err) {
+        console.error("[CreateNoteScreen] Auto-save mood failed:", err);
+      }
+    } else {
+      setHasUnsavedChanges(true);
+    }
+  };
+
+  const toggleMood = () => {
+    const currentIndex = MOODS.indexOf(mood);
+    const nextIndex = (currentIndex + 1) % MOODS.length;
+    applyMood(MOODS[nextIndex]);
+  };
+
+  const handleMoodPick = (newMood: Mood) => {
+    setMoodModalVisible(false);
+    applyMood(newMood);
   };
 
   const togglePin = async () => {
@@ -571,6 +619,8 @@ export const CreateNoteScreen: React.FC = () => {
                 { backgroundColor: CATEGORIES[category].color + "20" },
               ]}
               onPress={toggleCategory}
+              onLongPress={() => setCategoryModalVisible(true)}
+              delayLongPress={450}
             >
               <Text style={styles.categoryEmoji}>
                 {CATEGORIES[category].icon}
@@ -604,6 +654,32 @@ export const CreateNoteScreen: React.FC = () => {
                 ]}
               >
                 {isPinned ? "Pinned" : "Pin"}
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[
+                styles.moodPill,
+                {
+                  backgroundColor: moodActive
+                    ? colors.primary + "20"
+                    : colors.surfaceAlt,
+                },
+              ]}
+              onPress={toggleMood}
+              onLongPress={() => setMoodModalVisible(true)}
+              delayLongPress={450}
+            >
+              <Text style={styles.moodEmoji}>
+                {MOOD_EMOJI[mood] || "😐"}
+              </Text>
+              <Text
+                style={[
+                  styles.moodLabel,
+                  { color: moodActive ? colors.primary : colors.textMuted },
+                ]}
+              >
+                {mood}
               </Text>
             </TouchableOpacity>
           </View>
@@ -788,6 +864,126 @@ export const CreateNoteScreen: React.FC = () => {
         onSelectReplace={handleReplacePin}
         onCancel={handleCancelPinLimit}
       />
+
+      {/* Category Picker Modal */}
+      <Modal
+        visible={categoryModalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setCategoryModalVisible(false)}
+      >
+        <Pressable
+          style={styles.modalOverlay}
+          onPress={() => setCategoryModalVisible(false)}
+        >
+          <View
+            style={[
+              styles.categorySheet,
+              { backgroundColor: colors.surface },
+            ]}
+          >
+            <Text style={[styles.categorySheetTitle, { color: colors.text }]}>
+              Select Category
+            </Text>
+            {(Object.keys(CATEGORIES) as Category[]).map((c) => {
+              const isActive = c === category;
+              return (
+                <TouchableOpacity
+                  key={c}
+                  style={[
+                    styles.categoryOption,
+                    {
+                      backgroundColor: isActive
+                        ? CATEGORIES[c].color + "20"
+                        : "transparent",
+                    },
+                  ]}
+                  onPress={() => handleCategoryPick(c)}
+                >
+                  <Text style={styles.categoryOptionIcon}>
+                    {CATEGORIES[c].icon}
+                  </Text>
+                  <Text
+                    style={[
+                      styles.categoryOptionLabel,
+                      { color: colors.text },
+                    ]}
+                  >
+                    {CATEGORIES[c].label}
+                  </Text>
+                  {isActive && (
+                    <Ionicons
+                      name="checkmark"
+                      size={20}
+                      color={CATEGORIES[c].color}
+                    />
+                  )}
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        </Pressable>
+      </Modal>
+
+      {/* Mood Picker Modal */}
+      <Modal
+        visible={moodModalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setMoodModalVisible(false)}
+      >
+        <Pressable
+          style={styles.modalOverlay}
+          onPress={() => setMoodModalVisible(false)}
+        >
+          <View
+            style={[
+              styles.categorySheet,
+              { backgroundColor: colors.surface },
+            ]}
+          >
+            <Text style={[styles.categorySheetTitle, { color: colors.text }]}>
+              Select Mood
+            </Text>
+            {MOODS.map((m) => {
+              const isActive = m === mood;
+              return (
+                <TouchableOpacity
+                  key={m}
+                  style={[
+                    styles.categoryOption,
+                    {
+                      backgroundColor: isActive
+                        ? colors.primary + "20"
+                        : "transparent",
+                    },
+                  ]}
+                  onPress={() => handleMoodPick(m)}
+                >
+                  <Text style={styles.categoryOptionIcon}>
+                    {MOOD_EMOJI[m] || "😐"}
+                  </Text>
+                  <Text
+                    style={[
+                      styles.categoryOptionLabel,
+                      { color: colors.text },
+                    ]}
+                  >
+                    {m}
+                  </Text>
+                  {isActive && (
+                    <Ionicons
+                      name="checkmark"
+                      size={20}
+                      color={colors.primary}
+                    />
+                  )}
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        </Pressable>
+      </Modal>
     </SafeAreaView>
   );
 };
@@ -874,11 +1070,60 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "500",
   },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    justifyContent: "flex-end",
+  },
+  categorySheet: {
+    borderTopLeftRadius: radius.xl,
+    borderTopRightRadius: radius.xl,
+    padding: spacing.lg,
+    paddingBottom: spacing.xxl,
+  },
+  categorySheetTitle: {
+    fontSize: 16,
+    fontWeight: "700",
+    marginBottom: spacing.md,
+  },
+  categoryOption: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.md,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.md,
+    borderRadius: radius.md,
+  },
+  categoryOptionIcon: {
+    fontSize: 20,
+    width: 28,
+  },
+  categoryOptionLabel: {
+    flex: 1,
+    fontSize: 16,
+    fontWeight: "500",
+  },
   audioSection: {
     flexDirection: "row",
     alignItems: "center",
     gap: spacing.sm,
     marginBottom: spacing.xl,
+  },
+  moodPill: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: radius.full,
+    gap: spacing.xs,
+  },
+  moodEmoji: {
+    fontSize: 14,
+  },
+  moodLabel: {
+    fontSize: 14,
+    fontWeight: "500",
+    textTransform: "capitalize",
   },
   audioPlayerWrapper: {
     flex: 1,
