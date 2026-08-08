@@ -10,6 +10,18 @@ let sqlite = SQLite.openDatabaseSync(DB_NAME);
 let db = drizzle(sqlite, { schema });
 
 /**
+ * Returns true when the error is an "column already exists" failure from a
+ * migration ALTER TABLE. All other errors are rethrown so real failures
+ * (disk I/O, corruption, bad SQL) are not silently swallowed.
+ */
+function isDuplicateColumnError(err: unknown): boolean {
+  if (!(err instanceof Error)) {
+    return false;
+  }
+  return err.message.includes('duplicate column name');
+}
+
+/**
  * Delete and recreate the database file.
  */
 async function rebuildDatabase(): Promise<void> {
@@ -150,26 +162,38 @@ export async function initDatabase(): Promise<void> {
   // Migration: add title column if missing (for existing databases)
   try {
     await sqlite.execAsync('ALTER TABLE entries ADD COLUMN title TEXT');
-  } catch {
+  } catch (err) {
+    if (!isDuplicateColumnError(err)) {
+      throw err;
+    }
     // Column already exists — safe to ignore
   }
 
   // Migration: add reminder_time column to user_settings (for existing databases)
   try {
     await sqlite.execAsync("ALTER TABLE user_settings ADD COLUMN reminder_time TEXT NOT NULL DEFAULT '20:00'");
-  } catch {
+  } catch (err) {
+    if (!isDuplicateColumnError(err)) {
+      throw err;
+    }
     // Column already exists — safe to ignore
   }
 
   // Migration: add weekly summary columns to user_settings (for existing databases)
   try {
     await sqlite.execAsync('ALTER TABLE user_settings ADD COLUMN weekly_summary INTEGER NOT NULL DEFAULT 0');
-  } catch {
+  } catch (err) {
+    if (!isDuplicateColumnError(err)) {
+      throw err;
+    }
     // Column already exists — safe to ignore
   }
   try {
     await sqlite.execAsync("ALTER TABLE user_settings ADD COLUMN weekly_summary_language TEXT NOT NULL DEFAULT 'my'");
-  } catch {
+  } catch (err) {
+    if (!isDuplicateColumnError(err)) {
+      throw err;
+    }
     // Column already exists — safe to ignore
   }
 
