@@ -5,6 +5,7 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
+  ScrollView,
   Animated,
   ActivityIndicator,
   Modal,
@@ -22,7 +23,7 @@ import { RecordButton } from '../components/RecordButton';
 import { useRecording } from '../hooks/useRecording';
 import { useTheme } from '../theme/ThemeContext';
 import { useAuth } from '../context/AuthContext';
-import { createShadows } from '../theme';
+import { createShadows, spacing, radius } from '../theme';
 import { saveAudioLocally, deleteAudioFile, canSaveRecording } from '../services/audioStorage';
 import { transcribeAudio } from '../services/transcription';
 import { categorizeEntry } from '../services/categorization';
@@ -34,6 +35,11 @@ const generateTitle = (text: string): string => {
   const words = text.trim().split(/\s+/).slice(0, 6).join(' ');
   return words.length > 0 ? words : 'Voice Note';
 };
+
+// Moods allowed by the entries_mood_check DB constraint.
+const VALID_MOODS = ['happy', 'sad', 'neutral', 'excited', 'stressed', 'grateful'] as const;
+const normalizeMood = (mood: string | undefined | null): string =>
+  mood && (VALID_MOODS as readonly string[]).includes(mood) ? mood : 'neutral';
 
 export const RecordScreen: React.FC = () => {
   const navigation = useNavigation<any>();
@@ -58,6 +64,7 @@ export const RecordScreen: React.FC = () => {
   const [isTranscribing, setIsTranscribing] = useState(false);
   const [transcribeError, setTranscribeError] = useState<string | null>(null);
   const [category, setCategory] = useState<Category>('other');
+  const [mood, setMood] = useState<string>('neutral');
   const [isCategorizing, setIsCategorizing] = useState(false);
   const [hasNavigatedToNote, setHasNavigatedToNote] = useState(false);
   const [showTitleModal, setShowTitleModal] = useState(false);
@@ -76,6 +83,8 @@ export const RecordScreen: React.FC = () => {
   transcriptRef.current = transcript;
   const categoryRef = useRef(category);
   categoryRef.current = category;
+  const moodRef = useRef(mood);
+  moodRef.current = mood;
   const permanentUriRef = useRef<string | null>(null);
   const discardedRef = useRef(false);
   const backgroundModeRef = useRef(false);
@@ -100,6 +109,7 @@ export const RecordScreen: React.FC = () => {
     setTranscript('');
     setTranscribeError(null);
     setCategory('other');
+    setMood('neutral');
     setHasNavigatedToNote(false);
     discardRecording();
   };
@@ -121,6 +131,7 @@ export const RecordScreen: React.FC = () => {
     setTranscript('');
     setTranscribeError(null);
     setCategory('other');
+    setMood('neutral');
     setHasNavigatedToNote(false);
     discardRecording();
   };
@@ -138,9 +149,9 @@ export const RecordScreen: React.FC = () => {
         transcript: currentTranscript.trim(),
         category: currentCategory,
         summary: '',
-        mood: 'neutral',
+        mood: moodRef.current,
         audioUri,
-        audioDuration: 0,
+        audioDuration: stateRef.current.duration,
         isPinned: false,
       });
 
@@ -220,13 +231,16 @@ export const RecordScreen: React.FC = () => {
 
           // Auto-categorize
           let finalCategory: Category = 'other';
+          let finalMood: string = 'neutral';
           if (text.trim()) {
             setIsCategorizing(true);
             try {
               const result = await categorizeEntry(text);
               if (processingCancelledRef.current || (discardedRef.current && !backgroundModeRef.current)) return;
               finalCategory = result.category;
+              finalMood = normalizeMood(result.mood);
               setCategory(finalCategory); // Update category state/ref
+              setMood(finalMood); // Update mood state/ref
             } catch (catErr: any) {
               console.error('[RecordScreen] Categorize failed:', catErr);
             } finally {
@@ -243,9 +257,9 @@ export const RecordScreen: React.FC = () => {
               transcript: text.trim(),
               category: finalCategory,
               summary: '',
-              mood: 'neutral',
+              mood: finalMood,
               audioUri: permanentUriRef.current || '',
-              audioDuration: 0,
+              audioDuration: stateRef.current.duration,
               isPinned: false,
             });
 
@@ -261,6 +275,7 @@ export const RecordScreen: React.FC = () => {
             setTranscript('');
             setTranscribeError(null);
             setCategory('other');
+            setMood('neutral');
             setHasNavigatedToNote(false);
             setIsTranscribing(false);
             setIsCategorizing(false);
@@ -378,6 +393,7 @@ export const RecordScreen: React.FC = () => {
             setTranscript('');
             setTranscribeError(null);
             setCategory('other');
+            setMood('neutral');
             setHasNavigatedToNote(false);
             discardRecording();
             navigation.goBack();
@@ -403,172 +419,180 @@ export const RecordScreen: React.FC = () => {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.bg }]}>
-      {/* Header */}
-      <View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
-        <TouchableOpacity
-          onPress={handleDiscard}
-          hitSlop={styles.hitSlop}
-          disabled={isSaving}
-        >
-          <Ionicons name="close" size={28} color={colors.text} />
-        </TouchableOpacity>
-        <Text style={[styles.headerTitle, { color: colors.text }]}>Record Entry</Text>
-        <View style={styles.headerSpacer} />
-      </View>
+      <ScrollView
+        style={styles.screenScroll}
+        contentContainerStyle={styles.screenScrollContent}
+        showsVerticalScrollIndicator={false}
+        bounces={false}
+      >
+        {/* Header */}
+        <View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
+          <TouchableOpacity
+            onPress={handleDiscard}
+            hitSlop={styles.hitSlop}
+            disabled={isSaving}
+          >
+            <Ionicons name="close" size={28} color={colors.text} />
+          </TouchableOpacity>
+          <Text style={[styles.headerTitle, { color: colors.text }]}>Record Entry</Text>
+          <View style={styles.headerSpacer} />
+        </View>
 
-      {/* Timer */}
-      <View style={styles.timerContainer}>
-        <Text style={[
-          styles.timer,
-          { color: isSaving || (isRecording && isPaused) ? colors.textMuted : colors.text },
-        ]}>
-          {formatDuration(state.duration)}
-        </Text>
-        <Text style={[styles.timerLabel, { color: colors.textMuted }]}>
-          {statusLabel}
-        </Text>
-      </View>
+        {/* Timer */}
+        <View style={styles.timerContainer}>
+          <Text style={[
+            styles.timer,
+            { color: isSaving || (isRecording && isPaused) ? colors.textMuted : colors.text },
+          ]}>
+            {formatDuration(state.duration)}
+          </Text>
+          <Text style={[styles.timerLabel, { color: colors.textMuted }]}>
+            {statusLabel}
+          </Text>
+        </View>
 
-      {/* Record / Pause / Stop Buttons */}
-      <View style={styles.buttonContainer}>
-        {isSaving || isTranscribing || isCategorizing ? (
-          <ActivityIndicator size="large" color={colors.primary} />
-        ) : isRecording ? (
-          // Recording active: show pause + stop side by side
-          <View style={styles.recordingControls}>
-            {/* Pause / Resume */}
-            <TouchableOpacity
-              style={[styles.controlBtn, { backgroundColor: colors.surface }, shadows.sm]}
-              onPress={handlePausePress}
-              activeOpacity={0.7}
-            >
-              <Ionicons
-                name={isPaused ? 'play' : 'pause'}
-                size={28}
-                color={colors.primary}
-              />
-            </TouchableOpacity>
+        {/* Record / Pause / Stop Buttons */}
+        <View style={[styles.buttonContainer, (isTranscribing || isCategorizing) && styles.buttonContainerCompact]}>
+          {isSaving || isTranscribing || isCategorizing ? (
+            <ActivityIndicator size="large" color={colors.primary} />
+          ) : isRecording ? (
+            // Recording active: show pause + stop side by side
+            <View style={styles.recordingControls}>
+              {/* Pause / Resume */}
+              <TouchableOpacity
+                style={[styles.controlBtn, { backgroundColor: colors.surface }, shadows.sm]}
+                onPress={handlePausePress}
+                activeOpacity={0.7}
+              >
+                <Ionicons
+                  name={isPaused ? 'play' : 'pause'}
+                  size={28}
+                  color={colors.primary}
+                />
+              </TouchableOpacity>
 
-            {/* Stop */}
-            <TouchableOpacity
-              style={[styles.controlBtn, styles.stopBtn, { backgroundColor: colors.danger }]}
-              onPress={handleRecordPress}
-              activeOpacity={0.7}
-            >
-              <Ionicons name="stop" size={28} color="#FFFFFF" />
-            </TouchableOpacity>
-          </View>
-        ) : (
-          // Idle: show record button
-          <RecordButton isRecording={false} onPress={handleRecordPress} />
+              {/* Stop */}
+              <TouchableOpacity
+                style={[styles.controlBtn, styles.stopBtn, { backgroundColor: colors.danger }]}
+                onPress={handleRecordPress}
+                activeOpacity={0.7}
+              >
+                <Ionicons name="stop" size={28} color="#FFFFFF" />
+              </TouchableOpacity>
+            </View>
+          ) : (
+            // Idle: show record button
+            <RecordButton isRecording={false} onPress={handleRecordPress} />
+          )}
+        </View>
+
+        {/* Playback + Status (animated in after recording) */}
+        {hasRecording && (
+          <Animated.View
+            style={[
+              styles.bottomSection,
+              { opacity: fadeIn, transform: [{ translateY: slideUp }] },
+            ]}
+          >
+            {/* Play / Pause */}
+            <View style={styles.playbackContainer}>
+              <TouchableOpacity
+                style={[
+                  styles.playButton,
+                  {
+                    backgroundColor: colors.surface,
+                    borderColor: colors.primary,
+                  },
+                ]}
+                onPress={state.isPlaying ? stopPlayback : playRecording}
+                activeOpacity={0.7}
+              >
+                <Ionicons
+                  name={state.isPlaying ? 'pause' : 'play'}
+                  size={32}
+                  color={colors.primary}
+                />
+              </TouchableOpacity>
+            </View>
+
+            {/* Status indicator */}
+            <View style={styles.statusContainer}>
+              {isTranscribing || isCategorizing ? (
+                <View style={styles.statusLoading}>
+                  <ActivityIndicator size="small" color={colors.primary} />
+                  <Text style={[styles.statusText, { color: colors.textMuted }]}>
+                    {isTranscribing ? 'Transcribing...' : 'Categorizing...'}
+                  </Text>
+                </View>
+              ) : hasNavigatedToNote ? (
+                <View style={styles.statusSuccess}>
+                  <Ionicons name="checkmark-circle" size={20} color={colors.success} />
+                  <Text style={[styles.statusText, { color: colors.success }]}>
+                    Ready to save!
+                  </Text>
+                </View>
+              ) : transcribeError ? (
+                <View style={styles.statusError}>
+                  <Ionicons name="alert-circle" size={20} color={colors.danger} />
+                  <Text style={[styles.statusText, { color: colors.danger }]}>
+                    {transcribeError}
+                  </Text>
+                  <TouchableOpacity onPress={() => {
+                    const uri = stateRef.current.uri;
+                    if (!uri) return;
+                    setIsTranscribing(true);
+                    setTranscribeError(null);
+                    let finalUri = '';
+                    saveAudioLocally(uri)
+                      .then(permanentUri => {
+                        if (!permanentUri) {
+                          throw new Error('Storage full. Delete some recordings first.');
+                        }
+                        finalUri = permanentUri;
+                        return transcribeAudio(permanentUri);
+                      })
+                      .then(async text => {
+                        setTranscript(text);
+                        let finalCategory: Category = 'other';
+                        try {
+                          const result = await categorizeEntry(text);
+                          finalCategory = result.category;
+                          setCategory(finalCategory);
+                          setMood(normalizeMood(result.mood));
+                        } catch (catErr) {
+                          console.error('[RecordScreen] Categorize failed:', catErr);
+                        }
+                        // Open Title Modal on retry success
+                        setShowTitleModal(true);
+                      })
+                      .catch(err => {
+                        setTranscribeError(err.message || 'Transcription failed');
+                      })
+                      .finally(() => {
+                        setIsTranscribing(false);
+                      });
+                  }}>
+                    <Text style={[styles.retryText, { color: colors.primary }]}>Retry</Text>
+                  </TouchableOpacity>
+                </View>
+              ) : null}
+            </View>
+
+            {/* Discard button */}
+            <View style={styles.actionContainer}>
+              <TouchableOpacity
+                style={[styles.discardButton, { borderColor: colors.border }]}
+                onPress={handleDiscard}
+                activeOpacity={0.7}
+              >
+                <Text style={[styles.discardText, { color: colors.textSecondary }]}>
+                  Discard
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </Animated.View>
         )}
-      </View>
-
-      {/* Playback + Status (animated in after recording) */}
-      {hasRecording && (
-        <Animated.View
-          style={[
-            styles.bottomSection,
-            { opacity: fadeIn, transform: [{ translateY: slideUp }] },
-          ]}
-        >
-          {/* Play / Pause */}
-          <View style={styles.playbackContainer}>
-            <TouchableOpacity
-              style={[
-                styles.playButton,
-                {
-                  backgroundColor: colors.surface,
-                  borderColor: colors.primary,
-                },
-              ]}
-              onPress={state.isPlaying ? stopPlayback : playRecording}
-              activeOpacity={0.7}
-            >
-              <Ionicons
-                name={state.isPlaying ? 'pause' : 'play'}
-                size={32}
-                color={colors.primary}
-              />
-            </TouchableOpacity>
-          </View>
-
-          {/* Status indicator */}
-          <View style={styles.statusContainer}>
-            {isTranscribing || isCategorizing ? (
-              <View style={styles.statusLoading}>
-                <ActivityIndicator size="small" color={colors.primary} />
-                <Text style={[styles.statusText, { color: colors.textMuted }]}>
-                  {isTranscribing ? 'Transcribing...' : 'Categorizing...'}
-                </Text>
-              </View>
-            ) : hasNavigatedToNote ? (
-              <View style={styles.statusSuccess}>
-                <Ionicons name="checkmark-circle" size={20} color={colors.success} />
-                <Text style={[styles.statusText, { color: colors.success }]}>
-                  Ready to save!
-                </Text>
-              </View>
-            ) : transcribeError ? (
-              <View style={styles.statusError}>
-                <Ionicons name="alert-circle" size={20} color={colors.danger} />
-                <Text style={[styles.statusText, { color: colors.danger }]}>
-                  {transcribeError}
-                </Text>
-                <TouchableOpacity onPress={() => {
-                  const uri = stateRef.current.uri;
-                  if (!uri) return;
-                  setIsTranscribing(true);
-                  setTranscribeError(null);
-                  let finalUri = '';
-                  saveAudioLocally(uri)
-                    .then(permanentUri => {
-                      if (!permanentUri) {
-                        throw new Error('Storage full. Delete some recordings first.');
-                      }
-                      finalUri = permanentUri;
-                      return transcribeAudio(permanentUri);
-                    })
-                    .then(async text => {
-                      setTranscript(text);
-                      let finalCategory: Category = 'other';
-                      try {
-                        const result = await categorizeEntry(text);
-                        finalCategory = result.category;
-                        setCategory(finalCategory);
-                      } catch (catErr) {
-                        console.error('[RecordScreen] Categorize failed:', catErr);
-                      }
-                      // Open Title Modal on retry success
-                      setShowTitleModal(true);
-                    })
-                    .catch(err => {
-                      setTranscribeError(err.message || 'Transcription failed');
-                    })
-                    .finally(() => {
-                      setIsTranscribing(false);
-                    });
-                }}>
-                  <Text style={[styles.retryText, { color: colors.primary }]}>Retry</Text>
-                </TouchableOpacity>
-              </View>
-            ) : null}
-          </View>
-
-          {/* Discard button */}
-          <View style={styles.actionContainer}>
-            <TouchableOpacity
-              style={[styles.discardButton, { borderColor: colors.border }]}
-              onPress={handleDiscard}
-              activeOpacity={0.7}
-            >
-              <Text style={[styles.discardText, { color: colors.textSecondary }]}>
-                Discard
-              </Text>
-            </TouchableOpacity>
-          </View>
-        </Animated.View>
-      )}
+      </ScrollView>
 
       {/* Title Modal */}
       <Modal
@@ -658,13 +682,20 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
+  screenScroll: {
+    flex: 1,
+  },
+  screenScrollContent: {
+    flexGrow: 1,
+    paddingBottom: spacing.xxl,
+  },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingTop: 12,
-    paddingBottom: 16,
+    paddingHorizontal: spacing.xl,
+    paddingTop: spacing.md,
+    paddingBottom: spacing.lg,
     borderBottomWidth: StyleSheet.hairlineWidth,
   },
   headerTitle: {
@@ -682,7 +713,7 @@ const styles = StyleSheet.create({
   },
   timerContainer: {
     alignItems: 'center',
-    paddingVertical: 40,
+    paddingVertical: spacing.xxl,
   },
   timer: {
     fontSize: 48,
@@ -690,18 +721,22 @@ const styles = StyleSheet.create({
   },
   timerLabel: {
     fontSize: 14,
-    marginTop: 8,
+    marginTop: spacing.sm,
   },
   buttonContainer: {
     alignItems: 'center',
-    paddingVertical: 20,
-    height: 160,
+    paddingVertical: spacing.lg,
+    minHeight: 140,
     justifyContent: 'center',
+  },
+  buttonContainerCompact: {
+    minHeight: 64,
+    paddingVertical: spacing.md,
   },
   recordingControls: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 24,
+    gap: spacing.xxl,
   },
   controlBtn: {
     width: 64,
@@ -716,13 +751,12 @@ const styles = StyleSheet.create({
     borderRadius: 36,
   },
   bottomSection: {
-    flex: 1,
     alignItems: 'center',
-    paddingTop: 20,
+    paddingTop: spacing.lg,
   },
   playbackContainer: {
     alignItems: 'center',
-    paddingVertical: 20,
+    paddingVertical: spacing.lg,
   },
   playButton: {
     width: 60,
@@ -734,22 +768,22 @@ const styles = StyleSheet.create({
   },
   statusContainer: {
     alignItems: 'center',
-    paddingVertical: 20,
-    paddingHorizontal: 40,
+    paddingVertical: spacing.lg,
+    paddingHorizontal: spacing.xxxl + spacing.sm,
   },
   statusLoading: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: spacing.sm,
   },
   statusSuccess: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: spacing.sm,
   },
   statusError: {
     alignItems: 'center',
-    gap: 8,
+    gap: spacing.sm,
   },
   statusText: {
     fontSize: 14,
@@ -761,12 +795,13 @@ const styles = StyleSheet.create({
   actionContainer: {
     flexDirection: 'row',
     justifyContent: 'center',
-    paddingHorizontal: 40,
-    marginTop: 30,
+    paddingHorizontal: spacing.xxxl + spacing.sm,
+    paddingTop: spacing.lg,
+    paddingBottom: spacing.sm,
   },
   discardButton: {
-    paddingHorizontal: 32,
-    paddingVertical: 16,
+    paddingHorizontal: spacing.xxxl,
+    paddingVertical: spacing.lg,
     borderRadius: 25,
     borderWidth: 1,
   },
@@ -779,41 +814,41 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.5)',
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: 32,
+    paddingHorizontal: spacing.xxxl,
   },
   modalContent: {
     width: '100%',
-    borderRadius: 20,
+    borderRadius: radius.xl,
     padding: 28,
     alignItems: 'center',
   },
   modalTitle: {
     fontSize: 20,
     fontWeight: '700',
-    marginBottom: 4,
+    marginBottom: spacing.xs,
   },
   modalSubtitle: {
     fontSize: 14,
-    marginBottom: 20,
+    marginBottom: spacing.xl,
   },
   modalInput: {
     width: '100%',
     borderWidth: 1,
-    borderRadius: 12,
-    paddingHorizontal: 16,
+    borderRadius: radius.md,
+    paddingHorizontal: spacing.lg,
     paddingVertical: 14,
     fontSize: 16,
-    marginBottom: 20,
+    marginBottom: spacing.xl,
   },
   modalButtons: {
     flexDirection: 'row',
-    gap: 12,
+    gap: spacing.md,
     width: '100%',
   },
   modalSkipBtn: {
     flex: 1,
     paddingVertical: 14,
-    borderRadius: 12,
+    borderRadius: radius.md,
     borderWidth: 1,
     alignItems: 'center',
   },
@@ -824,7 +859,7 @@ const styles = StyleSheet.create({
   modalSaveBtn: {
     flex: 1,
     paddingVertical: 14,
-    borderRadius: 12,
+    borderRadius: radius.md,
     alignItems: 'center',
   },
   modalSaveText: {

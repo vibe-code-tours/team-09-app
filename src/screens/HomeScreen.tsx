@@ -12,17 +12,18 @@ import {
   Platform,
   ToastAndroid,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { Swipeable } from 'react-native-gesture-handler';
 import { useTheme } from '../theme/ThemeContext';
-import { CATEGORIES, Category, spacing, radius, createShadows } from '../theme';
+import { CATEGORIES, Category, spacing, radius, createShadows, MOOD_EMOJI } from '../theme';
 import { formatRelativeTime, formatHeaderDate, getGreeting } from '../theme';
 import { Entry } from '../types';
 import { getEntries, getTodayEntries, deleteEntry, updateEntry } from '../services/storage';
 import { useAuth } from '../context/AuthContext';
 import { EmptyState } from '../components/EmptyState';
+import { Skeleton } from '../components/Skeleton';
 import { WeeklySummaryCard } from '../components/WeeklySummaryCard';
 import AudioPlayer from '../components/AudioPlayer';
 import { PinLimitModal } from '../components/PinLimitModal';
@@ -34,6 +35,7 @@ export const HomeScreen: React.FC = () => {
   const { colors } = theme;
   const { userId } = useAuth();
   const shadows = createShadows(isDark, colors.primary);
+  const insets = useSafeAreaInsets();
 
   const [entries, setEntries] = useState<Entry[]>([]);
   const [stats, setStats] = useState({ today: 0, week: 0, total: 0 });
@@ -42,6 +44,7 @@ export const HomeScreen: React.FC = () => {
   const [pendingPinEntry, setPendingPinEntry] = useState<Entry | null>(null);
   const [pinnedForReplace, setPinnedForReplace] = useState<Entry[]>([]);
   const [audioKeys, setAudioKeys] = useState<Record<string, number>>({});
+  const [isLoading, setIsLoading] = useState(true);
 
   // Load entries every time screen comes into focus
   useFocusEffect(
@@ -49,6 +52,7 @@ export const HomeScreen: React.FC = () => {
       let cancelled = false;
 
       const loadData = async () => {
+        setIsLoading(true);
         try {
           const [allEntries, todayEntries] = await Promise.all([
             getEntries(userId),
@@ -70,6 +74,9 @@ export const HomeScreen: React.FC = () => {
           });
         } catch (err) {
           console.error('[HomeScreen] Failed to load entries:', err);
+        } finally {
+          if (cancelled) return;
+          setIsLoading(false);
         }
       };
 
@@ -312,6 +319,55 @@ export const HomeScreen: React.FC = () => {
     );
   }, []);
 
+  const renderHomeSkeleton = () => (
+    <ScrollView contentContainerStyle={styles.listContent} scrollEnabled={false}>
+      {/* Metric Cards */}
+      <View style={styles.metricsRow}>
+        <Skeleton height={72} borderRadius={radius.lg} style={styles.metricCardSkeleton} />
+        <Skeleton height={72} borderRadius={radius.lg} style={styles.metricCardSkeleton} />
+        <Skeleton height={72} borderRadius={radius.lg} style={styles.metricCardSkeleton} />
+      </View>
+
+      {/* Category Chips */}
+      <View style={[styles.categorySection, { gap: spacing.sm }]}>
+        <Skeleton width={120} height={16} borderRadius={radius.sm} />
+        <View style={{ flexDirection: 'row', gap: spacing.sm }}>
+          <Skeleton width={88} height={32} borderRadius={radius.full} />
+          <Skeleton width={88} height={32} borderRadius={radius.full} />
+          <Skeleton width={88} height={32} borderRadius={radius.full} />
+          <Skeleton width={88} height={32} borderRadius={radius.full} />
+          <Skeleton width={88} height={32} borderRadius={radius.full} />
+        </View>
+      </View>
+
+      {/* Section header */}
+      <View style={styles.sectionHeader}>
+        <Skeleton width={120} height={16} borderRadius={radius.sm} />
+      </View>
+
+      {/* Entry cards */}
+      {[0, 1, 2, 3].map(i => (
+        <View
+          key={i}
+          style={[
+            styles.entryCard,
+            { backgroundColor: colors.surface },
+            shadows.sm,
+            { marginBottom: spacing.sm },
+          ]}
+        >
+          <View style={styles.entryMainRow}>
+            <Skeleton width={36} height={36} borderRadius={radius.sm} />
+            <View style={[styles.entryContent, { gap: spacing.sm }]}>
+              <Skeleton width="70%" height={14} />
+              <Skeleton width={56} height={18} borderRadius={radius.sm} />
+            </View>
+          </View>
+        </View>
+      ))}
+    </ScrollView>
+  );
+
   const renderEntry = useCallback(({ item }: { item: Entry }) => {
     const cat = CATEGORIES[item.category];
     return (
@@ -366,7 +422,9 @@ export const HomeScreen: React.FC = () => {
           {(item.mood || item.audioUri) && (
             <View style={styles.entryFooter}>
               {item.mood && (
-                <Text style={[styles.entryMood, { color: colors.textMuted }]}>{item.mood}</Text>
+                <Text style={[styles.entryMood, { color: colors.textMuted }]}>
+                  {MOOD_EMOJI[item.mood] || '😐'} {item.mood}
+                </Text>
               )}
               {item.audioUri && (
                 <AudioPlayer key={audioKeys[item.audioUri] || 0} audioUri={item.audioUri} compact />
@@ -399,70 +457,74 @@ export const HomeScreen: React.FC = () => {
       </View>
 
       {/* Scrollable content */}
-      <ScrollView contentContainerStyle={styles.listContent}>
-        {/* Metric Cards */}
-        <View style={styles.metricsRow}>
-          <View style={[styles.metricCard, { backgroundColor: colors.surface }, shadows.sm]}>
-            <Text style={[styles.metricNumber, { color: colors.primary }]}>{stats.today}</Text>
-            <Text style={[styles.metricLabel, { color: colors.textMuted }]}>Today</Text>
-          </View>
-          <View style={[styles.metricCard, styles.metricCardHighlight, shadows.primary]}>
-            <Text style={[styles.metricNumber, styles.metricNumberWhite]}>{stats.week}</Text>
-            <Text style={[styles.metricLabel, styles.metricLabelWhite]}>This Week</Text>
-          </View>
-          <View style={[styles.metricCard, { backgroundColor: colors.surface }, shadows.sm]}>
-            <Text style={[styles.metricNumber, { color: colors.primary }]}>{stats.total}</Text>
-            <Text style={[styles.metricLabel, { color: colors.textMuted }]}>Total</Text>
-          </View>
-        </View>
-
-        {/* Category Chips */}
-        <View style={styles.categorySection}>
-          <Text style={[styles.categorySectionTitle, { color: colors.text }]}>Categories</Text>
-          <FlatList
-            data={categoryOptions}
-            renderItem={renderCategoryChip}
-            keyExtractor={(item) => item.key}
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.categoryChipsContainer}
-          />
-        </View>
-
-        {/* Pinned Entries Section */}
-        {pinnedEntries.length > 0 && (
-          <View style={styles.sectionContainer}>
-            <View style={styles.sectionHeader}>
-              <Text style={[styles.sectionTitle, { color: colors.text }]}>📌 Pinned</Text>
+      {isLoading ? (
+        renderHomeSkeleton()
+      ) : (
+        <ScrollView contentContainerStyle={[styles.listContent, { paddingBottom: insets.bottom + spacing.xxxl * 3 }]}>
+          {/* Metric Cards */}
+          <View style={styles.metricsRow}>
+            <View style={[styles.metricCard, { backgroundColor: colors.surface }, shadows.sm]}>
+              <Text style={[styles.metricNumber, { color: colors.primary }]}>{stats.today}</Text>
+              <Text style={[styles.metricLabel, { color: colors.textMuted }]}>Today</Text>
             </View>
-            {pinnedEntries.map(item => (
-              <View key={item.id}>
-                {renderEntry({ item })}
+            <View style={[styles.metricCard, styles.metricCardHighlight, shadows.primary]}>
+              <Text style={[styles.metricNumber, styles.metricNumberWhite]}>{stats.week}</Text>
+              <Text style={[styles.metricLabel, styles.metricLabelWhite]}>This Week</Text>
+            </View>
+            <View style={[styles.metricCard, { backgroundColor: colors.surface }, shadows.sm]}>
+              <Text style={[styles.metricNumber, { color: colors.primary }]}>{stats.total}</Text>
+              <Text style={[styles.metricLabel, { color: colors.textMuted }]}>Total</Text>
+            </View>
+          </View>
+
+          {/* Category Chips */}
+          <View style={styles.categorySection}>
+            <Text style={[styles.categorySectionTitle, { color: colors.text }]}>Categories</Text>
+            <FlatList
+              data={categoryOptions}
+              renderItem={renderCategoryChip}
+              keyExtractor={(item) => item.key}
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.categoryChipsContainer}
+            />
+          </View>
+
+          {/* Pinned Entries Section */}
+          {pinnedEntries.length > 0 && (
+            <View style={styles.sectionContainer}>
+              <View style={styles.sectionHeader}>
+                <Text style={[styles.sectionTitle, { color: colors.text }]}>📌 Pinned</Text>
               </View>
-            ))}
+              {pinnedEntries.map(item => (
+                <View key={item.id}>
+                  {renderEntry({ item })}
+                </View>
+              ))}
+            </View>
+          )}
+
+          {/* Section Header */}
+          <View style={styles.sectionHeader}>
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>Recent Entries</Text>
           </View>
-        )}
 
-        {/* Section Header */}
-        <View style={styles.sectionHeader}>
-          <Text style={[styles.sectionTitle, { color: colors.text }]}>Recent Entries</Text>
-        </View>
+          {/* Recent entries - flat list, max 5 */}
+          {unpinnedEntries.map(item => (
+            <View key={item.id}>
+              {renderEntry({ item })}
+            </View>
+          ))}
 
-        {/* Recent entries - flat list, max 5 */}
-        {unpinnedEntries.map(item => (
-          <View key={item.id}>
-            {renderEntry({ item })}
-          </View>
-        ))}
-
-        {/* Empty State */}
-        {filteredEntries.length === 0 && (
-          <EmptyState
-            onRecord={() => navigation.getParent()?.navigate('Record')}
-            onWriteNote={() => navigation.navigate('CreateNote', {})}
-          />
-        )}
-      </ScrollView>
+          {/* Empty State */}
+          {filteredEntries.length === 0 && (
+            <EmptyState
+              onRecord={() => navigation.getParent()?.navigate('Record')}
+              onWriteNote={() => navigation.navigate('CreateNote', {})}
+            />
+          )}
+        </ScrollView>
+      )}
 
       <PinLimitModal
         visible={pinModalVisible}
@@ -530,6 +592,9 @@ const styles = StyleSheet.create({
   },
   metricCardHighlight: {
     backgroundColor: '#E91E63',
+  },
+  metricCardSkeleton: {
+    flex: 1,
   },
   metricNumber: {
     fontSize: 24,
@@ -616,7 +681,7 @@ const styles = StyleSheet.create({
   },
   entryContent: {
     flex: 1,
-    gap: 4,
+    gap: spacing.xs,
   },
   entryTitle: {
     fontSize: 14,
@@ -678,7 +743,7 @@ const styles = StyleSheet.create({
   swipeAction: {
     justifyContent: 'center',
     alignItems: 'center',
-    width: 80,
+    width: spacing.xxl + spacing.xxxl * 2 - spacing.sm,
     marginVertical: spacing.xs,
     borderRadius: radius.md,
   },

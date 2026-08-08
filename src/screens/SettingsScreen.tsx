@@ -8,6 +8,8 @@ import {
   ScrollView,
   Alert,
   Linking,
+  ActivityIndicator,
+  Modal,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -29,6 +31,8 @@ import {
 } from "../services/storage";
 import { useAuth } from "../context/AuthContext";
 import { TimePickerModal } from "../components/TimePickerModal";
+import { exportAllData, shareExportFile } from "../services/exportData";
+import { importDataFromZip } from "../services/importData";
 
 // ── Theme options ─────────────────────────────────────────
 const THEME_OPTIONS: { key: ThemeMode; icon: string; label: string }[] = [
@@ -142,6 +146,8 @@ export const SettingsScreen: React.FC = () => {
   const [showTimePicker, setShowTimePicker] = useState(false);
   const [weeklyEnabled, setWeeklyEnabled] = useState(false);
   const [weeklyLanguage, setWeeklyLanguage] = useState<'my' | 'en'>('my');
+  const [isExporting, setIsExporting] = useState(false);
+  const [isImporting, setIsImporting] = useState(false);
 
   // Load settings on mount
   useEffect(() => {
@@ -257,6 +263,68 @@ export const SettingsScreen: React.FC = () => {
     setWeeklyLanguage(lang);
     if (user) {
       await saveUserSettings(user.id, { weeklySummaryLanguage: lang });
+    }
+  };
+
+  // ── Export / Import ─────────────────────────────────────
+
+  const handleExportData = async () => {
+    if (!user) return;
+    setIsExporting(true);
+    try {
+      const zipUri = await exportAllData(user.id);
+      await shareExportFile(zipUri);
+    } catch (err) {
+      console.error('[SettingsScreen] Export failed:', err);
+      Alert.alert('Export Failed', 'Could not export data. Please try again.');
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  const handleImportData = () => {
+    if (!user) return;
+
+    Alert.alert(
+      'Import Data',
+      'This will add entries from the backup file. Existing entries will not be duplicated. Continue?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Import',
+          onPress: performImport,
+        },
+      ],
+    );
+  };
+
+  const performImport = async () => {
+    if (!user) return;
+    setIsImporting(true);
+    try {
+      const result = await importDataFromZip(user.id);
+      Alert.alert(
+        'Import Complete',
+        `Imported ${result.entriesImported} entries, ${result.settingsImported} settings, and ${result.audioFilesImported} audio files.`,
+      );
+
+      // Reload settings from DB so the UI reflects imported values
+      await loadSettings();
+
+      // Re-apply theme from imported settings
+      const importedSettings = await getUserSettings(user.id);
+      if (importedSettings?.theme) {
+        setMode(importedSettings.theme as ThemeMode);
+      }
+    } catch (err) {
+      console.error('[SettingsScreen] Import failed:', err);
+      if (err instanceof Error && err.message === 'No file selected') {
+        // User cancelled — don't show error
+        return;
+      }
+      Alert.alert('Import Failed', 'Could not import data. Please check the file and try again.');
+    } finally {
+      setIsImporting(false);
     }
   };
 
@@ -512,6 +580,20 @@ export const SettingsScreen: React.FC = () => {
           ]}
         >
           <TappableRow
+            icon="📤"
+            title="Export Data"
+            subtitle="Save a backup of your entries and recordings"
+            onPress={handleExportData}
+            colors={colors}
+          />
+          <TappableRow
+            icon="📥"
+            title="Import Data"
+            subtitle="Restore from a backup file"
+            onPress={handleImportData}
+            colors={colors}
+          />
+          <TappableRow
             icon="🗑️"
             title="Clear All Data"
             danger
@@ -561,6 +643,24 @@ export const SettingsScreen: React.FC = () => {
         }}
         onCancel={() => setShowTimePicker(false)}
       />
+
+      {/* Full-screen loading overlay for export/import */}
+      <Modal
+        visible={isExporting || isImporting}
+        transparent
+        animationType="fade"
+        statusBarTranslucent
+        onRequestClose={() => {}}
+      >
+        <View style={styles.overlay}>
+          <View style={[styles.overlayCard, { backgroundColor: colors.surface }]}>
+            <ActivityIndicator size="large" color={colors.primary} />
+            <Text style={[styles.overlayText, { color: colors.text }]}>
+              {isExporting ? "Exporting…" : "Importing…"}
+            </Text>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 };
@@ -655,4 +755,21 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   langBtnText: { fontSize: 13, fontWeight: "500", includeFontPadding: false },
+
+  // Full-screen loading overlay
+  overlay: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(0,0,0,0.4)",
+  },
+  overlayCard: {
+    alignItems: "center",
+    justifyContent: "center",
+    gap: spacing.lg,
+    paddingHorizontal: spacing.xxxl,
+    paddingVertical: spacing.xxl,
+    borderRadius: radius.lg,
+  },
+  overlayText: { fontSize: 15, fontWeight: "500" },
 });

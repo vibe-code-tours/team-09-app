@@ -10,17 +10,18 @@ import {
   Platform,
   ToastAndroid,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { Swipeable } from 'react-native-gesture-handler';
 import { useTheme } from '../theme/ThemeContext';
-import { CATEGORIES, spacing, radius, createShadows } from '../theme';
+import { CATEGORIES, spacing, radius, createShadows, MOOD_EMOJI } from '../theme';
 import { formatRelativeTime, formatHeaderDate } from '../theme';
 import { Entry } from '../types';
 import { getEntries, getEntryById, deleteEntry, updateEntry } from '../services/storage';
 import { useAuth } from '../context/AuthContext';
 import AudioPlayer from '../components/AudioPlayer';
+import { Skeleton } from '../components/Skeleton';
 import { PinLimitModal } from '../components/PinLimitModal';
 import { checkPinLimit, pinEntry, replacePin } from '../utils/pinLimit';
 
@@ -36,12 +37,14 @@ export const DayDetailScreen: React.FC = () => {
   const { colors } = theme;
   const { userId } = useAuth();
   const shadows = createShadows(isDark, colors.primary);
+  const insets = useSafeAreaInsets();
 
   const { date, entries: entryIds } = route.params as RouteParams;
   const dateObj = new Date(date);
 
   const [dayEntries, setDayEntries] = useState<Entry[]>([]);
   const [allEntries, setAllEntries] = useState<Entry[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const swipeableRefs = useRef<Map<string, Swipeable>>(new Map());
   const [pinModalVisible, setPinModalVisible] = useState(false);
   const [pendingPinEntry, setPendingPinEntry] = useState<Entry | null>(null);
@@ -53,6 +56,7 @@ export const DayDetailScreen: React.FC = () => {
       let cancelled = false;
 
       const loadEntries = async () => {
+        setIsLoading(true);
         try {
           const [loaded, allLoaded] = await Promise.all([
             Promise.all(entryIds.map(id => getEntryById(id))),
@@ -63,6 +67,9 @@ export const DayDetailScreen: React.FC = () => {
           setAllEntries(allLoaded);
         } catch (err) {
           console.error('[DayDetailScreen] Failed to load entries:', err);
+        } finally {
+          if (cancelled) return;
+          setIsLoading(false);
         }
       };
 
@@ -241,7 +248,9 @@ export const DayDetailScreen: React.FC = () => {
           {(entry.mood || entry.audioUri) && (
             <View style={styles.entryFooter}>
               {entry.mood && (
-                <Text style={[styles.entryMood, { color: colors.textMuted }]}>{entry.mood}</Text>
+                <Text style={[styles.entryMood, { color: colors.textMuted }]}>
+                  {MOOD_EMOJI[entry.mood] || '😐'} {entry.mood}
+                </Text>
               )}
               {entry.audioUri && (
                 <AudioPlayer audioUri={entry.audioUri} compact />
@@ -252,6 +261,29 @@ export const DayDetailScreen: React.FC = () => {
       </Swipeable>
     );
   }, [colors, shadows, navigation, handleDeleteEntry, renderRightActions, renderLeftActions]);
+
+  const renderDayDetailSkeleton = () => (
+    <ScrollView contentContainerStyle={styles.listContent} scrollEnabled={false}>
+      {[0, 1, 2, 3].map(i => (
+        <View
+          key={i}
+          style={[
+            styles.entryCard,
+            { backgroundColor: colors.surface },
+            shadows.sm,
+          ]}
+        >
+          <View style={styles.entryMainRow}>
+            <Skeleton width={36} height={36} borderRadius={radius.sm} />
+            <View style={[styles.entryContent, { gap: spacing.sm }]}>
+              <Skeleton width="70%" height={14} />
+              <Skeleton width={56} height={18} borderRadius={radius.sm} />
+            </View>
+          </View>
+        </View>
+      ))}
+    </ScrollView>
+  );
 
   // Get day label
   const getDayLabel = (): string => {
@@ -286,8 +318,10 @@ export const DayDetailScreen: React.FC = () => {
       </View>
 
       {/* Entries list */}
-      {dayEntries.length > 0 ? (
-        <ScrollView contentContainerStyle={styles.listContent}>
+      {isLoading ? (
+        renderDayDetailSkeleton()
+      ) : dayEntries.length > 0 ? (
+        <ScrollView contentContainerStyle={[styles.listContent, { paddingBottom: insets.bottom + spacing.xxxl * 3 }]}>
           {dayEntries.map(entry => (
             <View key={entry.id}>
               {renderEntry(entry)}
@@ -365,7 +399,7 @@ const styles = StyleSheet.create({
   },
   entryContent: {
     flex: 1,
-    gap: 4,
+    gap: spacing.xs,
   },
   entryTitle: {
     fontSize: 14,
@@ -419,7 +453,7 @@ const styles = StyleSheet.create({
   swipeAction: {
     justifyContent: 'center',
     alignItems: 'center',
-    width: 80,
+    width: spacing.xxl + spacing.xxxl * 2 - spacing.sm,
     marginVertical: spacing.xs,
     borderRadius: radius.md,
   },

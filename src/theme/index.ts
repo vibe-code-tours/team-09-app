@@ -6,6 +6,16 @@ import { useColorScheme } from 'react-native';
 // Re-export Category type and CATEGORIES from types (single source of truth)
 export { Category, CATEGORIES } from '../types';
 
+// Mood → emoji map (used across entry footers and weekly summary)
+export const MOOD_EMOJI: Record<string, string> = {
+  happy: '😊',
+  sad: '😢',
+  neutral: '😐',
+  excited: '🤩',
+  stressed: '😰',
+  grateful: '🙏',
+};
+
 // Light theme
 const lightColors = {
   primary: '#E91E63',

@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../theme/ThemeContext';
+import { spacing, radius } from '../theme';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 const DISMISS_THRESHOLD = 150; // px downward to trigger dismiss
@@ -190,9 +191,9 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.5)',
   },
   sheet: {
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    paddingBottom: 40,
+    borderTopLeftRadius: radius.xl,
+    borderTopRightRadius: radius.xl,
+    paddingBottom: spacing.xxxl + spacing.sm,
     maxHeight: SCREEN_HEIGHT * 0.5,
   },
   handle: {
@@ -200,31 +201,31 @@ const styles = StyleSheet.create({
     height: 4,
     borderRadius: 2,
     alignSelf: 'center',
-    marginTop: 12,
-    marginBottom: 16,
+    marginTop: spacing.md,
+    marginBottom: spacing.lg,
   },
   title: {
     fontSize: 18,
     fontWeight: '600',
-    paddingHorizontal: 20,
-    marginBottom: 16,
+    paddingHorizontal: spacing.xl,
+    marginBottom: spacing.lg,
   },
   option: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 16,
+    paddingHorizontal: spacing.xl,
+    paddingVertical: spacing.lg,
   },
   optionIcon: {
     width: 48,
     height: 48,
-    borderRadius: 12,
+    borderRadius: radius.md,
     justifyContent: 'center',
     alignItems: 'center',
   },
   optionText: {
     flex: 1,
-    marginLeft: 12,
+    marginLeft: spacing.md,
   },
   optionTitle: {
     fontSize: 16,
@@ -232,6 +233,6 @@ const styles = StyleSheet.create({
   },
   optionSubtitle: {
     fontSize: 14,
-    marginTop: 4,
+    marginTop: spacing.xs,
   },
 });

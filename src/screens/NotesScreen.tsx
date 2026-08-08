@@ -6,8 +6,9 @@ import {
   StyleSheet,
   TouchableOpacity,
   FlatList,
+  ScrollView,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../theme/ThemeContext';
@@ -17,6 +18,7 @@ import { Entry } from '../types';
 import { getEntries } from '../services/storage';
 import { useAuth } from '../context/AuthContext';
 import { EmptyState } from '../components/EmptyState';
+import { Skeleton } from '../components/Skeleton';
 
 type DayGroup = {
   date: string;
@@ -30,9 +32,11 @@ export const NotesScreen: React.FC = () => {
   const { colors } = theme;
   const { userId } = useAuth();
   const shadows = createShadows(isDark, colors.primary);
+  const insets = useSafeAreaInsets();
 
   const [entries, setEntries] = useState<Entry[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<Category | 'all'>('all');
+  const [isLoading, setIsLoading] = useState(true);
 
   // Load entries every time screen comes into focus
   useFocusEffect(
@@ -40,12 +44,16 @@ export const NotesScreen: React.FC = () => {
       let cancelled = false;
 
       const loadData = async () => {
+        setIsLoading(true);
         try {
           const allEntries = await getEntries(userId);
           if (cancelled) return;
           setEntries(allEntries);
         } catch (err) {
           console.error('[NotesScreen] Failed to load entries:', err);
+        } finally {
+          if (cancelled) return;
+          setIsLoading(false);
         }
       };
 
@@ -142,6 +150,36 @@ export const NotesScreen: React.FC = () => {
     return formatHeaderDate(dateObj);
   };
 
+  const renderNotesSkeleton = () => (
+    <ScrollView contentContainerStyle={styles.listContent} scrollEnabled={false}>
+      {[0, 1, 2, 3, 4].map(i => (
+        <View
+          key={i}
+          style={[
+            styles.dayCard,
+            { backgroundColor: colors.surface },
+            shadows.sm,
+          ]}
+        >
+          {/* Day header */}
+          <View style={styles.dayHeaderRow}>
+            <Skeleton width={96} height={16} />
+            <Skeleton width={48} height={12} />
+          </View>
+
+          {/* First entry preview */}
+          <View style={styles.dayPreview}>
+            <Skeleton width={24} height={24} borderRadius={radius.sm} />
+            <View style={styles.dayPreviewContent}>
+              <Skeleton width="80%" height={14} />
+              <Skeleton width="55%" height={12} />
+            </View>
+          </View>
+        </View>
+      ))}
+    </ScrollView>
+  );
+
   const handleDayPress = (group: DayGroup) => {
     navigation.navigate('DayDetail', {
       date: group.date,
@@ -224,12 +262,14 @@ export const NotesScreen: React.FC = () => {
       </View>
 
       {/* Day-grouped entries */}
-      {groupedEntries.length > 0 ? (
+      {isLoading ? (
+        renderNotesSkeleton()
+      ) : groupedEntries.length > 0 ? (
         <FlatList
           data={groupedEntries}
           renderItem={renderDayGroup}
           keyExtractor={(item) => item.date}
-          contentContainerStyle={styles.listContent}
+          contentContainerStyle={[styles.listContent, { paddingBottom: insets.bottom + spacing.xxxl * 3 }]}
           showsVerticalScrollIndicator={false}
         />
       ) : (
