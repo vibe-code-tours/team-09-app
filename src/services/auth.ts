@@ -92,14 +92,18 @@ export const migrateLocalData = async (
 
   const db = getDb();
 
-  // Migrate all data from local user to Firebase user
-  await db.update(schema.entries).set({ userId: firebaseUserId }).where(eq(schema.entries.userId, localUserId));
-  await db.update(schema.userSettings).set({ userId: firebaseUserId }).where(eq(schema.userSettings.userId, localUserId));
-  await db.update(schema.dailyUsage).set({ userId: firebaseUserId }).where(eq(schema.dailyUsage.userId, localUserId));
-  await db.update(schema.corrections).set({ userId: firebaseUserId }).where(eq(schema.corrections.userId, localUserId));
+  // Migrate all data from local user to Firebase user atomically.
+  // Wrapped in a transaction so a crash mid-migration rolls back —
+  // otherwise data splits between localUserId and firebaseUserId.
+  await db.transaction(async (tx) => {
+    await tx.update(schema.entries).set({ userId: firebaseUserId }).where(eq(schema.entries.userId, localUserId));
+    await tx.update(schema.userSettings).set({ userId: firebaseUserId }).where(eq(schema.userSettings.userId, localUserId));
+    await tx.update(schema.dailyUsage).set({ userId: firebaseUserId }).where(eq(schema.dailyUsage.userId, localUserId));
+    await tx.update(schema.corrections).set({ userId: firebaseUserId }).where(eq(schema.corrections.userId, localUserId));
 
-  // Delete the local user record
-  await db.delete(schema.users).where(eq(schema.users.id, localUserId));
+    // Delete the local user record
+    await tx.delete(schema.users).where(eq(schema.users.id, localUserId));
+  });
 
   console.log(`[Auth] Migrated data from ${localUserId} to ${firebaseUserId}`);
 };
